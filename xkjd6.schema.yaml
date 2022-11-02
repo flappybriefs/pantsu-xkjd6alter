@@ -1,0 +1,313 @@
+﻿# Rime schema settings
+# encoding: utf-8
+
+schema:
+  schema_id: xkjd6
+  name: 键道6•改
+  version: "2.2"
+  author:
+    - 大牛（吅吅大山）
+    - 胖次
+  dependencies:
+    - xkjd6fc
+
+
+menu:
+    page_size: 6
+
+style:
+  horizontal: true
+
+# Layout config
+layout:
+  topup:
+    topup_this: "bcdefghjklmnpqrstwxyz"
+    topup_with: "avuio;"
+
+  algebra:
+    - derive/^[bcdefghjklmnpqrstwxyz;]([bcdefghjklmnpqrstwxyz;][avuio].*)$/`$1/
+    - derive/^([bcdefghjklmnpqrstwxyz;])[bcdefghjklmnpqrstwxyz;]([avuio].*)$/$1`$2/
+    - derive/^([bcdefghjklmnpqrstwxyz;`]{2})[avuio](.*)$/$1`$2/
+    - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]).(.*)$/$1`$2/
+    - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{2}).(.*)$/$1`$2/
+    - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{3}).(.*)$/$1`$2/
+    - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{4}).(.*)$/$1`$2/
+    - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{5}).$/$1`/
+    - derive/^[bcdefghjklmnpqrstwxyz;]{2}([avuio`]*)$/``$1/
+
+  input_code:
+    date: orq
+    time: ouj
+    week: oxq
+
+  patterns:
+    special: "^(?:;?[avuio])[a-z]{0,}"
+    # input_code: "^(?:orq?|ouj?|oxq?)"
+
+
+switches:
+  - name: ascii_mode
+    reset: 0
+#    states: [ 中文, 西文 ]
+  - name: full_shape
+    states: [ 半角, 全角 ]
+  - name: jffh
+    reset: 0
+#    states: [ 简体, 繁體 ]
+  - name: danzi_mode
+    reset: 0
+    states: [ "词组", "单字" ]
+  - name: wxw_hint
+    reset: 1
+  - name: sbb_hint
+    reset: 1 # 改成0默认关闭
+#    states: [ "关₆₃₀", "开₆₃₀" ]
+  - name: completion
+    reset: 1
+#    states: [ "匹配", "补全" ]
+  - name: EN2en
+    reset: 1
+  - name: topup_hint
+    reset: 1
+#    states: [ "关顶功提示", "开顶功提示" ]
+  - name: show_es
+    reset: 1
+    states: [ 😔, 😀 ]
+
+
+punctuator:
+  import_preset: symbols
+  full_shape:
+    ' ' : { commit: '　' }
+    ',' : { commit: ， }
+    '.' : { commit: 。 }
+    '<' : [ 《, 〈, «, ‹ ]
+    '>' : [ 》, 〉, », › ]
+    '?' : { commit: ？ }
+    # '/' : { commit: ？ }
+    ';' : { commit: ； }
+    ':' : { commit: ： }
+    '''' : { pair: [ '‘', '’' ] }
+    '"' : { pair: [ '“', '”' ] }
+    '\' : [ '、', '＼' ]
+    '|' : [ '·', '｜', '§', '¦' ]
+    '`' : "｀"
+    '~' : '～'
+    '!' : { commit: ！ }
+    '@' : ＠
+    '#' : ＃
+    '%' : [ ％, '°', '℃' ]
+    '$' : [ ￥, '$', '€', '£', '¥', '¢', '¤' ]
+    '^' : { commit: …… }
+    '&' : ＆
+    '*' : [ ＊, ·, ・, ×, ※, ❂ ]
+    '(' : （
+    ')' : ）
+    '-' : '-'
+    '_' : ——
+    '+' : '+'
+    '=' : [ '=' ]
+    '[' : [ 「, 【, 〔, ［ ]
+    ']' : [ 」, 】, 〕, ］ ]
+    '{' : [ 『, 〖, ｛ ]
+    '}' : [ 』, 〗, ｝ ]
+  half_shape:
+    ',' : { commit: ， }
+    '.' : { commit: 。 }
+    '<' : [ 《, 〈, «, ‹ ]
+    '>' : [ 》, 〉, », › ]
+    '?' : { commit: ？ }
+    '/' : ['/']
+    ';' : { commit: ； }
+    ':' : { commit: ： }
+    '''' : { pair: [ '‘', '’' ] }
+    '"' : { pair: [ '“', '”' ] }
+    '\' : [ 、, '\', ＼ ]
+    '|' : [ ·, '|', ｜, '§', '¦' ]
+    '`' : '`'
+    '~' : [ '~', ～ ]
+    '!' : { commit: ！ }
+    '@' : '@'
+    '#' : '#'
+    '%' : [ '%', ％, '°', '℃' ]
+    '$' : [ ￥, '$', '€', '£', '¥', '¢', '¤' ]
+    '^' : { commit: …… }
+    '&' : '&'
+    '*' : [ '*', ＊, ·, ・, ×, ※, ❂ ]
+    '(' : '（'
+    ')' : '）'
+    '-' : '-'
+    '_' : ——
+    '+' : '+'
+    '=' : [ '=' ]
+    '[' : [ 「, 【, 〔, ［ ]
+    ']' : [ 」, 】, 〕,  ］ ]
+    '{' : [ 『, 〖, ｛ ]
+    '}' : [ 』, 〗, ｝ ]
+
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - lua_processor@topup_processor
+    - lua_processor@smart_2
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - table_translator
+    - history_translator@repeat_history
+    - table_translator@custom_phrase
+    - lua_translator@date_time_translator
+    - lua_translator@number_translator
+    - table_translator@english
+  filters:
+    - simplifier@emoji_cn
+    - simplifier@jffh
+    - simplifier@bmms
+    - simplifier@EN2en
+    - reverse_lookup_filter@danzi_lookup
+    - reverse_lookup_filter@pinyin_reverse_lookup
+    - lua_filter@xkjd6_filter
+    - simplifier@es_conversion
+    - uniquifier
+
+
+es_conversion:
+  opencc_config: es.json
+  option_name: show_es
+
+
+speller:
+  algebra:
+    __include: "layout/algebra"
+  auto_select: true
+  auto_select_unique_candidate: false #空码自动顶
+  alphabet: "abcdefghijklmnopqrstuvwxyz;/`"
+  initials: "abcdefghijklmnopqrstuvwxyz;/`"
+
+
+translator:
+  dictionary: xkjd6.extended
+  enable_charset_filter: false
+  enable_completion: true
+  enable_encoder: false
+  enable_sentence: false
+  enable_user_dict: false
+  encode_commit_history: false
+  max_phrase_length: 6
+
+
+repeat_history:
+  input: ;h #重复上次上屏内容
+  size: 1
+  initial_quality: 10000
+
+
+EN2en:
+  opencc_config: EN2en.json
+  option_name: EN2en
+
+
+emoji_cn:
+  opencc_config: emoji.json
+  option_name: emoji_cn
+  tips: all
+
+
+jffh:
+  opencc_config: s2t.json
+  option_name: jffh
+
+
+bmms:
+  opencc_config: pinyin.json
+  option_name: bmms
+  show_in_comment: true
+  comment_format:
+    - "xform/'/ /"
+
+
+danzi_lookup:
+  dictionary: xkjd6.extended
+  tags: [ danzi_lookup ]
+  overwrite_comment: true
+  enable_charset_filter: true
+  enable_completion: true
+  enable_encoder: false
+  enable_sentence: false
+  enable_user_dict: true
+  encode_commit_history: false
+  comment_format:
+    - xform/^/〔/
+    - xform/$/〕/
+    - xform/ /, /
+
+#拼音反查，如果想显示简码就注释掉前面两行
+pinyin_reverse_lookup:
+  tags: [ danzi_lookup ] 
+  overwrite_comment: true
+  dictionary: xkjd6fc
+  comment_format:
+#    - xform/^[a-z]{2,4}\s//
+#    - xform/\s[a-z]{2,4}\s/ /
+    - xform/^//
+    - xform/$//
+    - xform/ / /
+
+
+key_binder:
+  bindings:
+    - {accept: minus, send: Page_Up, when: has_menu}
+    - {accept: equal, send: Page_Down, when: has_menu}
+    - { when: always, accept: F6, select: .next }
+    - { when: always, accept: F7, toggle: jffh }
+    # - { when: has_menu, accept: "'", send: 2 }
+    #- { when: has_menu, accept: "&", toggle: emoji_cn}
+    - { when: has_menu, accept: "^", toggle: bmms}
+    - {accept: bracketleft, send: Page_Up, when: has_menu} # [上翻页
+    - {accept: bracketright, send: Page_Down, when: has_menu} # ]下翻页
+#    - {accept: semicolon, send: 2, when: has_menu}
+#    - {accept: apostrophe, send: 2, when: has_menu}
+    - { accept: apostrophe, toggle: show_es, when: has_menu }
+    - { when: always, accept: Control+1, select: english }
+    - { when: always, accept: Control+2, select: ym }
+    - { when: always, accept: Control+3, select: lxsy }
+    - { when: always, accept: Control+4, select: xfc }
+    - { when: always, accept: Control+5, select: easy_en }
+
+
+recognizer:
+  patterns:
+    # __include: "layout/patterns"
+    punct: "^/([0-9]0?|[a-z]+)$"
+    danzi_lookup: "[a-z`]*`+[a-z`]*"
+    email: "^[a-z][-_.0-9a-z]*@.*$"
+    uppercase: "[A-Z][-_+.'0-9A-Za-z]*$"
+    pinyin: "(?<![`A-Z])`[a-z']*;?$"
+    url: "^(www[.]|https?:|ftp:|mailto:).*$"
+    jsq: "^=[^;']+$"
+
+
+topup:
+  __include: "layout/topup"
+  min_length: 4
+  max_length: 6
+  auto_clear: true
+  min_length_danzi: 2
+  topup_command: true
+
+
+input_code:
+  __include: "layout/input_code"
