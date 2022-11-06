@@ -282,10 +282,8 @@ key_binder:
 #    - {accept: apostrophe, send: 2, when: has_menu}
     - { accept: apostrophe, toggle: show_es, when: has_menu }
     - { when: always, accept: Control+1, select: english }
-    - { when: always, accept: Control+2, select: ym }
-    - { when: always, accept: Control+3, select: lxsy }
-    - { when: always, accept: Control+4, select: xfc }
-    - { when: always, accept: Control+5, select: easy_en }
+    - { when: always, accept: Control+2, select: lxsy }
+    - { when: always, accept: Control+3, select: easy_en }
 
 
 recognizer:
