@@ -1074,7 +1074,7 @@ sort: original
 办好	bfhz
 版号	bfhzu
 白纸黑字	bfhzua
-半封建	bfj
+不着急	bfj
 搬进	bfjb
 钣金	bfjbi
 半斤	bfjbo
@@ -1097,6 +1097,7 @@ sort: original
 半句	bfjl
 不知就里	bfjlv
 别着急	bfjo
+半封建	bfjov
 半场	bfjp
 办厂	bfjpa
 斑鸠	bfjq
@@ -1109,7 +1110,6 @@ sort: original
 半价	bfjso
 不知进退	bfjt
 白费劲	bfju
-不着急	bfjv
 半纯	bfjw
 伴君	bfjwi
 颁奖	bfjx
@@ -10996,8 +10996,8 @@ sort: original
 独生子	dez
 得罪	dezb
 德泽	deze
-得自	dezk
-的字	dezku
+的字	dezk
+得自	dezku
 独生子女	dezn
 东山再起	dezq
 动手做	dezv
@@ -17210,6 +17210,7 @@ sort: original
 生搬硬套	ebytui
 水运	ebyw
 事不宜迟	ebywv
+谁要	ebyz
 上辈子	ebz
 水咀	ebzb
 税则	ebze
@@ -22702,7 +22703,7 @@ sort: original
 傻等	esdr
 傻大	esds
 说三道四	esdso
-十四大	esdu
+十四点	esdu
 身死道消	esdx
 杀到	esdz
 上岁数	ese
@@ -23039,7 +23040,7 @@ sort: original
 谁错	ewcl
 手无寸铁	ewct
 顺从	ewcy
-十五大	ewd
+十五点	ewd
 谁对	ewdb
 谁都	ewdd
 谁的	ewde
@@ -23262,13 +23263,14 @@ sort: original
 双词	exck
 双层	excr
 双槽	excz
-师兄弟	exd
+十二点	exd
 双调	exdc
 爽得	exde
 诗兴大发	exdf
 双顶	exdg
 双呆	exdh
-少先队	exdi
+师兄弟	exdi
+少先队	exdiu
 双低	exdk
 上下打量	exdl
 适销对路	exdlu
@@ -23565,10 +23567,11 @@ sort: original
 是一次	eyc
 上一次	eyci
 生意参谋	eycm
-是有多	eyd
+十一点	eyd
 水银灯	eyda
 上一代	eydi
 是有点	eydo
+是有多	eydov
 事业单位	eydw
 试一试	eye
 属于是	eyea
@@ -48207,6 +48210,7 @@ sort: original
 拆毁	jhhb
 绝后	jhhd
 柴禾	jhhe
+拆坏	jhhg
 柴胡	jhhj
 柴火	jhhl
 绝活	jhhla
@@ -52226,6 +52230,7 @@ sort: original
 酒桶	jqty
 旧套	jqtz
 建筑物	jqw
+出去玩	jqwa
 旧仇	jqwd
 旧车	jqwe
 九万	jqwf
@@ -63489,13 +63494,14 @@ sort: original
 泪人	lwrna
 类人	lwrno
 雷人	lwrnv
-类似	lwsk
-累死	lwski
-蕾丝	lwskia
-雷死	lwskv
-勒死	lwskvv
+累死	lwsk
+蕾丝	lwski
+类似	lwsko
+勒死	lwskv
+雷死	lwskvv
 沦丧	lwsp
-了望塔	lwt
+瞭望台	lwt
+了望塔	lwta
 类推	lwtb
 轮退	lwtbv
 肋条	lwtc
@@ -102131,6 +102137,7 @@ sort: original
 邪途	xdtjv
 斜体	xdtk
 泄题	xdtka
+写题	xdtko
 欧体	xdtkv
 沤田	xdtm
 些天	xdtmi
