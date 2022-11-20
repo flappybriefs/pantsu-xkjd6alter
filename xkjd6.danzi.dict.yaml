@@ -201,7 +201,6 @@ sort: original
 掰	bhiuuo
 拜	bhiuvv
 佰	bhiv
-佰	bhivui
 佰	bhivuo
 呗	bho
 呗	bhoaoo
@@ -211,7 +210,6 @@ sort: original
 百	bhv
 柏	bhvu
 柏	bhvuia
-百	bhvuia
 百	bhvuoi
 部	bj
 步	bji
@@ -1911,7 +1909,6 @@ sort: original
 砘	dwvu
 礅	dwvuov
 砘	dwvuva
-动	dy
 洞	dya
 洞	dyaiav
 董	dyi
@@ -1938,9 +1935,10 @@ sort: original
 胨	dyuvai
 氡	dyuvu
 氡	dyuvua
-东	dyv
-鸫	dyva
+动	dyv
+东	dyva
 东	dyvaiu
+鸫	dyvau
 鸫	dyvaua
 垌	dyvo
 垌	dyvoia
@@ -17161,8 +17159,6 @@ sort: original
 咂	zsovia
 杂	zsu
 杂	zsuavv
-臜	zsuo
-臜	zsuouv
 臜	zsuu
 臜	zsuuvi
 砸	zsv
