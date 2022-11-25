@@ -276,6 +276,7 @@ key_binder:
     - { when: has_menu, accept: "^", toggle: bmms}
     - {accept: bracketleft, send: Page_Up, when: has_menu} # [上翻页
     - {accept: bracketright, send: Page_Down, when: has_menu} # ]下翻页
+    - { accept: apostrophe, toggle: show_es, when: has_menu } # 关闭emoji
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
 
