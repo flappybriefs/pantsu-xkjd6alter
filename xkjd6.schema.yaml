@@ -271,8 +271,6 @@ key_binder:
   bindings:
     - {accept: minus, send: Page_Up, when: has_menu}
     - {accept: equal, send: Page_Down, when: has_menu}
-    - { when: always, accept: F6, select: .next }
-    - { when: always, accept: F7, toggle: jffh }
     # - { when: has_menu, accept: "'", send: 2 }
     #- { when: has_menu, accept: "&", toggle: emoji_cn}
     - { when: has_menu, accept: "^", toggle: bmms}
@@ -280,11 +278,6 @@ key_binder:
     - {accept: bracketright, send: Page_Down, when: has_menu} # ]下翻页
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
-    - { accept: apostrophe, toggle: show_es, when: has_menu }
-    - { when: always, accept: Control+1, select: english }
-    - { when: always, accept: Control+2, select: lxsy }
-    - { when: always, accept: Control+3, select: easy_en }
-
 
 recognizer:
   patterns:

@@ -50,16 +50,3 @@ number_translator = require("xnumber")
 
 -- 用 ' 作为次选键
 smart_2 = require("smart_2")
-
--- easy_en_enhance_filter: 连续输入增强
--- 详见 `lua/easy_en.lua`
-local easy_en = require("easy_en")
-easy_en_enhance_filter = easy_en.enhance_filter
-
-
-local english = require("english")()
-english_processor = english.processor
-english_segmentor = english.segmentor
-english_translator = english.translator
-english_filter = english.filter
-english_filter0 = english.filter0
