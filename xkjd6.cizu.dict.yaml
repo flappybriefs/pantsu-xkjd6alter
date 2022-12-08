@@ -813,6 +813,7 @@ sort: original
 逼上梁山	bele
 闭上了眼睛	belj
 不识庐山真面目	belm
+别说了	belo
 备受凌辱	belr
 不说了	belv
 博士论文	belw
@@ -3127,6 +3128,7 @@ sort: original
 不怨	bjytvu
 白居易	bjyu
 不仅有	bjyv
+不建议	bjyva
 不介意	bjyvi
 不仅要	bjyviv
 不成样	bjyvv
@@ -46699,7 +46701,8 @@ sort: original
 鉴定完毕	jdwb
 结仇	jdwd
 机动车道	jdwdv
-绝地武士	jdwe
+接车	jdwe
+绝地武士	jdwea
 界外	jdwh
 据调查	jdwi
 皆无	jdwj
@@ -63499,6 +63502,7 @@ sort: original
 肋宽	lwkt
 轮空	lwky
 里外里	lwl
+沦为了	lwla
 镭疗	lwlc
 论列	lwld
 羸劣	lwldo
@@ -68120,6 +68124,7 @@ sort: original
 马等	msdr
 马达	msds
 骂道	msdz
+骂到	msdzo
 貌似是	mse
 马首	msed
 马舍	msee
@@ -102406,9 +102411,9 @@ sort: original
 蓄势待发	xedfi
 兴师动众	xedfo
 额定	xedg
-小时代	xedi
+小数点	xedi
 销售点	xedii
-小数点	xedio
+小时代	xedio
 恶毒	xedj
 消失殆尽	xedja
 额度	xedjo
@@ -118770,8 +118775,8 @@ sort: original
 在么	zhme
 再满	zhmf
 在明	zhmg
-再卖	zhmh
-再买	zhmhv
+再买	zhmh
+再卖	zhmhv
 在目	zhmj
 再密	zhmk
 再摸	zhml
