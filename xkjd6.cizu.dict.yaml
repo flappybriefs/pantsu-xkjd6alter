@@ -13636,6 +13636,7 @@ sort: original
 点好	dmhz
 电耗	dmhzi
 打麻将	dmj
+点进	dmjb
 垫脚	dmjc
 电教	dmjci
 点校	dmjciv
@@ -24770,8 +24771,9 @@ sort: original
 鹧鸪	fegjo
 折过	fegl
 遮光	fegm
-这根	fegn
+这跟	fegn
 俯首甘为孺子牛	fegni
+这根	fegno
 这是个	fego
 这首歌	fegoo
 折嘎	fegs
@@ -35723,7 +35725,8 @@ sort: original
 跟谁	gnew
 跟梢	gnez
 归纳法	gnf
-跟着	gnfe
+跟这	gnfe
+跟着	gnfeo
 根治	gnfk
 根植	gnfkv
 跟庄	gnfm
@@ -44583,6 +44586,7 @@ sort: original
 好斗	hzdd
 好逗	hzdda
 好的	hzde
+号的	hzdeo
 好歹	hzdh
 豪赌	hzdj
 好毒	hzdja
@@ -78242,8 +78246,11 @@ sort: original
 千斤顶	qjd
 主队	qjdb
 竹雕	qjdc
-朱德	qjde
+住的	qjde
+住得	qjdei
 煮的	qjdeu
+煮得	qjdeuu
+朱德	qjdeuu
 煮蛋	qjdf
 朱丹	qjdfu
 注定	qjdg
@@ -101761,11 +101768,11 @@ sort: original
 小修	xcxq
 消夏	xcxs
 校训	xcxw
-销项	xcxx
+小巷	xcxx
 潇湘	xcxxa
 肖像	xcxxi
 小箱	xcxxiu
-小巷	xcxxiv
+销项	xcxxiv
 小熊	xcxy
 枭雄	xcxyu
 笑傲	xcxz
@@ -113541,8 +113548,8 @@ sort: original
 意趣	ykqlov
 一区	ykqlv
 一去	ykqlvv
-以前	ykqm
-一千	ykqmv
+一千	ykqm
+以前	ykqma
 一阵	ykqn
 已臻	ykqna
 义诊	ykqno
