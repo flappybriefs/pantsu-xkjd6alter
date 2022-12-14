@@ -2573,8 +2573,9 @@ sort: original
 不管	bjgt
 不关	bjgtv
 不惯	bjgtvo
-不及格	bjgv
-不超过	bjgvv
+不超过	bjgv
+不及格	bjgvu
+不成功	bjgvv
 不给	bjgw
 不光	bjgx
 北京国安	bjgxi
@@ -10862,6 +10863,8 @@ sort: original
 到时间	dejvo
 地税局	dejvu
 大生产	dejvuo
+大事件	dejvv
+大世界	dejvvi
 德军	dejw
 得奖	dejx
 的课	deke
@@ -38638,8 +38641,8 @@ sort: original
 会后	hbhd
 回合	hbhe
 汇合	hbhea
-会合	hbhei
-会不会是	hbheiv
+会不会是	hbhei
+会合	hbheii
 合不合适	hbheiv
 挥汗	hbhf
 悔憾	hbhfo
@@ -79422,6 +79425,7 @@ sort: original
 取得	qlde
 竹篮打水	qldeu
 去的	qldev
+取的	qldevu
 取单	qldf
 去定	qldg
 敲锣打鼓	qldgo
@@ -116829,7 +116833,8 @@ sort: original
 以眼还眼	yyhya
 用好	yyhz
 有意见	yyj
-演艺界	yyja
+预言家	yyja
+演艺界	yyjai
 孕育出	yyjao
 佣金	yyjb
 涌进	yyjba
