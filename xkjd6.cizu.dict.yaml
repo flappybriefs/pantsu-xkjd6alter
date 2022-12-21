@@ -8261,8 +8261,8 @@ sort: original
 词牌	ckpho
 词谱	ckpj
 此匹	ckpk
-次破	ckpl
-刺破	ckplv
+刺破	ckpl
+次破	ckplo
 磁片	ckpm
 刺配	ckpw
 采矿权	ckq
@@ -12443,6 +12443,9 @@ sort: original
 堵漏	djld
 当机立断	djldi
 读了	djle
+堵了	djlev
+赌了	djlea
+独乐	djleu
 独揽	djlf
 读来	djlh
 抖机灵	djli
@@ -43264,6 +43267,7 @@ sort: original
 环列	htld
 换了	htle
 欢乐	htlea
+缓了	htleaa
 还了	htlev
 焕烂	htlf
 换领	htlg
@@ -51523,6 +51527,7 @@ sort: original
 长的	jpde
 常德	jpdei
 唱得	jpdeo
+长得	jpdeu
 尝胆	jpdf
 常订	jpdg
 常带	jpdh
@@ -64286,6 +64291,7 @@ sort: original
 笼括	lykl
 砻糠	lykp
 利用率	lyl
+流眼泪	lyla
 隆林	lylb
 临渊履薄	lylbi
 龙鳞	lylbv
@@ -64377,6 +64383,7 @@ sort: original
 陇川	lywt
 龙床	lywx
 了一些	lyx
+了一下	lyxa
 龙芯	lyxb
 冷眼相待	lyxd
 流于形式	lyxe
@@ -75284,6 +75291,10 @@ sort: original
 普天下	ptxov
 平天下	ptxv
 葡萄牙	pty
+普通员工	ptyg
+普通用户	ptyh
+葡萄园	ptyi
+葡萄柚	ptyii
 批条子	ptz
 潘玮柏	pwb
 泡网吧	pwba
@@ -87373,8 +87384,12 @@ sort: original
 厮磨	skmlv
 四面	skmm
 似梦	skmr
-司马	skms
-四码	skmsi
+四码	skms
+驷马	skmsa
+司马	skmsaa
+嘶骂	skmso
+死马	skmsv
+死妈	skmsva
 四枚	skmw
 死猫	skmz
 私冒	skmzu
@@ -93662,8 +93677,8 @@ sort: original
 通辽	tylca
 同列	tyld
 同楼	tyldi
-同乐	tyle
-通了	tylea
+通了	tyle
+同乐	tylei
 痛了	tyleo
 统揽	tylf
 同龄	tylg
