@@ -1365,6 +1365,7 @@ sort: original
 板牙	bfysv
 半圆	bfyt
 不值一提	bfytv
+八爪鱼	bfyu
 不至于	bfyv
 不这样	bfyvo
 本专业	bfyvv
@@ -2408,8 +2409,10 @@ sort: original
 不大	bjds
 不打	bjdsv
 不搭	bjdsvi
-不断	bjdt
+不短	bjdt
+补短	bjdto
 不端	bjdtv
+不断	bjdtvo
 不觉得	bjdv
 不记得	bjdvo
 不间断	bjdvoo
@@ -16965,7 +16968,8 @@ sort: original
 是不够的	ebgdo
 睡个	ebge
 少不更事	ebgei
-食不果腹	ebgf
+谁敢	ebgf
+食不果腹	ebgfi
 水怪	ebgg
 水改	ebgh
 水谷	ebgj
@@ -41130,7 +41134,8 @@ sort: original
 湖泊	hjpl
 护坡	hjpli
 琥珀	hjplv
-湖盆	hjpn
+互喷	hjpn
+湖盆	hjpna
 湖旁	hjpp
 火车站	hjq
 混进去	hjqa
@@ -42389,8 +42394,8 @@ sort: original
 后勤部	hqb
 华表	hqbc
 话别	hqbd
-花瓣	hqbf
-滑板	hqbfa
+滑板	hqbf
+花瓣	hqbfi
 画板	hqbfv
 滑冰	hqbg
 华兵	hqbgi
@@ -57742,9 +57747,9 @@ sort: original
 卡扣	kskdi
 卡库	kskj
 咔咔	ksks
-凯瑟琳	ksl
 渴死了	ksla
 卡了	ksle
+凯瑟琳	ksli
 卡拉	ksls
 克苏鲁	kslu
 开塞露	kslv
@@ -66631,8 +66636,9 @@ sort: original
 眯着	mkfe
 米饭	mkff
 米夫	mkfj
-蜜汁	mkfk
-密植	mkfko
+迷之	mkfk
+蜜汁	mkfko
+密植	mkfkov
 谜之	mkfkoo
 秘制	mkfku
 米粉	mkfn
@@ -75017,7 +75023,6 @@ sort: original
 棚架	prjs
 棚圈	prjt
 朋克	prke
-平日里	prl
 朋僚	prlc
 碰了	prle
 碰铃	prlg
@@ -75027,6 +75032,7 @@ sort: original
 彭郎	prlp
 判若两人	prlr
 蓬乱	prlt
+平日里	prlv
 碰雷	prlw
 烹茗	prmg
 碰面	prmm
@@ -108148,6 +108154,7 @@ sort: original
 相声	xxerv
 相生	xxervu
 想啥	xxes
+像啥	xxesi
 爱销售	xxeu
 西安市	xxev
 形而上	xxevv
@@ -119191,8 +119198,8 @@ sort: original
 阻滞	zjfkaa
 阻值	zjfkai
 作奸犯科	zjfki
-自掘坟墓	zjfm
-组装	zjfma
+组装	zjfm
+自掘坟墓	zjfmu
 组分	zjfn
 祖坟	zjfno
 总价值	zjfo

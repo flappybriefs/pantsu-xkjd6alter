@@ -3,7 +3,7 @@ name: xkjd6.yingwen
 version: "Q1"
 sort: original
 ...
-BIANGBIANG面	bbmmu
+biangbiang面	bbmmu
 BGM	bgm
 bug	bjg
 B超	bjz
@@ -23,49 +23,50 @@ DELETE	delei
 哆啦A梦	dlsm
 DNA	dns
 D盘	dpf
-EMMMMMMM	emmmm
-ENNNN	ennn
-ENTER	enter
+emmmmmm	emmmm
+ennnn	ennn
+Enter	enter
 ESC	esc
-EXCEL	excl
-FOR	flr
-FOXMAIL	flxlv
+Excel	excl
+for	flr
+FOX-MAIL	flxlv
 智能ABC	fnsc
 GDP	gdp
 GIF	gkf
-GIT	gkt
-GITHUB	gktb
-GITEE	gkte
-GOOD	glld
-GOOGLE	gllgle
+git	gkt
+GitHub	gktb
+Gitee	gkte
+good	glld
+Google	gllgle
 U盾	jdw
 USB	jsb
 ICU	kcj
 IC卡	kck
 卡乐B	klb
 卡拉OK	kllk
-IOS	kls
+iOS	kls
 IMEI	kmek
-IMAC	kms
-IMAC PRO	kmsp
+iMac	kms
+iMac Pro	kmsp
 IP	kp
 IP地址	kpdf
 IP电话	kpdh
-IPHONE	kph
-IPHONE 8	kphb
-IPHONE 7	kphq
-IPHONE 8 PLUS	kphs
-IPHONE X	kphx
+iPhone	kph
+iPhone 8	kphb
+iPhone 7	kphq
+iPhone 8 PLUS	kphs
+iPhone X	kphx
 KPI	kpk
 IP卡	kpki
-IPAD	kps
-IPAD	kpsd
-IPAD PRO	kpsp
+iPad	kps
+iPad	kpsd
+iPad Pro	kpsp
 IPTV	kptv
+ISO	ksl
 K线图	kxt
-OFFICE	lffeo
-OFFICE 2016	lffl
-OFFICE 2013	lffso
+Office	lffeo
+Office 2016	lffl
+Office 2013	lffso
 OFO	lfl
 OFO小黄车	lfljo
 OFO小黄车	lflw
@@ -74,20 +75,22 @@ VOLTE	lllte
 VPN	lpn
 MBA	mbsi
 MIUI	mkjk
-MAC	msc
+Mac	msc
 NBA	nbs
-NEW	new
-NOTE	nlte
+new	new
+note	nlte
 NASA	nsss
 PC端	pcd
 PC机	pcjku
 PDF	pdf
 PERFECT	pert
-PHOTOSHOP	phlp
-PLUS	pljs
-POWER POINT	plkt
-POWER POINT	plwt
+Photoshop	phlp
+plus	pljs
+PowerPoint	plkt
+PowerPoint	plwt
 PPT	ppt
+Pro	prl
+ProRaw	prlw
 PY交易	pyjy
 QQ	qq
 QQ号	qqh
@@ -95,16 +98,17 @@ QQ拼音	qqpy
 QQ群	qqqw
 QQ音乐	qqyy
 奇瑞QQ	qrqqv
-RIME	rkme
-ROOT	rllt
-rss	rss
+Rime	rkme
+Raw	rsw
+root	rllt
+RSS	rss
 ABC	sbc
 ACCESS	sccs
 ACFUN	scfn
 A股	sgj
 SHIFT	shkt
 SIM卡	skm
-SO嘎	slgs
+so嘎	slgs
 SOHO公寓	slhy
 ALT	slt
 ANDROID	sndd
@@ -122,17 +126,17 @@ T型台	txtv
 U盘	upf
 VIP	vkp
 WELCOME	wjlja
-WIFI	wkfk
-WIKI	wkkk
-WIN	wkn
-WIN8	wknb
-WINDOWS8	wknba
-WIN10	wkne
-WINDOWS10	wknea
-WIN7	wknq
-WINDOWS7	wknqa
-WINDOWS	wkns
-WORD	wlrd
+Wi-Fi	wkfk
+wiki	wkkk
+win	wkn
+win8	wknb
+Windows8	wknba
+win10	wkne
+windows10	wknea
+win	wknq
+windows7	wknqa
+Windows	wkns
+Word	wlrd
 WPS	wps
 X光	xgx
 X战警	xqju
