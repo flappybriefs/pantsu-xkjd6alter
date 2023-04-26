@@ -634,6 +634,8 @@ sort: original
 妭	bsau
 妭	bsauvu
 灞	bsav
+㞎	bsava
+㞎	bsavai
 灞	bsavoa
 把	bsi
 罢	bsia
@@ -1174,6 +1176,8 @@ sort: original
 对	dbaovi
 镦	dbi
 镦	dbioov
+㨃	dbiu
+㨃	dbiuov
 兑	dbo
 祋	dboa
 祋	dboaua
@@ -3528,6 +3532,8 @@ sort: original
 锋	frio
 锋	frioua
 俸	friv
+酆	friva
+酆	frivai
 俸	frivvv
 疯	fro
 讽	froa
@@ -4631,12 +4637,12 @@ sort: original
 贿	hbaovu
 汇	hbavaa
 会	hbi
-回	hbia
+蛔	hbia
 翙	hbiaa
 翙	hbiaao
-蛔	hbiai
 蛔	hbiaia
 睢	hbiaio
+回	hbiao
 回	hbiaoo
 蟪	hbiav
 蟪	hbiavi
@@ -5822,6 +5828,8 @@ sort: original
 车	je
 澈	jea
 澈	jeaova
+尺	jeav
+尺	jeavuo
 撤	jei
 扯	jeiu
 扯	jeiuiv
@@ -7126,7 +7134,7 @@ sort: original
 浆	jxova
 浆	jxovaa
 将	jxovua
-酱	jxovv
+桨	jxovv
 酱	jxovvi
 奖	jxovvu
 桨	jxovvv
@@ -7148,8 +7156,8 @@ sort: original
 泂	jyaiao
 迥	jyi
 冏	jyia
-囧	jyiau
 迥	jyiaoa
+囧	jyiau
 冏	jyiauo
 囧	jyiauo
 窘	jyo
@@ -8713,9 +8721,9 @@ sort: original
 论	lwoaiu
 诔	lwoavv
 类	lwouvu
-嘞	lwov
+羸	lwov
+嘞	lwovi
 嘞	lwovii
-羸	lwovo
 羸	lwovou
 癗	lwovv
 癗	lwovvo
@@ -13274,6 +13282,8 @@ sort: original
 车	we
 澈	wea
 澈	weaova
+尺	weav
+尺	weavuo
 撤	wei
 扯	weiu
 扯	weiuiv
@@ -15443,7 +15453,7 @@ sort: original
 鳌	xzvv
 骜	xzvva
 骜	xzvvaa
-鏊	xzvvi
+螯	xzvvi
 嶅	xzvvia
 螯	xzvvia
 鏊	xzvvio
