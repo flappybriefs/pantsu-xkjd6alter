@@ -2708,6 +2708,7 @@ sort: original
 不卡	bjks
 补卡	bjkso
 不宽	bjkt
+不困	bjkw
 不狂	bjkx
 北京科技大学	bjkxi
 不仅可以	bjky
@@ -14881,6 +14882,7 @@ sort: original
 打键	dsjmi
 大件	dsjmv
 大建	dsjmva
+大剑	dsjmvi
 大臣	dsjn
 大厂	dsjp
 大肠	dsjpv
@@ -15116,6 +15118,8 @@ sort: original
 大权	dsqt
 大全	dsqtv
 大圈	dsqtvi
+打拳	dsqti
+打圈	dsqtii
 第四章	dsqu
 第三章	dsquv
 戴森球	dsquvv
@@ -16129,7 +16133,8 @@ sort: original
 动换	dyht
 多用户	dyhu
 多样化	dyhuv
-动员会	dyhv
+地域黑	dyhv
+动员会	dyhvo
 东昏	dyhw
 等一会儿	dyhx
 冬烘	dyhy
@@ -20993,19 +20998,20 @@ sort: original
 上门服务	emfw
 双飞	emfwa
 盛名之下	emfx
-神秘感	emg
+什么鬼	emg
 双轨	emgb
 双规	emgba
 双沟	emgd
 双格	emge
 双拐	emgg
-什么鬼	emgi
-使命感	emgii
+使命感	emgi
+什么梗	emgiu
 双股	emgj
 什么感觉	emgji
 爽过	emgl
 双根	emgn
 审美观	emgo
+神秘感	emgou
 双杠	emgp
 双关	emgt
 双管	emgta
@@ -28911,7 +28917,8 @@ sort: original
 房后	fphd
 方盒	fphe
 防寒	fphf
-放怀	fphg
+放坏	fphg
+放怀	fphgo
 妨害	fphh
 防护	fphj
 放火	fphl
@@ -30283,6 +30290,7 @@ sort: original
 转的	ftde
 赚的	ftdea
 赚得	ftdeau
+转得	ftdev
 转贷	ftdh
 传代	ftdhi
 志同道合	ftdhv
@@ -34284,7 +34292,7 @@ sort: original
 该卡	ghks
 该款	ghkt
 概况	ghkx
-赶回来	ghl
+更好了	ghl
 钙磷	ghlb
 盖了	ghlc
 盖楼	ghld
@@ -34298,6 +34306,8 @@ sort: original
 该理	ghlk
 概率	ghll
 盖帘	ghlm
+赶回来	ghlv
+更合理	ghlvi
 概论	ghlw
 该类	ghlwo
 改良	ghlx
@@ -60451,7 +60461,8 @@ sort: original
 来考	lhkz
 厉害了	lhl
 来临	lhlb
-来料	lhlc
+来辽	lhlc
+来料	lhlcv
 来喽	lhld
 来了	lhle
 落花流水	lhlei
@@ -71034,6 +71045,7 @@ sort: original
 女真	nlqna
 女囚	nlqq
 女权	nlqt
+女拳	nlqta
 女腔	nlqx
 女墙	nlqxa
 年利润	nlr
@@ -93821,6 +93833,9 @@ sort: original
 童女	tynl
 童年	tynm
 同年	tynmi
+田园女权	tynq
+头晕脑涨	tynqo
+太阳能热水器	tynqv
 桶内	tynw
 拖油瓶	typ
 通拼	typb
@@ -103628,6 +103643,7 @@ sort: original
 心高气傲	xgqxo
 型腔	xgqxv
 心甘情愿	xgqy
+星穹	xgqyo
 爱国主义	xgqyu
 香港人	xgr
 爱国人士	xgre
@@ -106771,6 +106787,8 @@ sort: original
 羞臊	xqsz
 星期天	xqt
 袖头	xqtd
+显著特点	xqtdo
+星穹铁道	xqtdoo
 嗅探	xqtf
 休庭	xqtg
 显著提高	xqtgo
@@ -115865,8 +115883,9 @@ sort: original
 原书	ytej
 原始	ytek
 院士	yteka
-原是	ytekv
-远视	ytekvo
+远视	ytekv
+原是	ytekvo
+原石	ytekvv
 远说	ytel
 元神	yten
 渊深	ytena
