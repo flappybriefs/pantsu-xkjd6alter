@@ -672,7 +672,8 @@ sort: original
 百度学术	bdxe
 别按	bdxf
 不得而知	bdxfv
-别行	bdxg
+憋醒	bdxg
+别行	bdxgo
 别学	bdxh
 别绪	bdxl
 别嫌	bdxm
@@ -1011,6 +1012,7 @@ sort: original
 百分之一百	bffbv
 半周	bffd
 伴着	bffe
+搬着	bffei
 百分之十	bffev
 拌饭	bfff
 半幅	bffj
@@ -3168,6 +3170,7 @@ sort: original
 步子	bjzk
 不做	bjzl
 不作	bjzlv
+不坐	bjzlvi
 不怎	bjzn
 并肩作战	bjzq
 不增	bjzr
@@ -3435,6 +3438,7 @@ sort: original
 逼脸	bklmv
 别哭了	bklo
 被坑了	bklov
+宝矿力	bklova
 碧浪	bklp
 必乱	bklt
 不考虑	bklv
@@ -3475,9 +3479,9 @@ sort: original
 不可能是	bkne
 避难	bknf
 不可逆转	bknfv
-比拟	bknk
-比你	bknkv
-逼你	bknkvi
+比你	bknk
+逼你	bknkv
+比拟	bknkvi
 婢女	bknl
 比年	bknm
 鼻牛	bknq
@@ -5473,8 +5477,8 @@ sort: original
 不同的是	btde
 抱头蹲防	btdf
 拜天地	btdi
-八抬大轿	btdj
-不太对劲	btdjv
+不太对劲	btdj
+八抬大轿	btdju
 白头到老	btdl
 不同的人	btdr
 不停地	btdv
@@ -11141,9 +11145,9 @@ sort: original
 单双	dfem
 单身	dfen
 丹参	dfenu
-东方神起	dfeq
-单刷	dfeqo
+单刷	dfeq
 大幅上涨	dfeqv
+东方神起	dfeqvo
 诞生	dfer
 丹砂	dfes
 都只是	dfeu
@@ -11254,7 +11258,6 @@ sort: original
 单场	dfjp
 单就	dfjq
 但就	dfjqi
-调制解调器	dfjqo
 单程	dfjr
 单价	dfjs
 弹夹	dfjsa
@@ -13646,6 +13649,7 @@ sort: original
 电感	dmgfi
 典故	dmgj
 点过	dmgl
+颠锅	dmglu
 低买高卖	dmgm
 电挂	dmgq
 电官	dmgt
@@ -13741,7 +13745,8 @@ sort: original
 电联	dmlm
 电流	dmlq
 都没了	dmlu
-动脉瘤	dmlv
+达美乐	dmlv
+动脉瘤	dmlvu
 典论	dmlw
 点亮	dmlx
 电量	dmlxi
@@ -14223,6 +14228,7 @@ sort: original
 大政方针	dqfq
 丢转	dqft
 对这个	dqg
+丢过	dqgl
 丢光	dqgm
 丢官	dqgt
 动真格	dqgv
@@ -15129,8 +15135,8 @@ sort: original
 戴森球	dsquvv
 大群	dsqw
 搭腔	dsqx
-大照	dsqz
-大招	dsqzv
+大招	dsqz
+大照	dsqzv
 第三人	dsr
 大肉	dsrd
 大热	dsre
@@ -16899,9 +16905,10 @@ sort: original
 鼠标垫	ebdu
 水遁	ebdw
 水洞	ebdy
-水稻	ebdz
-水道	ebdza
-睡到	ebdzi
+睡到	ebdz
+水稻	ebdza
+水道	ebdzao
+睡倒	ebdzi
 是不是	ebe
 水水	ebeb
 税收	ebed
@@ -20928,7 +20935,8 @@ sort: original
 双边	embm
 双倍	embw
 睡眠不足	embz
-双胞	embza
+双暴	embza
+双胞	embzau
 爽脆	emcb
 双侧	emce
 鼠目寸光	emcg
@@ -23348,6 +23356,7 @@ sort: original
 深信不疑	exby
 少儿不宜	exbyi
 双胞	exbz
+双暴	exbza
 烧仙草	exc
 爽脆	excb
 双侧	exce
@@ -24279,6 +24288,7 @@ sort: original
 追思	fbsk
 追索	fbsl
 中饱私囊	fbsn
+非布斯他	fbst
 追本溯源	fbsy
 饭饱思淫欲	fbsyuu
 副标题	fbt
@@ -29971,11 +29981,12 @@ sort: original
 发掘	fsjha
 法诀	fsjhao
 发出	fsjj
-发迹	fsjk
+炸鸡	fsjk
 法纪	fsjka
 发际	fsjkaa
+发迹	fsjkao
 发髻	fsjkav
-炸鸡	fsjko
+闸机	fsjko
 札记	fsjkv
 轧机	fsjkvv
 乍见	fsjm
@@ -33578,9 +33589,9 @@ sort: original
 高手在民间	gezjo
 各组	gezju
 工商总局	gezjv
-个字	gezk
-个子	gezki
-鸽子	gezkia
+鸽子	gezk
+个字	gezki
+个子	gezkia
 阁子	gezko
 格子	gezkv
 各自	gezku
@@ -42126,6 +42137,7 @@ sort: original
 狠拱	hngy
 很高	hngz
 华南虎	hnh
+河南话	hnha
 很会	hnhb
 很厚	hnhd
 很合	hnhe
@@ -43670,8 +43682,8 @@ sort: original
 黑框	hwkx
 好无聊	hwl
 婚外恋	hwla
-混了	hwle
-黑了	hwlei
+黑了	hwle
+混了	hwlea
 黑兰	hwlf
 婚龄	hwlg
 黑领	hwlgi
@@ -44811,8 +44823,8 @@ sort: original
 好景	hzjg
 好觉	hzjh
 好处	hzjj
-好记	hzjk
-好几	hzjka
+好几	hzjk
+好记	hzjka
 好挤	hzjkai
 好急	hzjkau
 好极	hzjkav
@@ -44829,7 +44841,8 @@ sort: original
 好长	hzjp
 好久	hzjq
 好酒	hzjqa
-号称	hzjr
+好撑	hzjr
+号称	hzjro
 好加	hzjs
 好价	hzjsa
 豪俊	hzjw
@@ -45032,8 +45045,8 @@ sort: original
 好悬	hzxt
 好寻	hzxw
 好想	hzxx
-好像	hzxxa
-好香	hzxxau
+好香	hzxxa
+好像	hzxxai
 好象	hzxxau
 好凶	hzxy
 涸泽而渔	hzxya
@@ -47854,9 +47867,9 @@ sort: original
 精钢	jggp
 京港	jggpo
 精耕	jggr
-警官	jggt
+景观	jggt
 经管	jggta
-景观	jggto
+警官	jggti
 静观	jggtv
 警棍	jggw
 竟给	jggwo
@@ -47875,7 +47888,8 @@ sort: original
 惊骇	jghh
 京沪	jghj
 惊呼	jghjo
-净火	jghl
+就更好了	jghl
+净火	jghlo
 惊慌	jghm
 惊惶	jghmo
 京杭	jghp
@@ -49780,9 +49794,11 @@ sort: original
 吉利	jklkv
 极力	jklkva
 机理	jklkvv
-纪律	jkll
+几率	jkll
+纪律	jklla
 羁旅	jklli
-几率	jkllu
+几缕	jkllu
+积虑	jkllui
 击落	jkllv
 机率	jkllvo
 集联	jklm
@@ -50703,9 +50719,10 @@ sort: original
 剪掉	jmdc
 减掉	jmdco
 间谍	jmdd
-兼得	jmde
+见的	jmde
 见得	jmdei
 煎的	jmdeo
+兼得	jmdeou
 简单	jmdf
 煎蛋	jmdfo
 减淡	jmdfoa
@@ -52400,7 +52417,8 @@ sort: original
 就挺	jqtg
 就停	jqtgo
 九亭	jqtgu
-九台	jqth
+就太	jqth
+九台	jqthu
 酒徒	jqtj
 酒体	jqtk
 旧体	jqtki
@@ -66088,7 +66106,8 @@ sort: original
 卖点	mhdmu
 曼哈顿	mhdo
 迈等	mhdr
-迈达	mhds
+买大	mhds
+迈达	mhdsv
 买断	mhdt
 脉动	mhdy
 麦冬	mhdyv
@@ -67250,6 +67269,7 @@ sort: original
 抹额	mlxe
 模型	mlxg
 魔性	mlxgo
+麻辣香锅	mlxgoo
 魔星	mlxgoo
 默哀	mlxh
 磨削	mlxho
@@ -75153,7 +75173,6 @@ sort: original
 啪嚓	pscs
 怕从	pscy
 扒草	pscz
-盘丝洞	psd
 怕得	psde
 怕贷	psdh
 怕堵	psdj
@@ -75164,6 +75183,7 @@ sort: original
 啪嗒	psds
 怕打	psdso
 怕短	psdt
+盘丝洞	psdu
 怕冻	psdy
 爬到	psdz
 怕水	pseb
@@ -75421,6 +75441,7 @@ sort: original
 陪从	pwcy
 陪我到	pwd
 配对	pwdb
+配队	pwdbv
 赔掉	pwdc
 陪都	pwdd
 赔得	pwde
@@ -78709,7 +78730,7 @@ sort: original
 千斤买笑	qjmx
 强奸民意	qjmy
 猪毛	qjmz
-这几年	qjn
+前几年	qjn
 祝您	qjnb
 真假难辨	qjnbu
 朱鸟	qjnc
@@ -78721,7 +78742,7 @@ sort: original
 这几年来	qjnl
 逐年	qjnm
 猪年	qjnmu
-前几年	qjno
+这几年	qjno
 住哪	qjns
 主内	qjnw
 猪脑	qjnz
@@ -80665,6 +80686,7 @@ sort: original
 真久	qnjqu
 斟酒	qnjqv
 真诚	qnjr
+真成	qnjru
 真假	qnjs
 赈捐	qnjt
 真菌	qnjw
@@ -81619,6 +81641,8 @@ sort: original
 争着	qrfe
 睁着	qrfei
 前人种树	qrfeo
+悄然发生	qrfeou
+正着	qrfev
 正反	qrff
 齐人之福	qrffo
 逐日追风	qrffv
@@ -90338,6 +90362,7 @@ sort: original
 弹唱	tfjp
 探究	tfjq
 头重脚轻	tfjqo
+调制解调器	tfjqou
 坦诚	tfjr
 坦承	tfjrv
 谈价	tfjs
@@ -91012,6 +91037,7 @@ sort: original
 太困	thkw
 太狂	thkx
 太空	thky
+太靠	thkz
 太好了	thl
 泰勒	thle
 抬了	thlei
@@ -91140,7 +91166,8 @@ sort: original
 太迟	thwk
 太创	thwm
 泰文	thwn
-台网	thwp
+太往	thwp
+台网	thwpa
 太翁	thwr
 太差	thws
 太瓦	thwsv
@@ -91301,8 +91328,8 @@ sort: original
 图纸	tjfk
 土质	tjfkv
 土制	tjfkvu
-脱缰之马	tjfm
-涂装	tjfma
+涂装	tjfm
+脱缰之马	tjfmu
 土坟	tjfn
 土方	tjfp
 土风	tjfr
@@ -95493,7 +95520,8 @@ sort: original
 嗤之以鼻	wfyb
 万有	wfyd
 玩友	wfydv
-稳中有升	wfye
+万叶	wfye
+稳中有升	wfyeu
 吹皱一池春水	wfyeo
 晚宴	wfyf
 婉言	wfyfa
@@ -96963,7 +96991,8 @@ sort: original
 吃完	wkwf
 无可挽回	wkwh
 迟误	wkwj
-迟迟	wkwk
+吃吃	wkwk
+迟迟	wkwka
 痴痴	wkwko
 嗤嗤	wkwkoo
 无可无不可	wkwkv
@@ -108656,9 +108685,9 @@ sort: original
 悬而未决	xxwji
 想吃	xxwk
 相持	xxwkv
-向我	xxwl
-像我	xxwli
-信息网络	xxwliu
+像我	xxwl
+信息网络	xxwli
+向我	xxwlu
 想我	xxwlv
 祥创	xxwm
 想问	xxwn
@@ -109496,6 +109525,7 @@ sort: original
 一笔勾销	ybgxv
 因公	ybgy
 阴功	ybgya
+银拱	ybgyi
 音高	ybgz
 也不会	ybh
 又不会	ybha
@@ -109783,6 +109813,7 @@ sort: original
 印钞	ybwz
 也不行	ybx
 音信	ybxb
+银心	ybxbi
 音效	ybxc
 阴笑	ybxca
 印欧	ybxd
@@ -110826,7 +110857,8 @@ sort: original
 野队	yedbi
 意识淡薄	yedbo
 也都	yedd
-页的	yede
+也得	yede
+页的	yedev
 液氮	yedf
 也带	yedh
 野地	yedk
@@ -113156,6 +113188,7 @@ sort: original
 一低	ykdkvi
 夷狄	ykdkvu
 一朵	ykdl
+一多	ykdlv
 一点	ykdm
 伊甸	ykdmi
 疑点	ykdmu
@@ -113743,8 +113776,9 @@ sort: original
 医者	ykqevu
 驿站	ykqf
 伊战	ykqfi
-一盏	ykqfv
-一展	ykqfva
+一展	ykqfv
+一沾	ykqfva
+一盏	ykqfvv
 一战	ykqfvi
 一站	ykqfvo
 怡情	ykqg
@@ -115922,6 +115956,7 @@ sort: original
 原声	yterv
 远胜	ytervu
 一体式	ytev
+云台山	yteva
 袁绍	ytez
 言谈中	ytf
 圆锥	ytfb
