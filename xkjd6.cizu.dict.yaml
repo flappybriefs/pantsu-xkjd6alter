@@ -28840,8 +28840,8 @@ sort: original
 放毒	fpdjo
 房地	fpdk
 放低	fpdko
-放电	fpdm
-放点	fpdmo
+放点	fpdm
+放电	fpdmo
 放荡	fpdp
 方凳	fpdr
 放大	fpds
@@ -51767,7 +51767,8 @@ sort: original
 肠疗	jplc
 长篇累牍	jpldu
 长了	jple
-常乐	jplei
+尝了	jplei
+常乐	jpleiu
 长乐	jpleu
 菖兰	jplf
 长岭	jplg
@@ -52440,6 +52441,7 @@ sort: original
 九尺	jqwku
 酒窝	jqwl
 潮起潮落	jqwla
+就我	jqwlo
 救我	jqwlv
 就问	jqwn
 旧文	jqwni
@@ -56071,6 +56073,7 @@ sort: original
 看到	kfdz
 砍刀	kfdzv
 开发商	kfe
+看谁	kfeb
 看守	kfed
 侃山	kfef
 看书	kfej
@@ -59194,10 +59197,10 @@ sort: original
 劳动保障	ldbq
 裂巴	ldbs
 老大不小	ldbx
-搂抱	ldbz
+猎豹	ldbz
 漏报	ldbza
-领导班子	ldbzi
-猎豹	ldbzu
+搂抱	ldbzi
+领导班子	ldbzia
 领导层	ldc
 漏词	ldck
 楼层	ldcr
@@ -60366,8 +60369,8 @@ sort: original
 略低	lhdk
 略多	lhdl
 掠夺	lhdli
-来电	lhdm
-来点	lhdmv
+来点	lhdm
+来电	lhdmv
 连哄带骗	lhdp
 来打	lhds
 略大	lhdsi
@@ -80498,8 +80501,10 @@ sort: original
 潜泳	qmyy
 前要	qmyz
 这么做	qmz
-欠揍	qmzd
-前奏	qmzdo
+前奏	qmzd
+欠揍	qmzdu
+迁走	qmzduv
+牵走	qmzdv
 谴责	qmze
 潜在	qmzh
 嵌在	qmzhi
@@ -88709,7 +88714,8 @@ sort: original
 送妆	syfx
 所言非虚	syfxu
 送终	syfy
-颂歌	syge
+送个	syge
+颂歌	sygeu
 送股	sygj
 所有国家	sygju
 送过	sygl
@@ -90960,7 +90966,10 @@ sort: original
 醍醐灌顶	thgdv
 台阁	thge
 童话故事	thgeo
-天潢贵胄	thgf
+太干	thgf
+太赶	thgfv
+太敢	thgfva
+天潢贵胄	thgfva
 太怪	thgg
 太古	thgj
 太过	thgl
