@@ -12,4 +12,4 @@
 
 emoji来自于：[rime-opencc_emoji_symbols](https://github.com/rtransformation/rime-opencc_emoji_symbols)，为了防止emoji影响单字上屏，默认是关闭的，可使用单引号'开关emoji。
 
-添加了[星猫键道](https://github.com/wzxmer/xkjd6-rime/tree/main) 的英文输入和GKB单字码表，但考虑到反查寻找可能有点难受，所以未加入到反查里面。
+添加了[星猫键道](https://github.com/wzxmer/xkjd6-rime/tree/main) 的英文输入（v开启）和GKB单字码表（o开启），但考虑到反查寻找可能有点难受，所以未加入到反查里面。
