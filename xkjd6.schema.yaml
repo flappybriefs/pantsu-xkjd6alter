@@ -10,6 +10,8 @@ schema:
     - 胖次
   dependencies:
     - xkjd6fc
+    - xmjd6.en
+
 
 
 menu:
@@ -71,7 +73,7 @@ switches:
     reset: 1
 #    states: [ "关顶功提示", "开顶功提示" ]
   - name: show_es
-    reset: 1
+    reset: 0
     states: [ 😔, 😀 ]
 
 
@@ -161,6 +163,7 @@ engine:
   segmentors:
     - ascii_segmentor
     - matcher
+    - affix_segmentor@xmjd6en
     - abc_segmentor
     - punct_segmentor
     - fallback_segmentor
@@ -171,7 +174,10 @@ engine:
     - table_translator@custom_phrase
     - lua_translator@date_time_translator
     - lua_translator@number_translator
+    - table_translator@english
+    - table_translator@xmjd6en
   filters:
+    - simplifier
     - simplifier@emoji_cn
     - simplifier@jffh
     - simplifier@bmms
@@ -224,6 +230,17 @@ emoji_cn:
   option_name: emoji_cn
   tips: all
 
+  
+xmjd6en:
+  tag: xmjd6en
+  dictionary: xmjd6.en
+  enable_sentence: true
+  enable_completion: true
+  enable_user_dict: false
+  comment_format:
+    - xform/.*//
+  prefix: "v"
+  tips: "〔单词〕"
 
 jffh:
   opencc_config: s2t.json
@@ -270,14 +287,19 @@ key_binder:
   bindings:
     - {accept: minus, send: Page_Up, when: has_menu}
     - {accept: equal, send: Page_Down, when: has_menu}
+    - { when: always, accept: F6, select: .next }
+    - { when: always, accept: F7, toggle: jffh }
     # - { when: has_menu, accept: "'", send: 2 }
     #- { when: has_menu, accept: "&", toggle: emoji_cn}
     - { when: has_menu, accept: "^", toggle: bmms}
     - {accept: bracketleft, send: Page_Up, when: has_menu} # [上翻页
     - {accept: bracketright, send: Page_Down, when: has_menu} # ]下翻页
-    - { accept: apostrophe, toggle: show_es, when: has_menu } # 关闭emoji
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
+    - { accept: apostrophe, toggle: show_es, when: has_menu }
+    - { when: always, accept: Control+1, select: english }
+    - { when: always, accept: Control+2, select: easy_en }
+
 
 recognizer:
   patterns:
@@ -289,6 +311,7 @@ recognizer:
     pinyin: "(?<![`A-Z])`[a-z']*;?$"
     url: "^(www[.]|https?:|ftp:|mailto:).*$"
     jsq: "^=[^;']+$"
+    xmjd6en: "^v[a-z]*?$"
 
 
 topup:
