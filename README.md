@@ -1,5 +1,9 @@
 # xkjd6-alter（星空键道6•改）
 
+2023.5.31更新了一个我重新制作的词库xkjd6.altercizu，里面包含官方词库，以后就默认启用和修改这个了
+
+---
+
 星空键道6的胖次个人魔改版，仅修改了普通版本，并击和单字版并未魔改，并且在官方版的基础上添加了反查的拼音（如下所示），并添加了对于emoji的支持。
 
 <img width="691" alt="CleanShot 2023-04-27 at 01 17 53@2x" src="https://user-images.githubusercontent.com/35480800/234622465-a25039ea-ef57-4c60-85d9-2d54ec208f0b.png">

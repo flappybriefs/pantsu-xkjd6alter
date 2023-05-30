@@ -845,6 +845,7 @@ sort: original
 保守主义	beqyi
 不少人	ber
 不是任何	berh
+保湿乳	beri
 不食人间烟火	berhv
 半兽人	bero
 不是人	berv
@@ -4246,6 +4247,7 @@ sort: original
 边框	bmkm
 边卡	bmks
 变宽	bmkt
+变困	bmkw
 边框	bmkx
 变空	bmky
 布满了	bml
@@ -9670,6 +9672,8 @@ sort: original
 搭把手	dbeii
 代表说	dbeiv
 对数	dbej
+大把时间	dbejv
+杜比视界	dbejvv
 对视	dbek
 对事	dbeka
 对说	dbel
@@ -20528,8 +20532,8 @@ sort: original
 失望	ekwp
 驶往	ekwpa
 石翁	ekwr
-视察	ekws
-时差	ekwso
+时差	ekws
+视察	ekwso
 失察	ekwsu
 失传	ekwt
 试穿	ekwto
@@ -30529,6 +30533,7 @@ sort: original
 转车	ftwev
 转弯	ftwf
 专务	ftwj
+专武	ftwjv
 转我	ftwl
 撰文	ftwn
 专网	ftwp
@@ -34736,7 +34741,12 @@ sort: original
 国际竞争	gjjqi
 国家机器	gjjqio
 古城	gjjr
+孤城	gjjra
 国际金融	gjjri
+固城	gjjriv
+故称	gjjru
+古称	gjjruu
+故城	gjjruv
 股价	gjjs
 骨架	gjjsi
 估价	gjjsii
@@ -52122,6 +52132,8 @@ sort: original
 九州	jqfd
 就这	jqfe
 出奇制胜	jqfea
+揪着	jqfei
+金钱至上	jqfeii
 九折	jqfeu
 就范	jqff
 九寨	jqfh
@@ -56504,7 +56516,8 @@ sort: original
 开兑	khdb
 开吊	khdc
 宽宏大度	khdd
-开得	khde
+开的	khde
+开得	khdev
 开袋	khdh
 开赌	khdj
 凯迪	khdk
@@ -62118,6 +62131,7 @@ sort: original
 链霉	lmmwi
 两名女	lmn
 连南	lmnf
+炼奶	lmnh
 连你	lmnk
 连年	lmnm
 莲娜	lmns
@@ -76012,7 +76026,9 @@ sort: original
 侵晨	qbjn
 前不久	qbjo
 秦城	qbjr
-亲驾	qbjs
+亲家	qbjs
+亲驾	qbjso
+勤加	qbjsv
 亲眷	qbjt
 秦郡	qbjw
 亲将	qbjx
@@ -83847,7 +83863,9 @@ sort: original
 蹂躏	rdlb
 鞣料	rdlc
 揉烂	rdlf
-柔丽	rdlk
+肉里	rdlk
+柔丽	rdlka
+肉粒	rdlki
 揉脸	rdlm
 肉瘤	rdlq
 肉类	rdlw
@@ -84594,14 +84612,15 @@ sort: original
 入团	rjtt
 如同	rjty
 入套	rjtz
-儒家文化	rjwh
-人畜无害	rjwhi
+人畜无害	rjwh
+儒家文化	rjwhi
 入伍	rjwj
 如雾	rjwja
 如痴	rjwk
 褥疮	rjwm
 入网	rjwp
-入境问俗	rjws
+乳茶	rjws
+入境问俗	rjwsu
 入围	rjww
 如为	rjwwa
 如未	rjwwav
@@ -89313,6 +89332,7 @@ sort: original
 挑错	tccl
 调仓	tccp
 跳槽	tccz
+跳操	tcczo
 体操队	tcd
 挑逗	tcdd
 跳得	tcde
@@ -89941,6 +89961,7 @@ sort: original
 铁船	tdwti
 头尾	tdww
 投喂	tdwwi
+铁胃	tdwwii
 天地万物	tdwwv
 铁窗	tdwx
 贪得无厌	tdwy
@@ -100215,9 +100236,11 @@ sort: original
 重山	wyef
 冲晒	wyeh
 充数	wyej
-充实	wyek
-重试	wyeku
-重拾	wyekui
+重试	wyek
+充实	wyeko
+冲蚀	wyekou
+穿越时空	wyekov
+重拾	wyeku
 冲说	wyel
 重申	wyen
 重审	wyenu
@@ -118641,7 +118664,8 @@ sort: original
 暂收	zfed
 组织生活	zfeh
 在这时候	zfehv
-暂时	zfek
+咱是	zfek
+暂时	zfekv
 赞赏	zfep
 增值税	zfev
 在这时	zfevo
