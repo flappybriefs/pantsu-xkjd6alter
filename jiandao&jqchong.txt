@@ -1,8 +1,3 @@
----
-name: xkjd6.altercizu
-version: "Q1"
-sort: original
-...
 并不比	bbb
 彬彬	bbbb
 斌斌	bbbbo
@@ -17699,9 +17694,9 @@ sort: original
 村北	cwbw
 从未被超越	cwby
 存包	cwbz
-蹭吃蹭喝	cwch
-村财	cwchv
-存才	cwchvv
+村财	cwch
+蹭吃蹭喝	cwcho
+存才	cwchv
 村粗	cwcj
 存词	cwck
 存错	cwcl
@@ -130972,7 +130967,6 @@ sort: original
 满额	mfxe
 密执安州	mfxf
 慢性	mfxg
-满星	mfxga
 慢行	mfxgo
 蛮行	mfxgou
 满血	mfxh
