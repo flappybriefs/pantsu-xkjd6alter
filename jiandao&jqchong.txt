@@ -6832,8 +6832,6 @@
 不可救药	bkjy
 比超	bkjz
 不可靠	bkk
-比叡	bkk 
-赑屃	bkk a
 闭口	bkkd
 鼻口	bkkdu
 比克	bkke
@@ -11961,7 +11959,6 @@
 卑尊	bwzw
 北宗	bwzy
 倍遭	bwzz
-夯莪嫑停	bx t
 白血病	bxb
 并行不悖	bxbb
 边下边播	bxbba
@@ -13843,7 +13840,6 @@
 包总	bzzy
 暴躁	bzzz
 蚕宝宝	cbb
-崔倓	cbb 
 崔斌	cbbb
 催办	cbbf
 脆饼	cbbg
@@ -14157,7 +14153,6 @@
 璀钻	cbzt
 崔总	cbzy
 脆枣	cbzz
-曾厝垵	cc 
 猜猜吧	ccb
 措辞不当	ccbd
 措词不当	ccbdi
@@ -17694,9 +17689,9 @@
 村北	cwbw
 从未被超越	cwby
 存包	cwbz
-村财	cwch
-蹭吃蹭喝	cwcho
-存才	cwchv
+蹭吃蹭喝	cwch
+村财	cwchv
+存才	cwchvv
 村粗	cwcj
 存词	cwck
 存错	cwcl
@@ -18289,7 +18284,6 @@
 从兄	cyxy
 从右向左	cyxz
 参议院	cyy
-琮琤	cyy 
 参议员	cyya
 从优	cyyd
 葱油	cyydi
@@ -18698,7 +18692,6 @@
 曹勇	czyy
 草药	czyz
 从最早	czz
-肏屄	czz 
 草泽	czze
 曹组	czzj
 草籽	czzk
@@ -21099,7 +21092,6 @@
 单手打字	dedzo
 得道	dedzu
 电视上	dee
-的囧	dee 
 得水	deeb
 得手	deed
 鼎盛时代	deedi
@@ -25515,7 +25507,6 @@
 低潮	dkjz
 邸抄	dkjzu
 多看看	dkk
-坻崿	dkk 
 地魁	dkkb
 抵扣	dkkd
 敌寇	dkkdu
@@ -29834,7 +29825,6 @@
 大润	dsrw
 大荣	dsry
 打扰	dsrz
-大囧	dss 
 打碎	dssb
 大搜	dssd
 打色	dsse
@@ -42518,7 +42508,6 @@
 神貌	enmz
 神猫	enmzo
 少奶奶	enn
-深囧	enn 
 神鸟	ennc
 神呢	enne
 甚难	ennf
@@ -45279,7 +45268,6 @@
 沙瓤	esrp
 杀软	esrt
 十三岁	ess
-傻屄	ess 
 沙色	esse
 啥色	esseo
 杀死	essk
@@ -47951,7 +47939,6 @@
 少要	ezyzi
 烧窑	ezyzo
 狮子座	ezz
-少囧	ezz 
 双子座	ezza
 烧嘴	ezzb
 少走	ezzd
@@ -56520,7 +56507,6 @@
 庄宗	fmzyo
 负面作用	fmzyu
 装造	fmzz
-智能ABC	fnA 
 疯牛病	fnb
 分表	fnbc
 分别	fnbd
@@ -57528,7 +57514,6 @@
 放哪	fpns
 房内	fpnw
 反批评	fpp
-防嗮	fpp 
 仿品	fppb
 放票	fppc
 方盘	fppf
@@ -71118,7 +71103,6 @@
 缸内	gpnw
 港内	gpnwa
 刚弄	gpny
-港囧	gpp 
 刚漂	gppc
 钢盘	gppf
 刚平	gppg
@@ -79864,7 +79848,6 @@
 韩国总统	hgzt
 好果子吃	hgzw
 悔过自新	hgzx
-何鸿燊	hh 
 汉化版	hhb
 好伙伴	hhba
 海滨	hhbb
@@ -83165,7 +83148,6 @@
 猴年马月	hnmy
 何年马月	hnmyi
 喝牛奶	hnn
-很囧	hnn 
 滑腻腻	hnna
 很难	hnnf
 很虐	hnnh
@@ -84741,7 +84723,6 @@
 横墙	hrqx
 恒强	hrqxo
 很惹人	hrr
-横滘	hrr 
 恒瑞	hrrb
 横肉	hrrd
 恍然若失	hrre
@@ -84986,7 +84967,8 @@
 哈鲁	hslj
 哈利	hslk
 哈里	hslko
-哈罗	hsll
+哈啰	hsll
+哈罗	hsllo
 哈喇	hsls
 哈拉	hslso
 哈卵	hslt
@@ -85036,7 +85018,6 @@
 哈日	hsrk
 哈人	hsrn
 黑色素	hss
-哈啰	hss 
 哈三	hssf
 哈赛	hssh
 黑森森	hssi
@@ -88614,8 +88595,9 @@
 郝军	hzjwv
 濠江	hzjx
 好讲	hzjxa
-合资经营	hzjy
-合作经营	hzjyi
+好囧	hzjy
+合资经营	hzjyi
+合作经营	hzjyii
 好吵	hzjz
 汉字库	hzk
 好亏	hzkb
@@ -89016,7 +88998,6 @@
 好要	hzyza
 好药	hzyzai
 合作组	hzz
-好囧	hzz 
 好自在	hzza
 好醉	hzzb
 好走	hzzd
@@ -89041,7 +89022,6 @@
 好贼	hzzw
 郝总	hzzy
 好早	hzzz
-吉沢明歩	j  g
 紧巴巴	jbb
 骄兵必败	jbbb
 津滨	jbbba
@@ -98429,7 +98409,6 @@
 集抄	jkjzi
 交口称赞	jkjzo
 接口卡	jkk
-鸡乸	jkk 
 击溃	jkkb
 几口	jkkd
 忌口	jkkda
@@ -103491,7 +103470,6 @@
 急切盼望	jqpwu
 就跑	jqpz
 静悄悄	jqq
-酒匂	jqq 
 沉住气	jqqa
 陈绮贞	jqqaa
 居住区	jqqai
@@ -104503,7 +104481,6 @@
 既然这样	jrqy
 成仁取义	jrqyv
 诚招	jrqz
-成玦	jrr 
 程瑞	jrrb
 既然如此	jrrc
 怅然若失	jrre
@@ -109757,7 +109734,6 @@
 扣错	kdcl
 口糙	kdcz
 看得到	kdd
-眍䁖	kdd 
 扣掉	kddc
 口调	kddco
 空荡荡的	kddd
@@ -113170,7 +113146,6 @@
 阔耐	klnh
 抗利尿	klni
 阔能	klnr
-卡拉OK	klO 
 科伦坡	klp
 扩频	klpb
 苦楝皮	klpi
@@ -116336,7 +116311,6 @@
 铐子	kzzk
 靠左	kzzl
 考砸	kzzs
-李偲菘	l y
 冷冰冰	lbb
 两鬓斑白	lbbb
 林斌	lbbbv
@@ -121537,7 +121511,6 @@
 历朝	lkjz
 李超	lkjzv
 老框框	lkk
-李倓	lkk 
 理亏	lkkb
 李逵	lkkbv
 李悝	lkkbvo
@@ -123990,7 +123963,6 @@
 狼女	lpnlu
 朗能	lpnr
 老婆婆	lpp
-琅玕	lpp 
 郎平	lppg
 浪牌	lpph
 郎牌	lppho
@@ -125303,7 +125275,6 @@
 利润总额	lrzxu
 淋溶作用	lrzy
 冷总	lrzyo
-理所當然	ls r
 卢森堡	lsb
 绿色版	lsba
 拉宾	lsbb
@@ -130588,7 +130559,6 @@
 蛮爽	mfexo
 蛮少	mfez
 每分钟	mff
-漫囧	mff 
 满洲	mffd
 满州	mffda
 瞒着	mffe
@@ -130967,6 +130937,7 @@
 满额	mfxe
 密执安州	mfxf
 慢性	mfxg
+满星	mfxga
 慢行	mfxgo
 蛮行	mfxgou
 满血	mfxh
@@ -135772,7 +135743,6 @@
 萌照	mrqzio
 梦兆	mrqzv
 毛茸茸	mrr
-萌囧	mrr 
 孟瑞	mrrb
 茫然若失	mrre
 猛然	mrrf
@@ -139209,7 +139179,6 @@
 年度财务	ndcwu
 聂聪	ndcy
 你懂得	ndd
-乜嘢	ndd 
 难度大	ndda
 难得的	nddau
 脑袋掉了碗大个疤	nddb
@@ -143230,8 +143199,6 @@
 牛扒	nqps
 年轻朋友	nqpy
 凝汽器	nqq
-牛犇	nqq 
-牛屄	nqq u
 牛桥	nqqc
 扭着	nqqe
 年轻气盛	nqqeu
@@ -147675,7 +147642,6 @@
 派工	phgy
 配合工作	phgz
 胖乎乎	phh
-排奡	phh 
 破坏活动	phhd
 排后	phhdi
 拍合	phhe
@@ -151778,7 +151744,6 @@
 炮座	pzzl
 泡澡	pzzz
 泡枣	pzzza
-甄嬛体	q k
 情报部	qbb
 驻波比	qbba
 轻薄笔记本	qbbb
@@ -157142,7 +157107,6 @@
 主号	qjhzo
 煮好	qjhzu
 这就叫	qjj
-猪乸	qjj 
 张家界	qjja
 清洁剂	qjjaa
 强击机	qjjav
@@ -161264,7 +161228,6 @@
 真美	qnmwu
 真貌	qnmz
 真毛	qnmzu
-真囧	qnn 
 去年年底	qnnd
 真难	qnnf
 镇宁	qnng
@@ -161918,7 +161881,6 @@
 帐内	qpnwi
 樟脑	qpnz
 轻飘飘	qpp
-张喆	qpp 
 张品	qppb
 张票	qppc
 张盼	qppf
@@ -165097,7 +165059,6 @@
 去无踪	qwzv
 墙围子	qwzvi
 枪乌贼	qwzvu
-赵雪愔	qx 
 正弦波	qxb
 千儿八百	qxbb
 全新版本	qxbbi
@@ -169722,7 +169683,6 @@
 弱冷空气	rlkq
 若狂	rlkx
 人流量	rll
-若瑄	rll 
 若琳	rllb
 人类劳动	rlld
 人类历史	rlle
@@ -170256,7 +170216,6 @@
 让您满意	rnmyo
 人猫	rnmz
 任你拿	rnn
-任玥	rnn 
 任您	rnnb
 任你虐我千百遍	rnnbi
 人捏	rnnd
@@ -171923,7 +171882,6 @@
 冗杂	ryzs
 融钻	ryzt
 荣总	ryzy
-人在囧途	rz t
 人造冰	rzb
 人赃并获	rzbh
 绕包	rzbz
@@ -176632,7 +176590,6 @@
 撒让	ssrp
 松松软软	ssrr
 三四岁	sss
-萨埵	sss 
 萨斯	sssk
 飒飒	ssss
 松松散散	ssssv
@@ -177943,7 +177900,6 @@
 所以现在	syxz
 宋傲	syxzo
 所拥有	syy
-宋喆	syy 
 松隐	syyb
 诵吟	syybo
 所拥有的	syyd
@@ -188182,6 +188138,7 @@
 洮州	tzfd
 桃州	tzfdv
 套着	tzfe
+陶喆	tzfea
 逃犯	tzff
 讨饭	tzffo
 讨债	tzfh
@@ -188555,7 +188512,6 @@
 陶俑	tzyya
 讨要	tzyz
 兔崽子	tzz
-陶喆	tzz 
 陶醉	tzzb
 投资资本	tzzbi
 逃罪	tzzbu
@@ -190647,7 +190603,6 @@
 无中生有	wfey
 无法适应	wfeyv
 文绉绉	wff
-湾沚	wff 
 瓮中捉鳖	wffb
 瓮中之鳖	wffbu
 无法反驳	wffbv
@@ -192927,7 +192882,6 @@
 五好	wjhzva
 赤橙黄绿蓝靛紫	wjhzvv
 文件夹	wjj
-武曌	wjj 
 无尽	wjjb
 乌金	wjjbu
 勿进	wjjbuv
@@ -194925,7 +194879,6 @@
 我靠	wlkz
 无路可走	wlkzv
 赤裸裸	wll
-我囧	wll 
 我聊	wllc
 我楼	wlld
 我咧	wlldu
@@ -195876,7 +195829,6 @@
 充满自信	wmzx
 外贸总额	wmzxu
 创造	wmzz
-吹牛屄	wn 
 万能表	wnb
 万年不变	wnbb
 文斌	wnbbo
@@ -197574,7 +197526,6 @@
 万人骑	wrqvi
 万人群	wrqvia
 吃人肉	wrr
-翁垟	wrr 
 惘然若失	wrre
 温柔如水	wrrea
 无任如何	wrrh
@@ -198486,9 +198437,9 @@
 床头柜	wtg
 差天共地	wtgd
 串钩	wtgdi
-川歌	wtge
-穿个	wtgeo
-船歌	wtgeu
+穿个	wtge
+川歌	wtgeu
+船歌	wtgeuv
 勿谈国事	wtgeuo
 传感	wtgf
 串改	wtgh
@@ -203089,7 +203040,6 @@
 新潮	xbwz
 心潮	xbwzo
 行不行	xbx
-二八efined	xbx 
 细胞学	xbxa
 信心	xbxb
 信信	xbxbi
@@ -208546,7 +208496,6 @@
 哀告	xhgzo
 爱搞	xhgzu
 笑呵呵	xhh
-挨剋	xhh 
 学会	xhhb
 爱辉	xhhbu
 爱会	xhhbui
@@ -210359,7 +210308,6 @@
 星际穿越	xjwyo
 新疆维吾尔族	xjwz
 戏剧性	xjx
-二九efined	xjx 
 细菌学	xjxa
 二心	xjxb
 二小	xjxc
@@ -211942,8 +211890,6 @@
 虚空	xlky
 哦靠	xlkz
 血淋淋	xll
-徐璈	xll 
-许梿	xll o
 淅沥沥	xlla
 下拉列表	xllb
 徐林	xllbu
@@ -212251,7 +212197,6 @@
 续充	xlwy
 小礼物走一走	xlwz
 心理学	xlx
-二六efined	xlx 
 虚心	xlxb
 许昕	xlxbo
 下了血本	xlxbv
@@ -214614,7 +214559,6 @@
 绣床	xqwx
 安枕无忧	xqwy
 小清新	xqx
-二七efined	xqx 
 习主席	xqxa
 修心	xqxb
 修鞋	xqxd
@@ -214735,7 +214679,6 @@
 修纂	xqzt
 安全座椅	xqzy
 修造	xqzz
-徐若瑄	xr 
 小日本	xrb
 仙人板板	xrbb
 先人板板	xrbbu
@@ -214907,6 +214850,7 @@
 偶然想起	xrxq
 嗯嗯	xrxr
 嗯啊	xrxs
+徐若瑄	xrxu
 偶然现象	xrxx
 偶然相遇	xrxy
 显然已	xry
@@ -215702,7 +215646,6 @@
 闲散人员	xsryo
 夏蓉	xsryv
 血色素	xss
-阿囧	xss 
 阿瑟	xsse
 夏色	xssev
 阿三	xssf
@@ -215821,8 +215764,6 @@
 瞎吵	xswz
 夏朝	xswzv
 相似性	xsx
-二三efined	xsx 
-二四efined	xsx v
 厦新	xsxb
 阿信	xsxba
 夏新	xsxbv
@@ -217092,7 +217033,6 @@
 心外无物	xwwwo
 宣传委员	xwwy
 二重性	xwx
-二五efined	xwx 
 淅川县	xwxa
 寻衅	xwxb
 迅销	xwxc
@@ -218442,7 +218382,6 @@
 膝下无子	xxwzuv
 楔形文字	xxwzv
 秀下限	xxx
-二二efined	xxx 
 相信	xxxb
 小修小补	xxxbi
 向心	xxxbu
@@ -219360,7 +219299,6 @@
 寻医问药	xywya
 星夜驰援	xywyo
 想一想	xyx
-二一efined	xyx 
 雄心	xyxb
 凶信	xyxbu
 恶有恶报	xyxbv
@@ -219443,7 +219381,6 @@
 小亚细亚	xyxyi
 闲言闲语	xyxyo
 喜洋洋	xyy
-芎䓖	xyy 
 洗衣液	xyya
 消炎药	xyyao
 胸音	xyyb
@@ -219968,11 +219905,8 @@
 袄子	xzzko
 西藏自治区	xzzq
 现在怎样	xzzy
-懊糟	xzzz
-渊渟岳峙	y  f
-盐焗鸡	y k
+懊糟	xzz
 一般般	ybb
-印囧	ybb 
 也不必	ybba
 以不变应万变	ybbb
 尹斌	ybbba
@@ -221394,7 +221328,6 @@
 一定存在	ydczv
 右槽	ydczvv
 一点点	ydd
-有冇	ydd 
 已达到	ydda
 又对	yddb
 一点都不	yddbv
@@ -226682,7 +226615,6 @@
 越高	yhgz
 约稿	yhgza
 一行行	yhh
-越囧	yhh 
 也很好	yhha
 隐讳号	yhhao
 约会	yhhb
@@ -227566,8 +227498,8 @@
 一骑红尘妃子笑	yjhxva
 欲拒还迎	yjhy
 以酒会友	yjhya
-一键还原	yjhyv
-一九九	yjj
+一键还原	yjhyvz
+盐焗鸡	yjj
 阴沉沉	yjja
 也经常	yjjaa
 验钞机	yjjai
@@ -237911,7 +237843,6 @@
 药皂	yzzz
 要遭	yzzzv
 左半部	zbb
-最囧	zbb 
 皂白不分	zbbf
 左半部分	zbbfv
 最白	zbbh
@@ -241262,7 +241193,6 @@
 自扃	zkjy
 自嘲	zkjz
 再看看	zkk
-紫赯	zkk 
 自愧	zkkb
 子口	zkkd
 自扣	zkkdu
@@ -241931,7 +241861,6 @@
 座靠	zlkz
 钻了空子	zlkzi
 紫罗兰	zll
-做嘢	zll 
 贼溜溜	zlla
 作霖	zllb
 左林	zllbv
