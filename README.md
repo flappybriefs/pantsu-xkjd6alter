@@ -1,5 +1,9 @@
 # xkjd6-alter（星空键道6•改）
 
+2023.6.24精简掉了词库，只保留altercizu和waigua
+
+---
+
 2023.6.3更新了两版的词库，xkjd6.altercizu1和xkjd6.waigua1、xkjd6.altercizu2和xkjd6.waigua2，其中altercizu可以替换官方词库，altercizu2更大一些，废词也更多一些，但用起来空码的情况少很多，根据需要选取1或者2，外挂词库跟着数字选取，在extended.dict里面开关。
 
 ---

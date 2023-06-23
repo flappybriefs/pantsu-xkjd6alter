@@ -27,8 +27,7 @@ import_tables:
 # ---------------------------------------
 # 扩展：词组
 # 扩展：词组
-#  - xkjd6.altercizu1
-  - xkjd6.altercizu2
+  - xkjd6.altercizu
 #  - xkjd6.cizu
 # ---------------------------------------
 # 扩展：一级简码
@@ -46,8 +45,7 @@ import_tables:
   - xkjd6.fuhao
 # ---------------------------------------
   - xkjd6.user
-#  - xkjd6.waigua1
-  - xkjd6.waigua2
+  - xkjd6.waigua
 # =======================================
 # 扩展：英文词库
   - xkjd6.yingwen
