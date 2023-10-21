@@ -10,7 +10,7 @@ schema:
     - 胖次
   dependencies:
     - xkjd6fc
-    - xmjd6.en
+    - xkjd6.en
 
 
 
@@ -56,9 +56,6 @@ switches:
   - name: jffh
     reset: 0
 #    states: [ 简体, 繁體 ]
-  - name: danzi_mode
-    reset: 0
-    states: [ "词组", "单字" ]
   - name: wxw_hint
     reset: 1
   - name: sbb_hint
@@ -163,7 +160,7 @@ engine:
   segmentors:
     - ascii_segmentor
     - matcher
-    - affix_segmentor@xmjd6en
+    - affix_segmentor@xkjd6en
     - abc_segmentor
     - punct_segmentor
     - fallback_segmentor
@@ -175,7 +172,7 @@ engine:
     - lua_translator@date_time_translator
     - lua_translator@number_translator
     - table_translator@english
-    - table_translator@xmjd6en
+    - table_translator@xkjd6en
   filters:
     - simplifier
     - simplifier@emoji_cn
@@ -231,9 +228,9 @@ emoji_cn:
   tips: all
 
   
-xmjd6en:
-  tag: xmjd6en
-  dictionary: xmjd6.en
+xkjd6en:
+  tag: xkjd6en
+  dictionary: xkjd6.en
   enable_sentence: true
   enable_completion: true
   enable_user_dict: false
@@ -261,7 +258,7 @@ danzi_lookup:
   overwrite_comment: true
   enable_charset_filter: true
   enable_completion: true
-  enable_encoder: false
+  enable_encoder: true
   enable_sentence: false
   enable_user_dict: true
   encode_commit_history: false
@@ -311,7 +308,7 @@ recognizer:
     pinyin: "(?<![`A-Z])`[a-z']*;?$"
     url: "^(www[.]|https?:|ftp:|mailto:).*$"
     jsq: "^=[^;']+$"
-    xmjd6en: "^v[a-z]*?$"
+    xkjd6en: "^v[a-z]*?$"
 
 
 topup:
