@@ -6,8 +6,7 @@ name: xkjd6fc
 version: "1"
 sort: original
 import_tables:
-  - xkjd6.danzi
-  - xkjd6.chaojizici
+  - xkjd6fc.danzi
 ...
 的	〔de_dí_dì〕
 一	〔yī_yí_yì〕
