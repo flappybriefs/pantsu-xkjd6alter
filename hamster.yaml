@@ -1,0 +1,1672 @@
+keyboards:
+  - name: 胖次-键道
+    rows:
+      - keys:
+          - action: shortCommand(#行首)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ⬅
+          - action: shortCommand(#左移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👈🏻
+          - action: shortCommand(#剪切)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: ✂️
+          - action: shortCommand(#复制)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📑
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📃
+          - action: shortCommand(#中英切换)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 🀄️
+          - action: shortCommand(#右移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👉🏻
+          - action: shortCommand(#行尾)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ➡
+        rowHeight:
+          portrait: 43
+          landscape: 40
+      - keys:
+          - action: character(q)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(w)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(e)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(r)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(t)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(y)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(u)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(i)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(o)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(p)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: character(a)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: shortCommand(#行首)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(s)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(d)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(f)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(g)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(h)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(j)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(k)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(l)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(;)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: shortCommand(#行尾)
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: shift
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(z)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(`)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(x)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(c)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(v)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(b)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(n)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(m)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(/)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(')
+                display: true
+                processByRIME: true
+                direction: down
+          - action: backspace
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: shortCommand(#重输)
+                display: true
+                processByRIME: true
+                direction: left
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(数字符号-键道))
+            width:
+              portrait: percentage(0.17)
+              landscape: percentage(0.1)
+            label: "123"
+          - action: character(,)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            label: ，
+            swipe:
+              - action: character(!)
+                display: true
+                processByRIME: true
+                direction: up
+          - action: space
+            width:
+              portrait: percentage(0.46)
+              landscape: available
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(.)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            label: 。
+            swipe:
+              - action: character(?)
+                display: true
+                processByRIME: true
+                direction: up
+          - action: enter
+            width:
+              portrait: percentage(0.17)
+              landscape: percentage(0.1)
+            label: ⏎
+            swipe:
+              - action: shortCommand(#换行)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: tab
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+    buttonInsets: left(3),bottom(6),top(4),right(3)
+  - name: 数字符号-键道
+    rows:
+      - keys:
+          - action: shortCommand(#行首)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ⬅
+          - action: shortCommand(#左移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👈🏻
+          - action: shortCommand(#剪切)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: ✂️
+          - action: shortCommand(#复制)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📑
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📃
+          - action: shortCommand(#中英切换)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 🀄️
+          - action: shortCommand(#右移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👉🏻
+          - action: shortCommand(#行尾)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ➡
+        rowHeight:
+          portrait: 43
+          landscape: 40
+      - keys:
+          - action: character(1)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(2)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(3)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(4)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(5)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(6)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(7)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(8)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(9)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(0)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: character(-)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(/)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(:)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(;)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(()
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character())
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character($)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(&)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(@)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(“)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(「)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(‘)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(”)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(」)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(’)
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(更多符号-键道))
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.11)
+            label: "#+="
+          - action: characterMargin(.)
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: character(.)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            label: 。
+            swipe:
+              - action: character(.)
+                display: true
+                processByRIME: false
+                direction: down
+          - action: character(,)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            label: ，
+            swipe:
+              - action: character(,)
+                display: true
+                processByRIME: false
+                direction: down
+          - action: character(、)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(?)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(?)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(!)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(!)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(.)
+            processByRIME: false
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: characterMargin(.)
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: backspace
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.11)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(胖次-键道))
+            width:
+              portrait: percentage(0.25)
+              landscape: percentage(0.16)
+            label: 中
+          - action: space
+            width:
+              portrait: percentage(0.5)
+              landscape: available
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: enter
+            width:
+              portrait: percentage(0.25)
+              landscape: percentage(0.16)
+            label: ⏎
+            swipe:
+              - action: shortCommand(#换行)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: tab
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+    buttonInsets: left(3),bottom(6),top(4),right(3)
+  - name: 更多符号-键道
+    rows:
+      - keys:
+          - action: shortCommand(#行首)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ⬅
+          - action: shortCommand(#左移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👈🏻
+          - action: shortCommand(#剪切)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: ✂️
+          - action: shortCommand(#复制)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📑
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📃
+          - action: shortCommand(#中英切换)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 🀄️
+          - action: shortCommand(#右移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👉🏻
+          - action: shortCommand(#行尾)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ➡
+        rowHeight:
+          portrait: 43
+          landscape: 40
+      - keys:
+          - action: character([)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(【)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(〔)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(])
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(】)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(〕)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character({)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(})
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(#)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(%)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(^)
+            processByRIME: false
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(*)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(+)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(=)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: character(_)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(\)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(｜)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(|)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(～)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(~)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(<)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(《)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(>)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(》)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(€)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(£)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(¥)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(·)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(数字符号-键道))
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.11)
+            label: "123"
+          - action: characterMargin(…)
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: character(…)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: shortCommand(#RimeSwitcher)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            label: Æ
+          - action: character(@)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(？)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: character(！)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: character(')
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: characterMargin(')
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: backspace
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.11)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(胖次-键道))
+            width:
+              portrait: percentage(0.25)
+              landscape: percentage(0.16)
+            label: 中
+          - action: space
+            width:
+              portrait: percentage(0.5)
+              landscape: available
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: enter
+            width:
+              portrait: percentage(0.25)
+              landscape: percentage(0.16)
+            label: ⏎
+            swipe:
+              - action: shortCommand(#换行)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: tab
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+    buttonInsets: left(3),bottom(6),top(4),right(3)
+  - name: 胖次-普通
+    rows:
+      - keys:
+          - action: shortCommand(#行首)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ⬅
+          - action: shortCommand(#左移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👈🏻
+          - action: shortCommand(#剪切)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: ✂️
+          - action: shortCommand(#复制)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📑
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📃
+          - action: shortCommand(#中英切换)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 🀄️
+          - action: shortCommand(#右移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👉🏻
+          - action: shortCommand(#行尾)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ➡
+        rowHeight:
+          portrait: 43
+          landscape: 40
+      - keys:
+          - action: character(q)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(w)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(e)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(r)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(t)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(y)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(u)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(i)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(o)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+          - action: character(p)
+            width:
+              portrait: percentage(0.1)
+              landscape: available
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: characterMargin(a)
+            width:
+              portrait: percentage(0.05)
+              landscape: percentage(0.03)
+          - action: character(a)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: shortCommand(#行首)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(s)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(d)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(f)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(g)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(h)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(j)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(k)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(l)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: shortCommand(#行尾)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: characterMargin(l)
+            width:
+              portrait: percentage(0.05)
+              landscape: percentage(0.03)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: shift
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.07)
+          - action: characterMargin(z)
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: character(z)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(`)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(x)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(c)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(v)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(b)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(n)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(m)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: characterMargin(m)
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: backspace
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.07)
+            swipe:
+              - action: shortCommand(#重输)
+                display: true
+                processByRIME: true
+                direction: left
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(数字符号-普通))
+            width:
+              portrait: percentage(0.17)
+              landscape: percentage(0.1)
+            label: "123"
+          - action: character(;)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            label: ;
+            swipe:
+              - action: character(,)
+                label: ，
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(.)
+                label: 。
+                display: true
+                processByRIME: true
+                direction: down
+          - action: space
+            width:
+              portrait: percentage(0.46)
+              landscape: available
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(/)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            label: /
+            swipe:
+              - action: character(?)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(!)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: enter
+            width:
+              portrait: percentage(0.17)
+              landscape: percentage(0.1)
+            label: ⏎
+            swipe:
+              - action: shortCommand(#换行)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: tab
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+    buttonInsets: left(3),bottom(6),top(4),right(3)
+  - name: 数字符号-普通
+    rows:
+      - keys:
+          - action: shortCommand(#行首)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ⬅
+          - action: shortCommand(#左移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👈🏻
+          - action: shortCommand(#剪切)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: ✂️
+          - action: shortCommand(#复制)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📑
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📃
+          - action: shortCommand(#中英切换)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 🀄️
+          - action: shortCommand(#右移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👉🏻
+          - action: shortCommand(#行尾)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ➡
+        rowHeight:
+          portrait: 43
+          landscape: 40
+      - keys:
+          - action: character(1)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(2)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(3)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(4)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(5)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(6)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(7)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(8)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(9)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(0)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: character(-)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(/)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(:)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(;)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(()
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character())
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character($)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(&)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(@)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(“)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(「)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(‘)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(”)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(」)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(’)
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(更多符号-普通))
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.11)
+            label: "#+="
+          - action: characterMargin(.)
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: character(.)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            label: 。
+            swipe:
+              - action: character(.)
+                display: true
+                processByRIME: false
+                direction: down
+          - action: character(,)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            label: ，
+            swipe:
+              - action: character(,)
+                display: true
+                processByRIME: false
+                direction: down
+          - action: character(、)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(?)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(?)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(!)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(!)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(.)
+            processByRIME: false
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: characterMargin(.)
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: backspace
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.11)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(胖次-普通))
+            width:
+              portrait: percentage(0.25)
+              landscape: percentage(0.16)
+            label: 中
+          - action: space
+            width:
+              portrait: percentage(0.5)
+              landscape: available
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: enter
+            width:
+              portrait: percentage(0.25)
+              landscape: percentage(0.16)
+            label: ⏎
+            swipe:
+              - action: shortCommand(#换行)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: tab
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+    buttonInsets: left(3),bottom(6),top(4),right(3)
+  - name: 更多符号-普通
+    rows:
+      - keys:
+          - action: shortCommand(#行首)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ⬅
+          - action: shortCommand(#左移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👈🏻
+          - action: shortCommand(#剪切)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: ✂️
+          - action: shortCommand(#复制)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📑
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 📃
+          - action: shortCommand(#中英切换)
+            width:
+              portrait: percentage(0.13)
+              landscape: percentage(0.09)
+            label: 🀄️
+          - action: shortCommand(#右移)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.09)
+            label: 👉🏻
+          - action: shortCommand(#行尾)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.08)
+            label: ➡
+        rowHeight:
+          portrait: 43
+          landscape: 40
+      - keys:
+          - action: character([)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(【)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(〔)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(])
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(】)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: character(〕)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character({)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(})
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(#)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(%)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(^)
+            processByRIME: false
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(*)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(+)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(=)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: character(_)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(\)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(｜)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(|)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(～)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(~)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(<)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(《)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(>)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(》)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: character(€)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(£)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(¥)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+          - action: character(·)
+            width:
+              portrait: percentage(0.1)
+              landscape: percentage(0.07)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(数字符号-普通))
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.11)
+            label: "123"
+          - action: characterMargin(…)
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: character(…)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: shortCommand(#RimeSwitcher)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+            label: Æ
+          - action: character(@)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.3)
+          - action: character(？)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: character(！)
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: character(')
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.07)
+          - action: characterMargin(')
+            width:
+              portrait: percentage(0.02)
+              landscape: available
+          - action: backspace
+            width:
+              portrait: percentage(0.12)
+              landscape: percentage(0.11)
+        rowHeight:
+          portrait: 55
+          landscape: 45
+      - keys:
+          - action: keyboardType(custom(胖次-普通))
+            width:
+              portrait: percentage(0.25)
+              landscape: percentage(0.16)
+            label: 中
+          - action: space
+            width:
+              portrait: percentage(0.5)
+              landscape: available
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: enter
+            width:
+              portrait: percentage(0.25)
+              landscape: percentage(0.16)
+            label: ⏎
+            swipe:
+              - action: shortCommand(#换行)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: tab
+                display: true
+                processByRIME: true
+                direction: down
+        rowHeight:
+          portrait: 55
+          landscape: 45
+    buttonInsets: left(3),bottom(6),top(4),right(3)

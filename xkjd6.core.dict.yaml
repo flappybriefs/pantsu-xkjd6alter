@@ -15,8 +15,8 @@ sort: original
 那位	aio
 那些	aiv
 那是	ao
+又是	aoi
 那这	aov
-又是	ao
 那么	au
 那种	auv
 那样	av
@@ -540,12 +540,12 @@ sort: original
 头脑	tuo
 体质	tuu
 通知	tuv
-天天	tv
+通过	tv
 听到	tva
-通过	tvi
+同事	tvi
 同样	tvo
 特殊	tvu
-体现	tvv
+天天	tvv
 得了	ua
 得上	ui
 得着	uo
@@ -771,10 +771,12 @@ sort: original
 司马	sm
 索取	sq
 苏醒	sx
+天才	tcv
 太难	tn
 提前	tq
 天气	tqu
 同学	tx
+体现	txv
 为此	wc
 完全	wq
 下班	xbv
@@ -784,7 +786,7 @@ sort: original
 显然	xru
 因此	yc
 一次	yco
-又是	ye
+于是	ye
 严重	yf
 以及	yj
 郁闷	ym
@@ -13357,7 +13359,7 @@ sort: original
 朓	tcuu
 朓	tcuuov
 笤	tcuvau
-髫	tcv
+髫	tcvi
 髫	tcviau
 头	td
 贴	tda
