@@ -448,7 +448,7 @@ sort: original
 着急	qua
 真的	qui
 全都	quo
-期待	quu
+真行	quu
 青年	quv
 正在	qv
 找到	qva
@@ -537,7 +537,7 @@ sort: original
 他的	tu
 突然	tua
 她的	tui
-头脑	tuo
+探索	tuo
 体质	tuu
 通知	tuv
 通过	tv
@@ -556,7 +556,7 @@ sort: original
 有个	vi
 有些	viv
 有着	vo
-有啊	vo
+有啊	voa
 有的	vu
 为了	wa
 网络	waa
@@ -658,7 +658,7 @@ sort: original
 再见	zia
 作业	zii
 咱们	zio
-责任	ziu
+在搞	ziu
 早上	ziv
 总是	zo
 再说	zoa
@@ -716,6 +716,7 @@ sort: original
 上班	ebv
 是从	ec
 上次	eco
+适合	ehi
 说明	emo
 生气	equ
 上心	exo
@@ -729,14 +730,15 @@ sort: original
 反正	fq
 发展	fqa
 重要	fy
+终于	fyv
 刚才	gc
 更好	gh
 赶快	gk
 光明	gm
 好吧	hb
 花草	hc
-好看	hk
-很快	hko
+很快	hk
+好看	hki
 就会	jh
 就算	js
 就有	jy
@@ -746,6 +748,7 @@ sort: original
 开门	km
 况且	kq
 两年	ln
+另外	lwu
 每次	mco
 明天	mt
 梦想	mx
@@ -758,6 +761,7 @@ sort: original
 平安	px
 拼音	py
 全部	qb
+期待	qdu
 奇怪	qg
 如此	rc
 人工	rg
@@ -807,12 +811,14 @@ sort: original
 字词	zc
 自从	zci
 再次	zco
+自动	zdv
 做饭	zf
 做法	zfa
 足够	zg
-字根	zgv
+总共	zgv
 在吗	zm
 组长	zq
+责任	zri
 昨天	zt
 仔细	zx
 自信	zxi
@@ -4619,7 +4625,7 @@ sort: original
 重	fyuv
 种	fyuvia
 重	fyuvia
-柊	fyv
+柊	fyvu
 柊	fyvuao
 找	fz
 召	fza
@@ -9545,7 +9551,7 @@ sort: original
 羸	lwovou
 癗	lwovv
 癗	lwovvo
-肋	lwu
+肋	lwua
 肋	lwuauu
 轮	lwv
 轮	lwvaiu
@@ -11505,11 +11511,11 @@ sort: original
 惬	qdoovv
 妾	qdov
 妾	qdovau
-箧	qdu
 癿	qdui
 癿	qduiaa
 郄	qduo
 郄	qduoai
+箧	qduv
 箧	qduvvv
 切	qdv
 切	qdvaau
@@ -17709,10 +17715,10 @@ sort: original
 鲰	zdua
 邹	zduaai
 鲰	zduavi
-奏	zdv
 鄹	zdvi
 鄹	zdviai
 走	zdvoiv
+奏	zdvv
 奏	zdvvvv
 则	ze
 泽	zea
@@ -17972,9 +17978,9 @@ sort: original
 综	zraaoo
 缯	zraaou
 赠	zraoou
-锃	zri
 罾	zria
 罾	zriaou
+锃	zrio
 锃	zrioov
 曾	zro
 憎	zroo
@@ -18537,6 +18543,7 @@ sort: original
 吧	b;
 罢	b/
 此	c;
+寸	c/
 都	d;
 屌	d/
 识	e;

@@ -1,9 +1,9 @@
-﻿# Rime schema settings
+# Rime schema settings
 # encoding: utf-8
 
 schema:
   schema_id: pantsu
-  name: 胖次键道
+  name: 胖次键道(折磨版键道)
   version: "2.2"
   author:
     - 大牛（吅吅大山）
@@ -160,7 +160,7 @@ engine:
   segmentors:
     - ascii_segmentor
     - matcher
-    - affix_segmentor@pantsu
+    - affix_segmentor@pantsuen
     - abc_segmentor
     - punct_segmentor
     - fallback_segmentor
@@ -294,8 +294,6 @@ key_binder:
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
     - { accept: apostrophe, toggle: show_es, when: has_menu }
-    - { when: always, accept: Control+1, select: english }
-    - { when: always, accept: Control+2, select: easy_en }
 
 
 recognizer:
