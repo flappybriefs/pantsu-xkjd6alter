@@ -16,6 +16,9 @@ GitHub仓库链接：https://github.com/flappybriefs/pantsu-xkjd6alter
 
 ## 一些大的更改
 
+2023.11.19 在浮生大佬的帮助下将我的文件进行了大量删减并带上了前缀，并且不再需要rime.lua，这样就非常好整理了
+
+---
 
 2023.11.17正式更名为胖次键道，不跟官方版的冲突
 

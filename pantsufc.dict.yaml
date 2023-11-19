@@ -6,7 +6,7 @@ name: pantsufc
 version: "1"
 sort: original
 import_tables:
-  - pantsufc.danzi
+  - pantsu.danzi
 ...
 的	〔de_dí_dì〕
 一	〔yī_yí_yì〕

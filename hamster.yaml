@@ -653,7 +653,7 @@ keyboards:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
           - action: character(^)
-            processByRIME: false
+            processByRIME: true
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
@@ -1495,7 +1495,7 @@ keyboards:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
           - action: character(^)
-            processByRIME: false
+            processByRIME: true
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
