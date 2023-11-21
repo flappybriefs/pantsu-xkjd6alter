@@ -5,12 +5,12 @@ keyboards:
           - action: shortCommand(#行首)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ⬅
           - action: shortCommand(#左移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👈🏻
           - action: shortCommand(#剪切)
             width:
@@ -22,10 +22,20 @@ keyboards:
               portrait: percentage(0.13)
               landscape: percentage(0.09)
             label: 📑
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📃
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: shortCommand(#复制)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📑
           - action: shortCommand(#粘贴)
             width:
               portrait: percentage(0.13)
@@ -39,64 +49,72 @@ keyboards:
           - action: shortCommand(#右移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👉🏻
           - action: shortCommand(#行尾)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ➡
         rowHeight:
           portrait: 43
-          landscape: 40
+          landscape: 37
       - keys:
           - action: character(q)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(w)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(e)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(r)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(t)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
+          - action: character(y)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(t)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(y)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(u)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(i)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(o)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(p)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: character(a)
             width:
@@ -123,10 +141,18 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character(h)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(g)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(h)
             width:
               portrait: percentage(0.1)
@@ -154,7 +180,7 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: shift
             width:
@@ -181,10 +207,18 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character(b)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(v)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(b)
             width:
               portrait: percentage(0.1)
@@ -217,7 +251,7 @@ keyboards:
                 direction: left
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(数字符号-键道))
             width:
@@ -237,7 +271,25 @@ keyboards:
           - action: space
             width:
               portrait: percentage(0.46)
-              landscape: available
+              landscape: percentage(0.25)
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.16)
+          - action: space
+            width:
+              portrait: available
+              landscape: percentage(0.25)
             label: 飞天小胖次
             swipe:
               - action: shortCommand(#次选上屏)
@@ -274,7 +326,7 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
     buttonInsets: left(3),bottom(6),top(4),right(3)
   - name: 数字符号-键道
     rows:
@@ -282,12 +334,12 @@ keyboards:
           - action: shortCommand(#行首)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ⬅
           - action: shortCommand(#左移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👈🏻
           - action: shortCommand(#剪切)
             width:
@@ -299,10 +351,20 @@ keyboards:
               portrait: percentage(0.13)
               landscape: percentage(0.09)
             label: 📑
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📃
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: shortCommand(#复制)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📑
           - action: shortCommand(#粘贴)
             width:
               portrait: percentage(0.13)
@@ -316,16 +378,16 @@ keyboards:
           - action: shortCommand(#右移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👉🏻
           - action: shortCommand(#行尾)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ➡
         rowHeight:
           portrait: 43
-          landscape: 40
+          landscape: 37
       - keys:
           - action: character(1)
             width:
@@ -347,10 +409,18 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character(6)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(5)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(6)
             width:
               portrait: percentage(0.1)
@@ -373,7 +443,7 @@ keyboards:
               landscape: percentage(0.07)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: character(-)
             width:
@@ -395,10 +465,18 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character())
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(()
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character())
             width:
               portrait: percentage(0.1)
@@ -444,7 +522,7 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(更多符号-键道))
             width:
@@ -479,10 +557,23 @@ keyboards:
             width:
               portrait: percentage(0.12)
               landscape: percentage(0.07)
+          - action: character(?)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(?)
+                display: true
+                processByRIME: true
+                direction: down
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(、)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(?)
             width:
               portrait: percentage(0.12)
@@ -516,17 +607,35 @@ keyboards:
               landscape: percentage(0.11)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(胖次-键道))
             width:
               portrait: percentage(0.25)
-              landscape: percentage(0.16)
+              landscape: percentage(0.17)
             label: 中
           - action: space
             width:
-              portrait: percentage(0.5)
-              landscape: available
+              portrait: percentage(0.46)
+              landscape: percentage(0.25)
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.16)
+          - action: space
+            width:
+              portrait: available
+              landscape: percentage(0.25)
             label: 飞天小胖次
             swipe:
               - action: shortCommand(#次选上屏)
@@ -540,7 +649,7 @@ keyboards:
           - action: enter
             width:
               portrait: percentage(0.25)
-              landscape: percentage(0.16)
+              landscape: percentage(0.17)
             label: ⏎
             swipe:
               - action: shortCommand(#换行)
@@ -553,7 +662,7 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
     buttonInsets: left(3),bottom(6),top(4),right(3)
   - name: 更多符号-键道
     rows:
@@ -561,12 +670,12 @@ keyboards:
           - action: shortCommand(#行首)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ⬅
           - action: shortCommand(#左移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👈🏻
           - action: shortCommand(#剪切)
             width:
@@ -578,10 +687,20 @@ keyboards:
               portrait: percentage(0.13)
               landscape: percentage(0.09)
             label: 📑
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📃
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: shortCommand(#复制)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📑
           - action: shortCommand(#粘贴)
             width:
               portrait: percentage(0.13)
@@ -595,16 +714,16 @@ keyboards:
           - action: shortCommand(#右移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👉🏻
           - action: shortCommand(#行尾)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ➡
         rowHeight:
           portrait: 43
-          landscape: 40
+          landscape: 37
       - keys:
           - action: character([)
             width:
@@ -644,16 +763,23 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character(%)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(#)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(%)
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
           - action: character(^)
-            processByRIME: true
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
@@ -671,7 +797,7 @@ keyboards:
               landscape: percentage(0.07)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: character(_)
             width:
@@ -708,10 +834,28 @@ keyboards:
                 display: true
                 processByRIME: true
                 direction: down
+          - action: character(>)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(》)
+                display: true
+                processByRIME: true
+                direction: down
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(<)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(《)
+                display: true
+                processByRIME: true
+                direction: down
           - action: character(>)
             width:
               portrait: percentage(0.1)
@@ -739,7 +883,7 @@ keyboards:
               landscape: percentage(0.07)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(数字符号-键道))
             width:
@@ -763,10 +907,18 @@ keyboards:
             width:
               portrait: percentage(0.12)
               landscape: percentage(0.07)
+          - action: character(？)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(@)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(？)
             width:
               portrait: percentage(0.12)
@@ -789,17 +941,35 @@ keyboards:
               landscape: percentage(0.11)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(胖次-键道))
             width:
               portrait: percentage(0.25)
-              landscape: percentage(0.16)
+              landscape: percentage(0.17)
             label: 中
           - action: space
             width:
-              portrait: percentage(0.5)
-              landscape: available
+              portrait: percentage(0.46)
+              landscape: percentage(0.25)
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.16)
+          - action: space
+            width:
+              portrait: available
+              landscape: percentage(0.25)
             label: 飞天小胖次
             swipe:
               - action: shortCommand(#次选上屏)
@@ -813,7 +983,7 @@ keyboards:
           - action: enter
             width:
               portrait: percentage(0.25)
-              landscape: percentage(0.16)
+              landscape: percentage(0.17)
             label: ⏎
             swipe:
               - action: shortCommand(#换行)
@@ -826,7 +996,7 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
     buttonInsets: left(3),bottom(6),top(4),right(3)
   - name: 胖次-普通
     rows:
@@ -834,12 +1004,12 @@ keyboards:
           - action: shortCommand(#行首)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ⬅
           - action: shortCommand(#左移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👈🏻
           - action: shortCommand(#剪切)
             width:
@@ -851,10 +1021,20 @@ keyboards:
               portrait: percentage(0.13)
               landscape: percentage(0.09)
             label: 📑
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📃
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: shortCommand(#复制)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📑
           - action: shortCommand(#粘贴)
             width:
               portrait: percentage(0.13)
@@ -868,64 +1048,72 @@ keyboards:
           - action: shortCommand(#右移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👉🏻
           - action: shortCommand(#行尾)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ➡
         rowHeight:
           portrait: 43
-          landscape: 40
+          landscape: 37
       - keys:
           - action: character(q)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(w)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(e)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(r)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(t)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
+          - action: character(y)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(t)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(y)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(u)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(i)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(o)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
           - action: character(p)
             width:
               portrait: percentage(0.1)
-              landscape: available
+              landscape: percentage(0.07)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: characterMargin(a)
             width:
@@ -956,10 +1144,18 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character(h)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(g)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(h)
             width:
               portrait: percentage(0.1)
@@ -987,7 +1183,7 @@ keyboards:
               landscape: percentage(0.03)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: shift
             width:
@@ -1014,10 +1210,18 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character(v)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(c)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(v)
             width:
               portrait: percentage(0.1)
@@ -1049,7 +1253,7 @@ keyboards:
                 direction: left
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(数字符号-普通))
             width:
@@ -1075,7 +1279,25 @@ keyboards:
           - action: space
             width:
               portrait: percentage(0.46)
-              landscape: available
+              landscape: percentage(0.25)
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.16)
+          - action: space
+            width:
+              portrait: available
+              landscape: percentage(0.25)
             label: 飞天小胖次
             swipe:
               - action: shortCommand(#次选上屏)
@@ -1116,7 +1338,7 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
     buttonInsets: left(3),bottom(6),top(4),right(3)
   - name: 数字符号-普通
     rows:
@@ -1124,12 +1346,12 @@ keyboards:
           - action: shortCommand(#行首)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ⬅
           - action: shortCommand(#左移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👈🏻
           - action: shortCommand(#剪切)
             width:
@@ -1141,10 +1363,20 @@ keyboards:
               portrait: percentage(0.13)
               landscape: percentage(0.09)
             label: 📑
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📃
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: shortCommand(#复制)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📑
           - action: shortCommand(#粘贴)
             width:
               portrait: percentage(0.13)
@@ -1158,16 +1390,16 @@ keyboards:
           - action: shortCommand(#右移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👉🏻
           - action: shortCommand(#行尾)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ➡
         rowHeight:
           portrait: 43
-          landscape: 40
+          landscape: 37
       - keys:
           - action: character(1)
             width:
@@ -1189,10 +1421,18 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character(6)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(5)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(6)
             width:
               portrait: percentage(0.1)
@@ -1215,7 +1455,7 @@ keyboards:
               landscape: percentage(0.07)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: character(-)
             width:
@@ -1237,10 +1477,18 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character())
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(()
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character())
             width:
               portrait: percentage(0.1)
@@ -1286,7 +1534,7 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(更多符号-普通))
             width:
@@ -1321,10 +1569,23 @@ keyboards:
             width:
               portrait: percentage(0.12)
               landscape: percentage(0.07)
+          - action: character(?)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(?)
+                display: true
+                processByRIME: true
+                direction: down
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(、)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(?)
             width:
               portrait: percentage(0.12)
@@ -1358,17 +1619,35 @@ keyboards:
               landscape: percentage(0.11)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(胖次-普通))
             width:
               portrait: percentage(0.25)
-              landscape: percentage(0.16)
+              landscape: percentage(0.17)
             label: 中
           - action: space
             width:
-              portrait: percentage(0.5)
-              landscape: available
+              portrait: percentage(0.46)
+              landscape: percentage(0.25)
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.16)
+          - action: space
+            width:
+              portrait: available
+              landscape: percentage(0.25)
             label: 飞天小胖次
             swipe:
               - action: shortCommand(#次选上屏)
@@ -1382,7 +1661,7 @@ keyboards:
           - action: enter
             width:
               portrait: percentage(0.25)
-              landscape: percentage(0.16)
+              landscape: percentage(0.17)
             label: ⏎
             swipe:
               - action: shortCommand(#换行)
@@ -1395,7 +1674,7 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
     buttonInsets: left(3),bottom(6),top(4),right(3)
   - name: 更多符号-普通
     rows:
@@ -1403,12 +1682,12 @@ keyboards:
           - action: shortCommand(#行首)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ⬅
           - action: shortCommand(#左移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👈🏻
           - action: shortCommand(#剪切)
             width:
@@ -1420,10 +1699,20 @@ keyboards:
               portrait: percentage(0.13)
               landscape: percentage(0.09)
             label: 📑
+          - action: shortCommand(#粘贴)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📃
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: shortCommand(#复制)
+            width:
+              portrait: available
+              landscape: percentage(0.09)
+            label: 📑
           - action: shortCommand(#粘贴)
             width:
               portrait: percentage(0.13)
@@ -1437,16 +1726,16 @@ keyboards:
           - action: shortCommand(#右移)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.09)
+              landscape: percentage(0.08)
             label: 👉🏻
           - action: shortCommand(#行尾)
             width:
               portrait: percentage(0.12)
-              landscape: percentage(0.08)
+              landscape: percentage(0.07)
             label: ➡
         rowHeight:
           portrait: 43
-          landscape: 40
+          landscape: 37
       - keys:
           - action: character([)
             width:
@@ -1486,16 +1775,23 @@ keyboards:
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
+          - action: character(%)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(#)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(%)
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
           - action: character(^)
-            processByRIME: true
             width:
               portrait: percentage(0.1)
               landscape: percentage(0.07)
@@ -1513,7 +1809,7 @@ keyboards:
               landscape: percentage(0.07)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: character(_)
             width:
@@ -1550,10 +1846,28 @@ keyboards:
                 display: true
                 processByRIME: true
                 direction: down
+          - action: character(>)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(》)
+                display: true
+                processByRIME: true
+                direction: down
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(<)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
+            swipe:
+              - action: character(《)
+                display: true
+                processByRIME: true
+                direction: down
           - action: character(>)
             width:
               portrait: percentage(0.1)
@@ -1581,7 +1895,7 @@ keyboards:
               landscape: percentage(0.07)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(数字符号-普通))
             width:
@@ -1605,10 +1919,18 @@ keyboards:
             width:
               portrait: percentage(0.12)
               landscape: percentage(0.07)
+          - action: character(？)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: none
             width:
               portrait: available
-              landscape: percentage(0.3)
+              landscape: percentage(0.16)
+          - action: character(@)
+            width:
+              portrait: available
+              landscape: percentage(0.07)
           - action: character(？)
             width:
               portrait: percentage(0.12)
@@ -1631,17 +1953,35 @@ keyboards:
               landscape: percentage(0.11)
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
       - keys:
           - action: keyboardType(custom(胖次-普通))
             width:
               portrait: percentage(0.25)
-              landscape: percentage(0.16)
+              landscape: percentage(0.17)
             label: 中
           - action: space
             width:
-              portrait: percentage(0.5)
-              landscape: available
+              portrait: percentage(0.46)
+              landscape: percentage(0.25)
+            label: 飞天小胖次
+            swipe:
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: up
+              - action: shortCommand(#次选上屏)
+                display: true
+                processByRIME: true
+                direction: down
+          - action: none
+            width:
+              portrait: available
+              landscape: percentage(0.16)
+          - action: space
+            width:
+              portrait: available
+              landscape: percentage(0.25)
             label: 飞天小胖次
             swipe:
               - action: shortCommand(#次选上屏)
@@ -1655,7 +1995,7 @@ keyboards:
           - action: enter
             width:
               portrait: percentage(0.25)
-              landscape: percentage(0.16)
+              landscape: percentage(0.17)
             label: ⏎
             swipe:
               - action: shortCommand(#换行)
@@ -1668,5 +2008,5 @@ keyboards:
                 direction: down
         rowHeight:
           portrait: 55
-          landscape: 45
+          landscape: 42
     buttonInsets: left(3),bottom(6),top(4),right(3)
