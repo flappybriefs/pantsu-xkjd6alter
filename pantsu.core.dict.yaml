@@ -62,7 +62,7 @@ sort: original
 操作	ci
 策略	cia
 此人	cii
-催促	cio
+猜错	cio
 从小	ciu
 才会	civ
 才是	co
@@ -423,7 +423,7 @@ sort: original
 朋友	pv
 跑到	pva
 匹配	pvi
-破坏	pvo
+平均	pvo
 排列	pvu
 平静	pvv
 正好	qa
@@ -561,7 +561,7 @@ sort: original
 为了	wa
 网络	waa
 充满	wai
-温柔	wao
+未能	wao
 无力	wau
 无法	wav
 我们	wi
@@ -650,7 +650,7 @@ sort: original
 一天	yvv
 自己	za
 最终	zaa
-作出	zai
+做出	zai
 足以	zao
 最好	zau
 增强	zav
@@ -681,6 +681,7 @@ sort: original
 #endregion <630>#
 
 #region <声声or声声笔>#
+不动	bdv
 表示	be
 本身	beu
 办法	bf
@@ -693,13 +694,16 @@ sort: original
 不算	bs
 不同	bt
 不行	bx
+不像	bxi
 不信	bxo
+不香	bxu
 表现	bxv
 不要	by
 必要	byv
 不用	byu
 不再	bzv
 从此	cc
+催促	cci
 此次	cco
 错过	cg
 聪明	cm
@@ -737,6 +741,7 @@ sort: original
 更好	gh
 赶快	gk
 光明	gm
+规则	gza
 好吧	hb
 花草	hc
 很快	hk
@@ -752,12 +757,15 @@ sort: original
 两年	ln
 另外	lwu
 每次	mco
+明明	mmo
 明天	mt
 梦想	mx
 满意	my
+没再	mzv
 哪次	nco
 哪怕	np
 平时	pe
+破坏	phv
 脾气	pq
 平台	pt
 平安	px
@@ -772,6 +780,7 @@ sort: original
 日期	rq
 热搜	rs
 任务	rw
+人物	rwu
 如下	rx
 三次	sc
 虽说	seo
@@ -788,6 +797,7 @@ sort: original
 同学	tx
 体现	txv
 为此	wc
+温柔	wra
 完全	wq
 下班	xbv
 想从	xc
@@ -826,6 +836,7 @@ sort: original
 昨天	zt
 仔细	zx
 自信	zxi
+作用	zyu
 #endregion <声声or声声笔>#
 
 #region <特殊单字>#

@@ -3367,7 +3367,7 @@ sort: original
 不好对	bhdvaa
 不好躲	bhdvau
 保护电位	bhdwii
-不会对我	bhdwv
+不会对我	bhdwvi
 保护地线	bhdxii
 闭合导线	bhdxo
 不好的东西	bhdxv
@@ -32468,9 +32468,9 @@ sort: original
 时不变系统	ebbt
 身边不	ebbua
 顺便把	ebbui
-士兵不	ebbv
 事并不	ebbvo
-士兵被	ebbvu
+士兵不	ebbvu
+士兵被	ebbvuo
 是步步先	ebbxo
 双胞孢子	ebbzau
 双板舱壁	ebcba
@@ -34598,9 +34598,7 @@ sort: original
 是失败者	eebqou
 伸手不打笑脸人	eebr
 是双胞胎	eebto
-顺手把	eebu
-身上不	eebui
-身上被	eebuio
+身上不	eebuiv
 身手不	eebuiv
 生生不	eebuu
 事实被	eebvo
@@ -89540,7 +89538,7 @@ sort: original
 乘常数	jjeuio
 处就是	jjeuoo
 解解暑	jjeuu
-超寄生	jjevo
+超寄生	jjevou
 巨胶束	jjevu
 基础是	jjevvo
 沉积生物	jjewa
@@ -95884,8 +95882,7 @@ sort: original
 基斯坦	jstvvv
 江苏投档线	jstx
 家同	jstyo
-超松弛	jsw
-结算完	jswa
+结算完	jswau
 江苏衞视	jsweai
 假玩	jswfi
 家玩	jswfo
@@ -95896,13 +95893,9 @@ sort: original
 贾五	jswjvv
 家吃	jswko
 就算我们	jswmo
-卷死我	jswo
 初四五	jswoi
-就算我	jswou
+卷死我	jswov
 近似稳态	jswtui
-角色池	jswu
-急死我	jswuv
-辑私船	jswv
 加维	jswwaa
 甲未	jswwiv
 家卫	jswwoa
@@ -103813,7 +103806,7 @@ sort: original
 卡十	ksekiu
 可随身	ksevau
 快速试验	ksey
-咳嗽反射	ksfe
+咳嗽反射	ksfeo
 快速傅里叶变换	ksfh
 看四周	ksfii
 扩散方程	ksfji
@@ -108048,7 +108041,7 @@ sort: original
 里只剩	lfeiou
 蓝方石	lfeiov
 澜叔	lfejai
-类风湿结节	lfejo
+类风湿结节	lfejou
 兰是	lfekoo
 漏辐射率	lfela
 兰说	lfelo
@@ -142479,7 +142472,6 @@ sort: original
 真空电弧	qkdhuo
 气带	qkdhuv
 起带	qkdhvv
-掌控的	qkdi
 齐地	qkdko
 气低	qkdkui
 气地	qkdkuv
@@ -148958,7 +148950,6 @@ sort: original
 这也让	qyroa
 这样认	qyrovo
 切牙乳头	qyrt
-权益日	qyrv
 争议人物	qyrwu
 其翼若垂天之云	qyryv
 牵引速度	qysdv
@@ -164103,7 +164094,6 @@ sort: original
 逃出了	tjluaa
 条记录	tjluo
 条巨龙	tjluvv
-太绝了	tjlvaa
 太吵了	tjlvo
 天巨浪	tjlvva
 提出立项	tjlxi
@@ -173285,8 +173275,6 @@ sort: original
 五餐	wjcfvi
 物才	wjchu
 伪距测量	wjcli
-文件材料	wjclo
-无机材料	wjclvv
 臭虫次目	wjcm
 文件存储器	wjcqo
 危急存亡之秋	wjcqu
@@ -188821,7 +188809,6 @@ sort: original
 校排名	xpmvi
 下偏盲	xpmvio
 项平面	xpmvv
-相平面	xpmvvv
 昂那	xpns
 想泡妞	xpnvaa
 嬉皮派	xppa
@@ -193493,7 +193480,7 @@ sort: original
 协作处理	xzjlu
 现在除了	xzjlv
 选择沉默	xzjmu
-新资金	xzjoo
+新资金	xzjooi
 写自己	xzjoua
 心脏镜	xzjoui
 心脏计	xzjouo
@@ -193512,7 +193499,6 @@ sort: original
 下纵肌	xzjva
 下子就	xzjvao
 下足迹	xzjvoo
-而造成	xzjvuv
 现在居	xzjvva
 现在见	xzjvvi
 现在叫	xzjvvo
