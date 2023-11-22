@@ -32,7 +32,7 @@ sort: original
 不错	bi
 不见	bia
 别人	bii
-不但	bio
+不信	bio
 不少	biu
 不会	biv
 不是	bo
@@ -170,7 +170,7 @@ sort: original
 这样	fv
 放到	fva
 只要	fvi
-发起	fvo
+发来	fvo
 只有	fvu
 发现	fvv
 更加	ga
@@ -682,6 +682,8 @@ sort: original
 
 #region <声声or声声笔>#
 不动	bdv
+不但	bdi
+不得	bdu
 表示	be
 本身	beu
 办法	bf
@@ -695,7 +697,6 @@ sort: original
 不同	bt
 不行	bx
 不像	bxi
-不信	bxo
 不香	bxu
 表现	bxv
 不要	by
@@ -735,6 +736,7 @@ sort: original
 父母	fm
 反正	fq
 发展	fqa
+发起	fqv
 重要	fy
 终于	fyv
 刚才	gc
@@ -746,6 +748,7 @@ sort: original
 花草	hc
 很快	hk
 好看	hki
+何况	hko
 就会	jh
 就算	js
 就有	jy
@@ -794,6 +797,7 @@ sort: original
 太难	tn
 提前	tq
 天气	tqu
+头铁	tti
 同学	tx
 体现	txv
 为此	wc
@@ -870,6 +874,7 @@ sort: original
 墨	m/
 能	n;
 着	o/
+膨	p;
 期	q;
 其	q/
 斯	s;
@@ -948,6 +953,7 @@ sort: original
 煮	qj/
 嘁	qk;
 弃	qk/
+嵌	qm/
 长	qp/
 仨	ss;
 趟	tp/
