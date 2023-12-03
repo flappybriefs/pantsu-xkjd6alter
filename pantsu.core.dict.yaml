@@ -20,7 +20,8 @@ sort: original
 那么	au
 那种	auv
 那样	av
-又有	ava
+又去	avo
+又有	avu
 那有	avu
 那天	avv
 不能	ba
@@ -176,7 +177,7 @@ sort: original
 更加	ga
 高级	gaa
 过了	gai
-关注	gao
+功能	gao
 刚好	gau
 公司	gav
 工作	gi
@@ -235,15 +236,14 @@ sort: original
 活动	hvv
 上了	ia
 上限	iai
-打了	ia
 上个	ii
-打个	ii
 上的	io
 上次	iov
 上的	iu
-打得	iuu
+上得	iuu
 上去	iv
 上下	ivi
+上来	ivo
 上面	ivu
 就能	ja
 继续	jaa
@@ -262,7 +262,7 @@ sort: original
 尽量	joi
 决定	joo
 成为	jou
-城市	jov
+解决	jov
 几乎	ju
 竟然	jua
 阶段	jui
@@ -271,7 +271,7 @@ sort: original
 几种	juv
 今天	jv
 见到	jva
-就要	jvi
+见过	jvi
 出来	jvo
 见面	jvu
 出现	jvv
@@ -552,12 +552,12 @@ sort: original
 得多	uu
 得有	uv
 得去	uvo
-有了	va
-有个	vi
-有些	viv
-有着	vo
-有啊	voa
-有的	vu
+#有了	va
+#有个	vi
+#有些	viv
+#有着	vo
+#有啊	voa
+#有的	vu
 为了	wa
 网络	waa
 充满	wai
@@ -685,10 +685,12 @@ sort: original
 不但	bdi
 不得	bdu
 表示	be
+不时	beo
 本身	beu
 办法	bf
 不好	bh
 比较	bj
+避免	bmu
 并且	bq
 标准	bqo
 不如	br
@@ -717,6 +719,7 @@ sort: original
 从而	cxv
 电脑	dn
 大小	dx
+担心	dxo
 对象	dxu
 底下	dxv
 都有	dy
@@ -724,7 +727,10 @@ sort: original
 上班	ebv
 是从	ec
 上次	eco
+是否	efv
 适合	ehi
+市里	eli
+生命	emi
 说明	emo
 生气	equ
 上心	exo
@@ -744,16 +750,21 @@ sort: original
 更好	gh
 赶快	gk
 光明	gm
+关注	gqa
+更像	gxi
 规则	gza
 好吧	hb
 花草	hc
+合适	heu
 很快	hk
 好看	hki
 何况	hko
 欢乐	hlu
 就会	jh
+城市	jeo
 就算	js
 就有	jy
+就要	jyv
 快餐	kc
 可靠	kk
 看看	kki
@@ -777,6 +788,7 @@ sort: original
 平安	px
 拼音	py
 全部	qb
+确定	qdo
 期待	qdu
 奇怪	qg
 如此	rc
@@ -795,6 +807,7 @@ sort: original
 索取	sq
 涩情	sqo
 苏醒	sx
+所幸	sxv
 天才	tcv
 同事	tev
 太难	tn
@@ -802,6 +815,7 @@ sort: original
 天气	tqu
 头铁	tti
 同学	tx
+提鲜	txu
 体现	txv
 为此	wc
 温柔	wra
@@ -829,6 +843,7 @@ sort: original
 影响	yxo
 印象	yxu
 以下	yxv
+由于	yyv
 字词	zc
 自从	zci
 再次	zco
@@ -844,6 +859,7 @@ sort: original
 昨天	zt
 仔细	zx
 自信	zxi
+自由	zyi
 作用	zyu
 #endregion <声声or声声笔>#
 
@@ -953,6 +969,7 @@ sort: original
 噗	pj;
 屁	pk/
 撬	qc;
+怯	qd;
 猪	qj;
 煮	qj/
 嘁	qk;
@@ -990,27 +1007,6 @@ sort: original
 箱	xx/
 啧	ze;
 籽	zk;
-# syxb 单字
-实	ekbo
-视	ekei
-势	ekfa
-示	ekxi
-恃	ekxv
-识	ekyo
-甥	erei
-支	fkea
-执	fkfu
-庄	fxgv
-饺	jceo
-竞	jglo
-寂	jkbi
-鸡	jkyu
-嫁	jsno
-悉	xkpo
-疫	ykbu
-意	yklo
-毅	yklu
-怡	ykxa
 # 补充词组
 富强 民主 文明 和谐 自由 平等 公正 法治 爱国 敬业 诚信 友善	fmwh
 国民生产总值	gdp

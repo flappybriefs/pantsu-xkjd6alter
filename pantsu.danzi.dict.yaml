@@ -530,9 +530,9 @@ sort: original
 辨	bmovo
 辩	bmovoa
 辨	bmovou
-笾	bmu
 鳊	bmua
 鳊	bmuaoa
+笾	bmuv
 笾	bmuvau
 鞭	bmv
 鞭	bmviiv
@@ -2157,7 +2157,6 @@ sort: original
 膻	efuovi
 舢	efuu
 舢	efuuia
-珊	efv
 埏	efvo
 墡	efvoo
 墡	efvoou
@@ -2166,6 +2165,7 @@ sort: original
 栅	efvua
 栅	efvuau
 杉	efvuuu
+珊	efvv
 珊	efvvua
 帅	eg
 摔	egi
@@ -2438,9 +2438,9 @@ sort: original
 说	el
 妁	ela
 妁	elauua
-铄	eli
 蒴	elii
 蒴	eliiou
+铄	elio
 铄	elioua
 搠	eliu
 搠	eliuou
@@ -4515,7 +4515,7 @@ sort: original
 洸	gxai
 洸	gxaiou
 潢	gxavii
-光	gxi
+光	gxio
 光	gxioua
 广	gxo
 咣	gxoi
@@ -4805,12 +4805,12 @@ sort: original
 吓	heovi
 吓	heovio
 呵	heovoi
-禾	heu
 饸	heua
 饸	heuaiv
 貉	heuo
 貉	heuoua
-盉	heuv
+禾	heuv
+盉	heuvi
 盉	heuvia
 禾	heuviu
 和	heuvoo
@@ -5836,7 +5836,7 @@ sort: original
 扯	jeiu
 扯	jeiuiv
 撤	jeiuov
-㬚	jeo
+㬚	jeoi
 㬚	jeoiov
 彻	jeu
 彻	jeuuva
@@ -7175,7 +7175,7 @@ sort: original
 颎	jyuavu
 䐃	jyui
 䐃	jyuiau
-坰	jyv
+坰	jyvo
 坰	jyvoia
 超	jz
 潮	jza
@@ -10683,9 +10683,8 @@ sort: original
 茄	qdiiau
 锲	qdio
 锲	qdiovv
-窃	qdo
-怯	qdoo
-惬	qdoov
+窃	qdoo
+怯	qdoov
 窃	qdoova
 怯	qdoovo
 惬	qdoovv
@@ -11205,6 +11204,7 @@ sort: original
 瞿	qlia
 黢	qliaa
 黢	qliaao
+蟝	qliaav
 蛆	qliai
 蛐	qliaia
 蠼	qliaia
@@ -16775,8 +16775,7 @@ sort: original
 鳙	yyuaov
 用	yyuavv
 臃	yyuova
-墉	yyv
-栐	yyvo
+墉	yyvo
 埇	yyvoa
 栐	yyvoaa
 埇	yyvoao
@@ -17233,9 +17232,9 @@ sort: original
 综	zyaa
 纵	zyaaii
 综	zyaaoo
-偬	zyi
 倧	zyio
 倧	zyiooa
+偬	zyiu
 偬	zyiuau
 宗	zyo
 踪	zyoi
