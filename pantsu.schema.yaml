@@ -304,7 +304,6 @@ key_binder:
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
     - { accept: apostrophe, toggle: show_es, when: has_menu }
-    - { when: always, accept: Control+1, select: english }
 
 
 recognizer:
