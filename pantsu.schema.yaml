@@ -3,7 +3,7 @@
 
 schema:
   schema_id: pantsu
-  name: 胖次键道(折磨版键道)
+  name: 胖次键道
   version: "2023-11-19"
   author:
     - 大牛（吅吅大山）
@@ -11,6 +11,7 @@ schema:
   dependencies:
     - pantsufc
     - pantsu.en
+    - pantsuef
 
 
 
@@ -50,25 +51,27 @@ layout:
 switches:
   - name: ascii_mode
     reset: 0
-#    states: [ 中文, 西文 ]
+    states: [ 中文, 英文 ]
   - name: full_shape
+    reset: 0
     states: [ 半角, 全角 ]
   - name: jffh
     reset: 0
     states: [ 简体, 繁體 ]
   - name: wxw_hint
+    states: [ 提示关, 提示开 ]
     reset: 1
   - name: sbb_hint
     reset: 1 # 改成0默认关闭
-#    states: [ "关₆₃₀", "开₆₃₀" ]
+    states: [ "关₆₃₀", "开₆₃₀" ]
   - name: completion
     reset: 1
-#    states: [ "匹配", "补全" ]
+    states: [ "匹配", "补全" ]
   - name: EN2en
     reset: 1
   - name: topup_hint
     reset: 1
-#    states: [ "关顶功提示", "开顶功提示" ]
+    states: [ "关顶功提示", "开顶功提示" ]
   - name: show_es
     reset: 1
     states: [ 😔, 😀 ]
@@ -161,6 +164,7 @@ engine:
     - ascii_segmentor
     - matcher
     - affix_segmentor@pantsuen
+    - affix_segmentor@erfen
     - abc_segmentor
     - punct_segmentor
     - fallback_segmentor
@@ -169,10 +173,10 @@ engine:
     - punct_translator
     - table_translator
     - history_translator@repeat_history
+    - script_translator@erfen
     - lua_translator@*pantsu_date_time
     - table_translator@english
     - table_translator@pantsuen
-    
   filters:
     - simplifier
     - simplifier@jffh
@@ -180,6 +184,7 @@ engine:
     - simplifier@EN2en
     - reverse_lookup_filter@danzi_lookup
     - reverse_lookup_filter@pinyin_reverse_lookup
+    - reverse_lookup_filter@erfen_lookup
     - lua_filter@*pantsu_filter
     - simplifier@es_conversion
     - uniquifier
@@ -194,7 +199,6 @@ speller:
   algebra:
     __include: "layout/algebra"
   auto_select: false
-  auto_select_unique_candidate: false #空码自动顶
   alphabet: "abcdefghijklmnopqrstuvwxyz;/`"
   initials: "abcdefghijklmnopqrstuvwxyz;/`"
 
@@ -202,9 +206,9 @@ speller:
 translator:
   dictionary: pantsu.extended
   enable_charset_filter: false
-  enable_completion: true
+  enable_completion: true #提示码开关，不需要候选词提示请改false
   enable_encoder: false
-  enable_sentence: true
+  enable_sentence: true #如果用avuio开头打字的话需要开启这个为true才能正常打字，顶功会受到一点点影响但不多，打完敲个空格即可
   enable_user_dict: false
   encode_commit_history: false
   max_phrase_length: 6
@@ -271,6 +275,20 @@ pinyin_reverse_lookup:
     - xform/$//
     - xform/ / /
 
+#↓二分反查方案
+erfen_lookup:
+  tags: [erfen]
+  dictionary: pantsufc #反查其码
+  overwrite_comment: true
+
+erfen:
+  tag: erfen
+  dictionary: pantsuef
+  enable_sentence: false
+  enable_completion: true
+  enable_user_dict: false
+  prefix: "'"
+  tips: "〔二分〕"
 
 key_binder:
   bindings:
@@ -286,6 +304,7 @@ key_binder:
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
     - { accept: apostrophe, toggle: show_es, when: has_menu }
+    - { when: always, accept: Control+1, select: english }
 
 
 recognizer:
@@ -296,6 +315,7 @@ recognizer:
     email: "^[a-z][-_.0-9a-z]*@.*$"
     uppercase: "[A-Z][-_+.'0-9A-Za-z]*$"
     pinyin: "(?<![`A-Z])`[a-z']*;?$"
+    erfen: "^'[a-z']*'?$"
     url: "^(www[.]|https?:|ftp:|mailto:).*$"
     jsq: "^=[^;']+$"
     pantsuen: "^v[a-z]*?$"

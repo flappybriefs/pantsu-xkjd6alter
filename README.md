@@ -16,6 +16,10 @@ GitHub仓库链接：https://github.com/flappybriefs/pantsu-xkjd6alter
 
 ## 一些大的更改
 
+2023.12.16 增加了键道码表版的二分，打生僻字更简单了，使用’开启，二分的键道版码表由[星猫键道](https://github.com/hugh7007/xmjd6-rere)提供，二分方案和码表名称目前前缀为pantsuef
+
+---
+
 2023.11.19 在浮生大佬的帮助下将我的文件进行了大量删减并带上了前缀，并且不再需要rime.lua，这样就非常好整理了
 
 ---

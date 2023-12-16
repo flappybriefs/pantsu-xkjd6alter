@@ -1,0 +1,103 @@
+﻿# Rime schema
+# vim: set sw=2 sts=2 et:
+# encoding: utf-8
+
+schema:
+  schema_id: pantsuef
+  name: LiangFen
+  version: "4.0"
+  author:
+    - TianHeng <2417647441@qq.com>
+  description: |
+    Use《http://yedict.com/》
+    http://yedict.com/
+    Dict is from http://yedict.com/
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ Chi, Eng ]
+  - name: full_shape
+    states: [ Half, Full ]
+  - name: simplification
+    states: [ Trad, Simp ]
+  - name: show_es
+    reset: 1
+    states: [ 😔, 😀 ]
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - r10n_translator
+    - reverse_lookup_translator
+  filters:
+    - simplifier
+    - uniquifier
+    - simplifier@es_conversion
+
+
+es_conversion:
+  opencc_config: pantsu_es.json
+  option_name: show_es
+
+speller:
+  alphabet: zyxwvutsrqponmlkjihgfedcba
+  delimiter: " '"
+  algebra:
+    - abbrev/^([a-z]).+$/$1/
+
+translator:
+  dictionary: pantsuef
+  spelling_hints: 4
+  preedit_format:
+    - "xlit|v|ü|"
+    - xform/iü/iv/
+  comment_format:
+    - "xlit|v|ü|"
+    - xform/iü/iv/
+
+reverse_lookup:
+  dictionary: luna_pinyin
+  prefix: "`"
+  tips: 〔PinYin〕
+  preedit_format:
+    - xform/([nljqxy])v/$1ü/
+
+punctuator:
+  import_preset: default
+
+menu:
+  page_size: 5
+
+key_binder:
+  bindings:
+    - {accept: minus, send: Page_Up, when: has_menu}
+    - {accept: equal, send: Page_Down, when: has_menu}
+    # - { when: has_menu, accept: "'", send: 2 }
+    #- { when: has_menu, accept: "&", toggle: emoji_cn}
+    - { when: has_menu, accept: "^", toggle: bmms}
+    - {accept: bracketleft, send: Page_Up, when: has_menu} # [上翻页
+    - {accept: bracketright, send: Page_Down, when: has_menu} # ]下翻页
+#    - {accept: semicolon, send: 2, when: has_menu}
+#    - {accept: apostrophe, send: 2, when: has_menu}
+    - { accept: apostrophe, toggle: show_es, when: has_menu }
+
+recognizer:
+  import_preset: default
+  patterns:
+    reverse_lookup: "`[a-z]*$"
