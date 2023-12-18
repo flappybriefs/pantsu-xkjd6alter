@@ -58,20 +58,15 @@ switches:
   - name: jffh
     reset: 0
     states: [ 简体, 繁體 ]
-  - name: wxw_hint
-    states: [ 提示关, 提示开 ]
-    reset: 1
+  - name: embeded_cands
+    reset: 0
+    states: [普通, 嵌入候选]
   - name: sbb_hint
     reset: 1 # 改成0默认关闭
-    states: [ "关₆₃₀", "开₆₃₀" ]
+    states: [ "关₆₃₀提示", "开₆₃₀提示" ]
   - name: completion
     reset: 1
-    states: [ "匹配", "补全" ]
-  - name: EN2en
-    reset: 1
-  - name: topup_hint
-    reset: 1
-    states: [ "关顶功提示", "开顶功提示" ]
+    states: [ 候选关, 候选开 ]
   - name: show_es
     reset: 1
     states: [ 😔, 😀 ]
@@ -155,6 +150,7 @@ engine:
     - key_binder
     - lua_processor@*pantsu_for_topup
     - lua_processor@*pantsu_smart_2
+    - lua_processor@*pantsu_select_character
     - speller
     - punctuator
     - selector
@@ -182,11 +178,14 @@ engine:
     - simplifier@jffh
     - simplifier@bmms
     - simplifier@EN2en
+    - lua_filter@*pantsu_filter
     - reverse_lookup_filter@danzi_lookup
     - reverse_lookup_filter@pinyin_reverse_lookup
     - reverse_lookup_filter@erfen_lookup
-    - lua_filter@*pantsu_filter
+#    - lua_filter@*pantsu_single_char #候选辅助码单字优先，由于该方案有二简词，故关闭
+    - lua_filter@*pantsu_completion   #辅助码提示
     - simplifier@es_conversion
+    - lua_filter@*pantsu_embeded_cands@embeded_cands  #内嵌
     - uniquifier
 
 
@@ -290,7 +289,22 @@ erfen:
   prefix: "'"
   tips: "〔二分〕"
 
+# 内嵌配置
+# 默認顯示效果爲:
+# 宇[浩¹]iwl ~淍² ~泃³
+embeded_cands:
+  option_name: embeded_cands                               # 嵌入候選開關
+  index_indicators: [ ¹, ², ³, ⁴, ⁵, ⁶, ⁷, ⁸, ⁹, ⁰ ]       # 嵌入候選的序號顯示格式
+  first_format: "${Stash}[${候選}${Seq}]${Code}${Comment}" # 首選的渲染格式
+  next_format: "${Stash}${候選}${Seq}${Comment}"           # 非首選的渲染格式
+  separator: " "                                           # 候選之間的分隔符
+  stash_placeholder: "~"  
+
+
 key_binder:
+  #以词定字
+  select_first_character: "bracketleft"  # 左中括号 [
+  select_last_character: "bracketright"  # 右中括号 ]
   bindings:
     - {accept: minus, send: Page_Up, when: has_menu}
     - {accept: equal, send: Page_Down, when: has_menu}
@@ -299,8 +313,6 @@ key_binder:
     # - { when: has_menu, accept: "'", send: 2 }
     #- { when: has_menu, accept: "&", toggle: emoji_cn}
     - { when: has_menu, accept: "^", toggle: bmms}
-    - {accept: bracketleft, send: Page_Up, when: has_menu} # [上翻页
-    - {accept: bracketright, send: Page_Down, when: has_menu} # ]下翻页
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
     - { accept: apostrophe, toggle: show_es, when: has_menu }
