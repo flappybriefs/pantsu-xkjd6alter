@@ -682,6 +682,7 @@ sort: original
 
 #region <声声or声声笔>#
 
+保存	bcv
 不动	bdv
 不但	bdi
 不得	bdu
@@ -801,6 +802,7 @@ sort: original
 平时	pe
 破坏	phv
 脾气	pq
+抛弃	pqo
 平台	pt
 平安	px
 拼音	py
@@ -927,6 +929,7 @@ sort: original
 玩	w;
 咋	z;
 # 二简
+标	bc;
 拌	bf;
 哔	bk;
 啵	bl;
