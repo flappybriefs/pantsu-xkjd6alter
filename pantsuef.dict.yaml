@@ -2369,7 +2369,7 @@ min_phrase_weight: 100
 圚	kdgb
 圛	kdxg
 圜	kdht
-圝	kd
+圝	kdyf
 圞	kdlt
 土	ekhr
 圠	tjyk
@@ -2522,7 +2522,6 @@ min_phrase_weight: 100
 垳	tjxg
 垴	tjxy
 垵	tjxf
-垵	tt
 垶	tjxb
 垷	tjjm
 垸	tjwf
@@ -2617,7 +2616,6 @@ min_phrase_weight: 100
 堑	qftj
 堒	tjkw
 堓	tjxf
-堓	tt
 堔	tjen
 堕	xjtj
 堖	tjxb
@@ -3525,7 +3523,7 @@ min_phrase_weight: 100
 宜	ghqd
 宝	ghyl
 实	ghtd
-実	gh
+実	ghbs
 宠	ghly
 审	ghen
 客	ghge
@@ -7018,7 +7016,7 @@ min_phrase_weight: 100
 椙	mjjp
 椚	mjmn
 椛	mjhq
-検	mj
+検	mjbs
 椝	gbmj
 椞	xkmj
 椟	mjmh
@@ -7800,7 +7798,6 @@ min_phrase_weight: 100
 氦	qkhh
 氧	qkyp
 氨	qkxf
-氨	qm
 氩	qkys
 氪	qkke
 氫	qkjg
@@ -8972,8 +8969,7 @@ min_phrase_weight: 100
 点	qfhl
 為	dmhl
 炻	hlek
-炼	hjxl
-炼	hl
+炼	hjdy
 炽	hlfk
 炾	hlxy
 炿	hlfd
@@ -12570,7 +12566,7 @@ min_phrase_weight: 100
 绀	skgf
 绁	skek
 绂	skbs
-练	sk
+练	skdy
 组	skqd
 绅	sken
 细	sktm
@@ -12768,7 +12764,7 @@ min_phrase_weight: 100
 羆	skxy
 羇	skqk
 羈	skms
-羉	sk
+羉	skkd
 羊	bsgf
 羋	hrek
 羌	ypxj
@@ -19632,7 +19628,7 @@ min_phrase_weight: 100
 騐	msnm
 騑	msfw
 騒	mswy
-験	ms
+験	msdm
 騔	mshe
 騕	msyz
 騖	mzms
@@ -20029,7 +20025,6 @@ min_phrase_weight: 100
 鮝	jtyl
 鮞	ylxj
 鮟	ylxf
-鮟	yt
 鮠	ylww
 鮡	ylqz
 鮢	ylqj
@@ -20143,7 +20138,6 @@ min_phrase_weight: 100
 鰎	yljm
 鰏	ylfj
 鰐	ylxe
-鰐	yh
 鰑	ylyp
 鰒	ylfj
 鰓	ylsk
@@ -20247,7 +20241,6 @@ min_phrase_weight: 100
 鱵	ylxm
 鱶	ylyp
 鱷	ylxe
-鱷	yh
 鱸	yllj
 鱹	ylgt
 鱺	yllk
@@ -20325,7 +20318,6 @@ min_phrase_weight: 100
 鳂	ylww
 鳃	ylsk
 鳄	ylxe
-鳄	yh
 鳅	ylqq
 鳆	ylfj
 鳇	ylhx
@@ -20761,7 +20753,7 @@ min_phrase_weight: 100
 鹵	qfmk
 鹶	ljjb
 鹷	ljlg
-鹸	lj
+鹸	ljdm
 鹹	ljxm
 鹺	ljws
 鹻	ljjm
@@ -21136,7 +21128,6 @@ min_phrase_weight: 100
 鿪	sbhl
 鿫	qkxz
 鿫	qsxl
-鿫	qc
 鿬	ektm
 鿭	jbxj
 鿮	gxjb
@@ -22856,7 +22847,7 @@ min_phrase_weight: 100
 㪕	flpj
 㪖	ljpj
 㪗	pdpj
-㪘	wn
+㪘	rnwn
 㪙	glwn
 㪚	xkwn
 㪛	enpj
@@ -23272,8 +23263,7 @@ min_phrase_weight: 100
 㰵	zjqm
 㰶	jqqm
 㰷	skqm
-㰸	qkxf
-㰸	qm
+㰸	rnqm
 㰹	xmqm
 㰺	jsqm
 㰻	qjqm
@@ -28335,7 +28325,7 @@ min_phrase_weight: 100
 𠈨	rnfs
 𠈩	rnjb
 𠈪	rngt
-𠈫	rn
+𠈫	rndm
 𠈬	rntj
 𠈭	rnlz
 𠈮	rnzj
@@ -33652,7 +33642,6 @@ min_phrase_weight: 100
 𡛔	nlgh
 𡛕	nlth
 𡛖	nlxe
-𡛖	nh
 𡛗	bknl
 𡛘	nlpk
 𡛙	nlyd
@@ -33666,7 +33655,6 @@ min_phrase_weight: 100
 𡛡	nlpk
 𡛢	nljp
 𡛣	nlxe
-𡛣	nh
 𡛤	bfnl
 𡛥	nlts
 𡛦	nlbg
@@ -34087,7 +34075,6 @@ min_phrase_weight: 100
 𡢅	nlyw
 𡢆	nlxb
 𡢇	nlxe
-𡢇	nh
 𡢈	tpnl
 𡢉	nlxj
 𡢊	nlds
@@ -34238,13 +34225,12 @@ min_phrase_weight: 100
 𡤛	nlft
 𡤜	ykzk
 𡤝	nlxe
-𡤝	nh
 𡤞	nlgb
 𡤟	hzlw
 𡤠	nllk
 𡤡	nlgt
 𡤢	nlll
-𡤣	nl
+𡤣	nlkd
 𡤤	nlyz
 𡤥	nlhw
 𡤦	nlyk
@@ -36810,7 +36796,6 @@ min_phrase_weight: 100
 𢌓	gxyk
 𢌔	gxlg
 𢌕	gjxp
-𢌕	gx
 𢌖	gxtg
 𢌗	fkek
 𢌘	fkef
@@ -39782,7 +39767,7 @@ min_phrase_weight: 100
 𢺅	edqm
 𢺆	edff
 𢺇	edyz
-𢺈	ed
+𢺈	edkd
 𢺉	edjh
 𢺊	edwp
 𢺋	nfed
@@ -43866,7 +43851,7 @@ min_phrase_weight: 100
 𣹵	ebxj
 𣹶	ebwn
 𣹷	ebjb
-𣹸	eb
+𣹸	ebdm
 𣹹	wjsf
 𣹺	ebeb
 𣹻	bhqt
@@ -44585,7 +44570,7 @@ min_phrase_weight: 100
 𤅄	eblm
 𤅅	eblb
 𤅆	ebye
-𤅇	eb
+𤅇	ebkd
 𤅈	ebjq
 𤅉	eblp
 𤅊	ebxm
@@ -48135,7 +48120,7 @@ min_phrase_weight: 100
 𤼖	bgwy
 𤼗	bgzj
 𤼘	bglw
-𤼙	bg
+𤼙	bgkd
 𤼚	bgjh
 𤼛	bgek
 𤼜	bgwy
@@ -50225,7 +50210,6 @@ min_phrase_weight: 100
 𥝀	ylye
 𥝁	wtsk
 𥝂	ylxe
-𥝂	yh
 𥝃	fjyl
 𥝄	jqsk
 𥝅	jqsk
@@ -51217,7 +51201,7 @@ min_phrase_weight: 100
 𥬜	qjxj
 𥬝	qjbh
 𥬞	qjxj
-𥬟	qj
+𥬟	qjdm
 𥬠	qjjj
 𥬡	qjyd
 𥬢	qjzl
@@ -51740,7 +51724,6 @@ min_phrase_weight: 100
 𥴦	qjsb
 𥴧	qjjl
 𥴨	qjxh
-𥴨	fg
 𥴩	qjge
 𥴪	qjyl
 𥴫	qjdm
@@ -52268,7 +52251,6 @@ min_phrase_weight: 100
 𥼱	mkqc
 𥼲	mkgf
 𥼳	mkxe
-𥼳	md
 𥼴	mkjm
 𥼵	mker
 𥼶	mkxg
@@ -54726,14 +54708,13 @@ min_phrase_weight: 100
 𦣈	yhbj
 𦣉	wpsd
 𦣊	nfyh
-𦣋	ylxe
-𦣋	yh
+𦣋	yhkd
 𦣌	yhlb
 𦣍	yhmw
 𦣎	yhnf
 𦣏	ltyh
 𦣐	ylxe
-𦣐	yh
+𦣐	yhkd
 𦣑	yhsj
 𦣒	yhjh
 𦣓	lhpr
@@ -56887,7 +56868,7 @@ min_phrase_weight: 100
 𧄴	wfye
 𧄵	czld
 𧄶	csxl
-𧄶	cz
+𧄶	czkd
 𧄷	cznc
 𧄸	czqd
 𧄹	czek
@@ -58470,7 +58451,7 @@ min_phrase_weight: 100
 𧝟	jpyk
 𧝠	yksf
 𧝡	ykds
-𧝢	yk
+𧝢	ykdm
 𧝣	gyyk
 𧝤	yksk
 𧝥	ykms
@@ -60518,7 +60499,7 @@ min_phrase_weight: 100
 𧽋	zdwj
 𧽌	zdgj
 𧽍	zdqn
-𧽎	zd
+𧽎	zdfd
 𧽏	zdsd
 𧽐	zdqm
 𧽑	zdjk
@@ -61209,7 +61190,7 @@ min_phrase_weight: 100
 𨇹	zjwr
 𨇺	zjjh
 𨇻	zjmk
-𨇼	zj
+𨇼	zjkd
 𨇽	zjll
 𨇾	zjhl
 𨇿	zjjm
@@ -61719,7 +61700,7 @@ min_phrase_weight: 100
 𨏴	wend
 𨏵	wewn
 𨏶	ltwe
-𨏷	we
+𨏷	wekd
 𨏸	webg
 𨏹	wejh
 𨏺	wefd
@@ -64308,7 +64289,7 @@ min_phrase_weight: 100
 𨷸	mnxk
 𨷹	mnhl
 𨷺	mngb
-𨷻	mn
+𨷻	mnyf
 𨷼	mnek
 𨷽	mnyf
 𨷾	mnmn
@@ -64974,7 +64955,6 @@ min_phrase_weight: 100
 𩂐	ylrn
 𩂑	yljk
 𩂒	ylxe
-𩂒	yh
 𩂓	yldy
 𩂔	ylbs
 𩂕	ylfj
@@ -68275,7 +68255,6 @@ min_phrase_weight: 100
 𩵟	ylgf
 𩵠	ylnq
 𩵡	ylxe
-𩵡	yh
 𩵢	ylqm
 𩵣	ylbj
 𩵤	ylej
@@ -68820,7 +68799,6 @@ min_phrase_weight: 100
 𩽼	yljw
 𩽽	ylqh
 𩽾	ylxf
-𩽾	yt
 𩽿	yldl
 𩾀	ylgj
 𩾁	ylqq
@@ -71364,7 +71342,6 @@ min_phrase_weight: 100
 𪦈	nlyf
 𪦉	nljq
 𪦊	nlxe
-𪦊	nh
 𪦋	nldt
 𪦌	nlzk
 𪦍	wpgx
@@ -71380,7 +71357,6 @@ min_phrase_weight: 100
 𪦗	nlnl
 𪦘	nlhe
 𪦙	nlxe
-𪦙	nh
 𪦚	nlbh
 𪦛	nltm
 𪦜	nlqj
@@ -71404,7 +71380,6 @@ min_phrase_weight: 100
 𪦮	nltm
 𪦯	nlyg
 𪦰	nlxe
-𪦰	nh
 𪦱	nlyg
 𪦲	ekmh
 𪦳	nlxj
@@ -72365,8 +72340,6 @@ min_phrase_weight: 100
 𪵥	qkmw
 𪵦	ybqk
 𪵧	qkxz
-𪵧	qsxl
-𪵧	qc
 𪵨	skeb
 𪵩	ebxs
 𪵪	dseb
@@ -73185,7 +73158,6 @@ min_phrase_weight: 100
 𫂔	qjwj
 𫂕	qjbw
 𫂖	qjxh
-𫂖	fg
 𫂗	qjmk
 𫂘	qjyd
 𫂙	qjwn
@@ -73228,7 +73200,6 @@ min_phrase_weight: 100
 𫂾	mkyb
 𫂿	esmk
 𫃀	mkxf
-𫃀	mm
 𫃁	mkqq
 𫃂	mkql
 𫃃	mkqq
@@ -73996,7 +73967,6 @@ min_phrase_weight: 100
 𫎺	zdcf
 𫎻	zdxg
 𫎼	qkxf
-𫎼	qm
 𫎽	zdhe
 𫎾	zdff
 𫎿	zdex
@@ -74910,7 +74880,7 @@ min_phrase_weight: 100
 𫝑	fklk
 𫝒	ejek
 𫝓	ekbs
-𫝔	tj
+𫝔	tjyt
 𫝕	jpdm
 𫝖	dzbs
 𫝗	jpzk
@@ -74918,7 +74888,7 @@ min_phrase_weight: 100
 𫝙	xxep
 𫝚	kdyw
 𫝛	xxty
-𫝜	kd
+𫝜	kdfb
 𫝝	kdgf
 𫝞	kdwj
 𫝟	tjlk
@@ -78528,7 +78498,6 @@ min_phrase_weight: 100
 𬕜	qjfr
 𬕝	qjyt
 𬕞	qjxh
-𬕞	fg
 𬕟	qjek
 𬕠	qjht
 𬕡	qjhy
@@ -80219,7 +80188,7 @@ min_phrase_weight: 100
 𬯥	xjtm
 𬯦	xjlq
 𬯧	xjyk
-𬯨	xj
+𬯨	xjkd
 𬯩	xslh
 𬯪	fbfk
 𬯫	fbtj
@@ -93077,7 +93046,6 @@ min_phrase_weight: 100
 𱈘	yljp
 𱈙	ylmd
 𱈚	ylxe
-𱈚	yh
 𱈛	ylmr
 𱈜	ylyl
 𱈝	nckz
@@ -93552,7 +93520,6 @@ min_phrase_weight: 100
 􁣳	tjxd
 􁣴	jgtj
 􁣵	tjxf
-􁣵	tt
 􁣶	tjxt
 􁣷	tjfd
 􁣸	tjsk

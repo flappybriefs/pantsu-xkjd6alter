@@ -59,7 +59,7 @@ sort: original
 错了	cai
 才对	cao
 参加	cau
-村民	cav
+词汇	cav
 操作	ci
 策略	cia
 此人	cii
@@ -71,7 +71,7 @@ sort: original
 此时	coi
 从头	coo
 材料	cou
-次次	cov
+词库	cov
 采用	cu
 此外	cua
 苍白	cui
@@ -85,7 +85,7 @@ sort: original
 才有	cvu
 从未	cvv
 到了	da
-大约	daa
+电池	daa
 多了	dai
 都能	dao
 都没	dau
@@ -196,7 +196,7 @@ sort: original
 果然	gua
 搞的	gui
 感受	guo
-过后	guu
+搞得	guu
 各种	guv
 过去	gv
 感到	gva
@@ -395,7 +395,7 @@ sort: original
 拿来	nvo
 哪有	nvu
 哪天	nvv
-啊这	of
+啊这	oo
 普通	pa
 婆婆	paa
 排除	pai
@@ -632,6 +632,13 @@ sort: original
 有点	yiv
 因为	yo
 应该	yoa
+因为那边	yoaa
+因为那个	yoai
+因为那里	yoaia
+因为那是	yoao
+因为那么	yoau
+因为那种	yoauv
+因为那样	yoav
 也是	yoi
 一定	yoo
 以前	you
@@ -696,6 +703,7 @@ sort: original
 不来	blv
 避免	bmu
 并且	bq
+不住	bqi
 标准	bqo
 不去	bqv
 不如	br
@@ -724,8 +732,11 @@ sort: original
 操心	cxo
 从而	cxv
 顶上	dei
+都得	d;u
 电脑	dn
-大小	dx
+当年	dnu
+都行	dx
+大小	dxi
 担心	dxo
 对象	dxu
 底下	dxv
@@ -759,6 +770,7 @@ sort: original
 只要	fyv
 刚才	gc
 更好	gh
+过后	ghu
 赶快	gk
 光明	gm
 关注	gqa
@@ -791,6 +803,7 @@ sort: original
 明明	mmo
 明天	mt
 梦想	mx
+某些	mxi
 满意	my
 每有	myv
 没再	mzv
@@ -822,6 +835,7 @@ sort: original
 三次	sc
 虽说	seo
 搜狗	sg
+损坏	shv
 司马	sm
 索取	sq
 涩情	sqo
@@ -843,7 +857,8 @@ sort: original
 想从	xc
 下次	xco
 想法	xfa
-想让	xr
+信任	xr
+想让	xro
 显然	xru
 想要	xyv
 因此	yc
@@ -855,6 +870,7 @@ sort: original
 郁闷	ym
 要么	ymu
 一年	yn
+也能	yna
 要求	yq
 疫情	yqo
 一起	yqv
@@ -1013,6 +1029,7 @@ sort: original
 哎	xh;
 兮	xk/
 需	xl/
+险	xm;
 瞎	xs;
 诶	xw;
 耶	ye;
