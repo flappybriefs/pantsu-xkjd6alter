@@ -1488,7 +1488,7 @@ X光	X光 🩻
 爱因斯坦	爱因斯坦 阿尔伯特·爱因斯坦 Albert Einstein
 薛定谔	薛定谔 埃尔温·薛定谔 Erwin Schrödinger
 玻尔	玻尔 尼尔斯·玻尔 Niels Bohr
-达芬奇	达·芬奇 列奥纳多·达·芬奇 Leonardo da Vinci
+达芬奇	达芬奇 列奥纳多·达·芬奇 Leonardo da Vinci
 狄拉克	狄拉克 保罗·狄拉克 Paul Dirac
 性	性 ♂ ♀ ⚢ ⚣ ⚤ ⚥ ⚦ ⚧️ ⚧ ⚨ ⚩ ⚪ ⚫ ⚬ ⚭ ⚮ ⚯
 性别	性别 ♂ ♀ ⚢ ⚣ ⚤ ⚥ ⚦ ⚧️ ⚧ ⚨ ⚩ ⚪ ⚫ ⚬ ⚭ ⚮ ⚯
