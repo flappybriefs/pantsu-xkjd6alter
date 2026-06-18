@@ -128,36 +128,89 @@ local function locate_entry(model, word, input)
     return best, best and nil or "entry_not_found"
 end
 
+local function extension_codes(word, current_code)
+    local found = {}
+    for _, full_code in ipairs(core.full_codes_for_word(word)) do
+        if string.len(full_code) > string.len(current_code)
+            and code_startswith(full_code, current_code) then
+            local max_extra = math.min(2,
+                string.len(full_code) - string.len(current_code))
+            for extra = 1, max_extra do
+                found[string.sub(
+                    full_code, 1, string.len(current_code) + extra)] = true
+            end
+        end
+    end
+
+    local result = {}
+    for code in pairs(found) do
+        table.insert(result, code)
+    end
+    table.sort(result, function(left, right)
+        if string.len(left) == string.len(right) then
+            return left < right
+        end
+        return string.len(left) < string.len(right)
+    end)
+    return result
+end
+
 local function push_down(model, entry, visiting)
     if visiting[entry] then
         return nil, "code_cycle"
     end
     visiting[entry] = true
 
-    local next_code, err = core.next_code_for_word(entry.word, entry.code)
-    if not next_code then
+    local candidates = extension_codes(entry.word, entry.code)
+    if #candidates == 0 then
         visiting[entry] = nil
-        return nil, err
+        return nil, "no_longer_code:" .. entry.word
     end
 
-    local blocked = occupants(model, next_code, entry)
-    if #blocked > 1 then
-        visiting[entry] = nil
-        return nil, "multiple_occupants:" .. next_code
+    local groups = {}
+    for _, code in ipairs(candidates) do
+        local length = string.len(code)
+        if not groups[length] then
+            groups[length] = {}
+        end
+        table.insert(groups[length], code)
     end
-    if #blocked == 1 then
-        local ok
-        ok, err = push_down(model, blocked[1], visiting)
-        if not ok then
-            visiting[entry] = nil
-            return nil, err
+
+    local last_error
+    local lengths = {}
+    for length in pairs(groups) do
+        table.insert(lengths, length)
+    end
+    table.sort(lengths)
+    for _, length in ipairs(lengths) do
+        local choices = groups[length]
+        if #choices == 1 then
+            local next_code = choices[1]
+            local blocked = occupants(model, next_code, entry)
+            if #blocked == 0 then
+                remove_from_code(model, entry)
+                attach_to_code(model, entry, next_code)
+                visiting[entry] = nil
+                return true
+            elseif #blocked == 1 then
+                local ok, err = push_down(model, blocked[1], visiting)
+                if ok then
+                    remove_from_code(model, entry)
+                    attach_to_code(model, entry, next_code)
+                    visiting[entry] = nil
+                    return true
+                end
+                last_error = err
+            else
+                last_error = "multiple_occupants:" .. next_code
+            end
+        else
+            last_error = "ambiguous_full_code:" .. entry.word
         end
     end
 
-    remove_from_code(model, entry)
-    attach_to_code(model, entry, next_code)
     visiting[entry] = nil
-    return true
+    return nil, last_error or ("no_available_code:" .. entry.word)
 end
 
 local function promote(model, entry)
@@ -262,6 +315,16 @@ local function pull_candidates(model, vacancy, candidate_words)
     end
 end
 
+local function promote_and_pull(model, entry, candidate_words)
+    local vacancy = entry.code
+    local ok, err = promote(model, entry)
+    if not ok then
+        return nil, err
+    end
+    pull_candidates(model, vacancy, candidate_words)
+    return true
+end
+
 local function demote_and_pull(model, entry, candidate_words)
     local vacancy = entry.code
     local ok, err = demote(model, entry)
@@ -341,13 +404,49 @@ local function prepare_files(changes)
 end
 
 local function install_prepared(prepared)
+    local backed_up = {}
+    for _, item in ipairs(prepared) do
+        item.backup = item.target .. ".pantsu-candidate-editor.bak"
+        os.remove(item.backup)
+        if not os.rename(item.target, item.backup) then
+            for index = #backed_up, 1, -1 do
+                os.rename(backed_up[index].backup, backed_up[index].target)
+            end
+            discard_prepared(prepared)
+            return nil, "backup_failed:" .. item.path
+        end
+        table.insert(backed_up, item)
+    end
+
+    local installed = {}
     for _, item in ipairs(prepared) do
         if not os.rename(item.temp, item.target) then
+            for _, done in ipairs(installed) do
+                os.remove(done.target)
+            end
+            for index = #backed_up, 1, -1 do
+                os.rename(backed_up[index].backup, backed_up[index].target)
+            end
             discard_prepared(prepared)
-            return nil, "rename_failed:" .. item.path
+            return nil, "install_failed:" .. item.path
         end
+        table.insert(installed, item)
+    end
+    for _, item in ipairs(backed_up) do
+        os.remove(item.backup)
     end
     return true
+end
+
+local function write_error(action, word, input, err)
+    local file = io.open(data_path("build/pantsu_candidate_editor.error.log"), "a")
+    if not file then
+        return
+    end
+    file:write(os.date("%Y-%m-%d %H:%M:%S"), "\t",
+        action, "\t", word, "\t", input, "\t",
+        err or "unknown error", "\n")
+    file:close()
 end
 
 local function write_log(action, entries)
@@ -368,23 +467,30 @@ end
 
 local function adjust(action, context, word, input)
     local root = input
-    if action == "promote" and string.len(input) > 1 then
-        root = string.sub(input, 1, string.len(input) - 1)
-    end
     local model = load_chain(root)
     local entry, err = locate_entry(model, word, input)
     if not entry then
         return nil, err
     end
 
+    if action == "promote" and entry.code == input
+        and string.len(input) > 1 then
+        root = string.sub(input, 1, string.len(input) - 1)
+        model = load_chain(root)
+        entry, err = locate_entry(model, word, input)
+        if not entry then
+            return nil, err
+        end
+    end
+
     local ok
+    local following = following_candidate_words(context)
     if action == "promote" then
-        ok, err = promote(model, entry)
+        ok, err = promote_and_pull(model, entry, following)
     elseif action == "demote" then
-        ok, err = demote_and_pull(
-            model, entry, following_candidate_words(context))
+        ok, err = demote_and_pull(model, entry, following)
     else
-        ok, err = delete_and_pull(model, entry, following_candidate_words(context))
+        ok, err = delete_and_pull(model, entry, following)
     end
     if not ok then
         return nil, err
@@ -403,7 +509,17 @@ local function adjust(action, context, word, input)
     if not ok then
         return nil, err
     end
-    dynamic.refresh_entries(model.entries)
+    local dynamic_root = root
+    if action == "delete" and entry.original_code == input
+        and string.len(input) > 1 then
+        dynamic_root = string.sub(input, 1, string.len(input) - 1)
+    end
+    if string.len(dynamic_root) > 4 then
+        dynamic_root = string.sub(dynamic_root, 1, 4)
+    end
+    if not dynamic.refresh_entries(model.entries, dynamic_root) then
+        write_error(action, word, input, "dynamic_refresh_failed")
+    end
     write_log(action, model.entries)
     return true
 end
@@ -431,11 +547,13 @@ local function processor(key_event, env)
         return kNoop
     end
 
-    local ok, err = adjust(action, context, candidate.text, context.input)
-    if not ok then
-        if log and log.warning then
-            log.warning("candidate editor: " .. (err or "unknown error"))
-        end
+    local called, ok, err = pcall(
+        adjust, action, context, candidate.text, context.input)
+    if not called then
+        write_error(action, candidate.text, context.input, ok)
+        return kAccepted
+    elseif not ok then
+        write_error(action, candidate.text, context.input, err)
         return kAccepted
     end
 

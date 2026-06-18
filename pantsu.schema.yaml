@@ -236,7 +236,7 @@ pantsuen:
   enable_user_dict: false
   comment_format:
     - xform/.*//
-  prefix: "v"
+  prefix: "]"
   tips: "〔单词〕"
 
 jffh:
@@ -342,7 +342,7 @@ recognizer:
     make_word: '^\[$'
     url: "^(www[.]|https?:|ftp:|mailto:).*$"
     jsq: "^=[^;']+$"
-    pantsuen: "^v[a-z]*?$"
+    pantsuen: '^\][a-z]*?$'
 
 
 topup:

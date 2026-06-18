@@ -14,7 +14,6 @@ M.dictionary_files = {
 M.loaded = false
 M.build_time = nil
 M.roots = {}
-M.last_build_check = 0
 
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
@@ -95,7 +94,9 @@ local function load_state()
 end
 
 local function write_state()
-    local file = io.open(data_path(M.state_file), "w")
+    local target = data_path(M.state_file)
+    local temp = target .. ".tmp"
+    local file = io.open(temp, "w")
     if not file then
         return false
     end
@@ -123,22 +124,15 @@ local function write_state()
         end
     end
     file:close()
+    if not os.rename(temp, target) then
+        os.remove(temp)
+        return false
+    end
     return true
 end
 
 local function ensure_current_build()
     load_state()
-    local now = os.time()
-    if now == M.last_build_check then
-        return
-    end
-    M.last_build_check = now
-    local current = read_build_time()
-    if current ~= M.build_time then
-        M.build_time = current
-        clear_memory()
-        remove_state_file()
-    end
 end
 
 local function common_prefix(values)
@@ -166,6 +160,30 @@ local function common_prefix(values)
 end
 
 local function snapshot_root(root, extra_suppress)
+    for _, word in ipairs(extra_suppress or {}) do
+        for _, old_state in pairs(M.roots) do
+            local kept = {}
+            for _, entry in ipairs(old_state.entries) do
+                if entry.word ~= word then
+                    table.insert(kept, entry)
+                end
+            end
+            old_state.entries = kept
+            old_state.suppress[word] = true
+        end
+    end
+
+    local overlapping = {}
+    for old_root in pairs(M.roots) do
+        if string.sub(old_root, 1, string.len(root)) == root
+            or string.sub(root, 1, string.len(old_root)) == old_root then
+            table.insert(overlapping, old_root)
+        end
+    end
+    for _, old_root in ipairs(overlapping) do
+        M.roots[old_root] = nil
+    end
+
     local state = { entries = {}, suppress = {} }
     local order = 0
     for _, path in ipairs(M.dictionary_files) do
@@ -199,7 +217,7 @@ local function snapshot_root(root, extra_suppress)
     M.roots[root] = state
 end
 
-function M.refresh_codes(codes, suppressed_words, preferred_root_length)
+function M.refresh_codes(codes, suppressed_words, preferred_root)
     ensure_current_build()
     local clean_codes = {}
     for _, code in ipairs(codes or {}) do
@@ -211,14 +229,17 @@ function M.refresh_codes(codes, suppressed_words, preferred_root_length)
     if not root then
         return false
     end
-    if preferred_root_length and string.len(root) > preferred_root_length then
-        root = string.sub(root, 1, preferred_root_length)
+    if type(preferred_root) == "string" and preferred_root ~= "" then
+        root = preferred_root
+    elseif type(preferred_root) == "number"
+        and string.len(root) > preferred_root then
+        root = string.sub(root, 1, preferred_root)
     end
     snapshot_root(root, suppressed_words)
     return write_state()
 end
 
-function M.refresh_entries(entries)
+function M.refresh_entries(entries, preferred_root)
     local codes = {}
     local words = {}
     for _, entry in ipairs(entries or {}) do
@@ -230,7 +251,7 @@ function M.refresh_entries(entries)
             end
         end
     end
-    return M.refresh_codes(codes, words)
+    return M.refresh_codes(codes, words, preferred_root)
 end
 
 function M.match(input)
