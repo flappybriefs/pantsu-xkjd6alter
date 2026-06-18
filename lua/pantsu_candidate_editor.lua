@@ -23,9 +23,12 @@ local function read_code_fields(line)
     return string.match(line, "^([^\t]+)\t([^\t%s]+)")
 end
 
-local function load_sources()
+local function code_startswith(code, prefix)
+    return string.sub(code, 1, string.len(prefix)) == prefix
+end
+
+local function load_chain(input)
     local model = {
-        files = {},
         entries = {},
         by_code = {},
         by_word = {},
@@ -33,14 +36,14 @@ local function load_sources()
     for _, path in ipairs(core.dictionary_files) do
         local file = io.open(data_path(path), "r")
         if file then
-            local source = { path = path, lines = {}, changed = false }
+            local line_number = 0
             for line in file:lines() do
-                table.insert(source.lines, line)
+                line_number = line_number + 1
                 local word, code = read_code_fields(line)
-                if word and code then
+                if word and code and code_startswith(code, input) then
                     local entry = {
-                        source = source,
-                        index = #source.lines,
+                        path = path,
+                        line_number = line_number,
                         word = word,
                         code = code,
                         original_code = code,
@@ -58,7 +61,6 @@ local function load_sources()
                 end
             end
             file:close()
-            table.insert(model.files, source)
         end
     end
     return model
@@ -103,7 +105,7 @@ local function locate_entry(model, word, input)
     local best
     local ambiguous = false
     for _, entry in ipairs(model.by_word[word] or {}) do
-        if entry.active and string.sub(entry.code, 1, string.len(input)) == input then
+        if entry.active and code_startswith(entry.code, input) then
             if entry.code == input then
                 if exact and exact ~= entry then
                     return nil, "ambiguous_exact_entry"
@@ -162,8 +164,7 @@ local function promote(model, entry)
     if string.len(entry.code) <= 1 then
         return nil, "code_too_short"
     end
-    local old_code = entry.code
-    local target_code = string.sub(old_code, 1, string.len(old_code) - 1)
+    local target_code = string.sub(entry.code, 1, string.len(entry.code) - 1)
     detach(model, entry)
 
     local blocked = occupants(model, target_code)
@@ -231,7 +232,7 @@ local function descendant_entry(model, word, prefix)
     for _, entry in ipairs(model.by_word[word] or {}) do
         if entry.active
             and string.len(entry.code) > string.len(prefix)
-            and string.sub(entry.code, 1, string.len(prefix)) == prefix then
+            and code_startswith(entry.code, prefix) then
             if not best or string.len(entry.code) < string.len(best.code) then
                 best = entry
                 ambiguous = false
@@ -286,52 +287,63 @@ local function replace_code(line, code)
     return prefix .. code .. suffix
 end
 
-local function prepare_changes(model)
-    local changed_files = {}
+local function collect_changes(model)
+    local changes = {}
     for _, entry in ipairs(model.entries) do
-        if not entry.active then
-            entry.source.lines[entry.index] = false
-            entry.source.changed = true
-        elseif entry.code ~= entry.original_code then
-            entry.source.lines[entry.index] =
-                replace_code(entry.source.lines[entry.index], entry.code)
-            entry.source.changed = true
+        if not entry.active or entry.code ~= entry.original_code then
+            if not changes[entry.path] then
+                changes[entry.path] = {}
+            end
+            changes[entry.path][entry.line_number] = entry
         end
     end
-    for _, source in ipairs(model.files) do
-        if source.changed then
-            table.insert(changed_files, source)
-        end
-    end
-    return changed_files
+    return changes
 end
 
-local function write_sources(sources)
-    local prepared = {}
-    for _, source in ipairs(sources) do
-        local target = data_path(source.path)
-        local temp = target .. ".pantsu-candidate-editor.tmp"
-        local file = io.open(temp, "w")
-        if not file then
-            for _, item in ipairs(prepared) do
-                os.remove(item.temp)
-            end
-            return nil, "open_failed:" .. source.path
-        end
-        for _, line in ipairs(source.lines) do
-            if line ~= false then
-                file:write(line, "\n")
-            end
-        end
-        file:close()
-        table.insert(prepared, { temp = temp, target = target, path = source.path })
+local function discard_prepared(prepared)
+    for _, item in ipairs(prepared or {}) do
+        os.remove(item.temp)
     end
+end
 
+local function prepare_files(changes)
+    local prepared = {}
+    for path, line_changes in pairs(changes) do
+        local target = data_path(path)
+        local temp = target .. ".pantsu-candidate-editor.tmp"
+        local source = io.open(target, "r")
+        if not source then
+            discard_prepared(prepared)
+            return nil, "read_failed:" .. path
+        end
+        local output = io.open(temp, "w")
+        if not output then
+            source:close()
+            discard_prepared(prepared)
+            return nil, "open_failed:" .. path
+        end
+
+        local line_number = 0
+        for line in source:lines() do
+            line_number = line_number + 1
+            local entry = line_changes[line_number]
+            if not entry then
+                output:write(line, "\n")
+            elseif entry.active then
+                output:write(replace_code(line, entry.code), "\n")
+            end
+        end
+        source:close()
+        output:close()
+        table.insert(prepared, { temp = temp, target = target, path = path })
+    end
+    return prepared
+end
+
+local function install_prepared(prepared)
     for _, item in ipairs(prepared) do
         if not os.rename(item.temp, item.target) then
-            for _, pending in ipairs(prepared) do
-                os.remove(pending.temp)
-            end
+            discard_prepared(prepared)
             return nil, "rename_failed:" .. item.path
         end
     end
@@ -346,7 +358,7 @@ local function write_log(action, entries)
     local timestamp = os.date("%Y-%m-%d %H:%M:%S")
     for _, entry in ipairs(entries) do
         if not entry.active or entry.code ~= entry.original_code then
-            file:write(timestamp, "\t", action, "\t", entry.source.path, "\t",
+            file:write(timestamp, "\t", action, "\t", entry.path, "\t",
                 entry.word, "\t", entry.original_code, "\t",
                 entry.active and entry.code or "<deleted>", "\n")
         end
@@ -355,7 +367,11 @@ local function write_log(action, entries)
 end
 
 local function adjust(action, context, word, input)
-    local model = load_sources()
+    local root = input
+    if action == "promote" and string.len(input) > 1 then
+        root = string.sub(input, 1, string.len(input) - 1)
+    end
+    local model = load_chain(root)
     local entry, err = locate_entry(model, word, input)
     if not entry then
         return nil, err
@@ -374,11 +390,16 @@ local function adjust(action, context, word, input)
         return nil, err
     end
 
-    local sources = prepare_changes(model)
-    if #sources == 0 then
+    local changes = collect_changes(model)
+    if not next(changes) then
         return nil, "no_change"
     end
-    ok, err = write_sources(sources)
+    local prepared
+    prepared, err = prepare_files(changes)
+    if not prepared then
+        return nil, err
+    end
+    ok, err = install_prepared(prepared)
     if not ok then
         return nil, err
     end
