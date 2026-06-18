@@ -16,7 +16,7 @@ schema:
 
 
 menu:
-    page_size: 6
+    page_size: 7
 
 style:
   horizontal: true
@@ -148,6 +148,8 @@ engine:
     - ascii_composer
     - recognizer
     - key_binder
+    - lua_processor@*pantsu_make_word_processor
+    - lua_processor@*pantsu_candidate_editor
     - lua_processor@*pantsu_for_topup
     - lua_processor@*pantsu_smart_2
     - lua_processor@*pantsu_select_character
@@ -161,6 +163,7 @@ engine:
     - matcher
     - affix_segmentor@pantsuen
     - affix_segmentor@erfen
+    - affix_segmentor@make_word
     - abc_segmentor
     - punct_segmentor
     - fallback_segmentor
@@ -174,6 +177,7 @@ engine:
     - table_translator@english
     - table_translator@pantsuen
   filters:
+    - lua_filter@*pantsu_make_word_filter
     - simplifier
     - simplifier@jffh
     - simplifier@bmms
@@ -289,6 +293,11 @@ erfen:
   prefix: "'"
   tips: "〔二分〕"
 
+make_word:
+  tag: make_word
+  prefix: "["
+  tips: "〔自造词〕"
+
 # 内嵌配置
 # 默認顯示效果爲:
 # 宇[浩¹]iwl ~淍² ~泃³
@@ -329,6 +338,7 @@ recognizer:
     uppercase: "[A-Z][-_+.'0-9A-Za-z]*$"
     pinyin: "(?<![`A-Z])`[a-z']*;?$"
     erfen: "^'[a-z]*?$"
+    make_word: '^\[$'
     url: "^(www[.]|https?:|ftp:|mailto:).*$"
     jsq: "^=[^;']+$"
     pantsuen: "^v[a-z]*?$"
