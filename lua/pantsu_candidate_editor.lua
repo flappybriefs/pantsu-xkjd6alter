@@ -1,4 +1,5 @@
 local core = require("pantsu_make_word_core")
+local dynamic = require("pantsu_dynamic")
 
 local kAccepted = 1
 local kNoop = 2
@@ -381,6 +382,7 @@ local function adjust(action, context, word, input)
     if not ok then
         return nil, err
     end
+    dynamic.refresh_entries(model.entries)
     write_log(action, model.entries)
     return true
 end

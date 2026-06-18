@@ -1,4 +1,5 @@
 local core = require("pantsu_make_word_core")
+local dynamic = require("pantsu_dynamic")
 
 local kAccepted = 1
 local kNoop = 2
@@ -9,6 +10,14 @@ end
 
 local function utf8_len(text)
     return utf8.len(text or "") or 0
+end
+
+local function string_to_set(text)
+    local result = {}
+    for index = 1, string.len(text or "") do
+        result[string.sub(text, index, index)] = true
+    end
+    return result
 end
 
 local function event_key(key_event)
@@ -25,6 +34,47 @@ local function show_status(context)
     context.input = "["
 end
 
+local function should_topup(context, ch, env)
+    local input = context.input
+    if input == "" or input == "[" or not ch or not env.alphabet[ch] then
+        return false
+    end
+
+    local first = string.sub(input, 1, 1)
+    local previous = string.sub(input, -1)
+    local is_topup = env.topup_set[ch] or false
+    local previous_is_topup = env.topup_set[previous] or false
+    if env.topup_command and env.topup_set[first] then
+        return false
+    end
+
+    local min_length = env.topup_min
+    if context:get_option("danzi_mode") then
+        min_length = env.topup_min_danzi
+    end
+    return (previous_is_topup and not is_topup)
+        or (not previous_is_topup and not is_topup
+            and string.len(input) >= min_length)
+        or string.len(input) >= env.topup_max
+end
+
+local function capture_selected_candidate(context)
+    if not context:has_menu() then
+        return false
+    end
+    local candidate = context:get_selected_candidate()
+    if not candidate or not candidate.text or candidate.text == "" then
+        return false
+    end
+
+    local code = nil
+    if utf8_len(candidate.text) == 1 then
+        code = context.input
+    end
+    core.append(candidate.text, code)
+    return true
+end
+
 local function processor(key_event, env)
     if key_event:release() or key_event:ctrl() or key_event:alt() then
         return kNoop
@@ -37,8 +87,11 @@ local function processor(key_event, env)
         if key == "space" then
             if context.input == "[" then
                 if core.buffer ~= "" then
-                    local _, word = core.confirm()
+                    local code, word = core.confirm()
                     if word and word ~= "" then
+                        if code then
+                            dynamic.refresh_codes({ code }, { word }, 4)
+                        end
                         env.engine:commit_text(word)
                     end
                     context:clear()
@@ -54,13 +107,7 @@ local function processor(key_event, env)
             end
 
             if context:has_menu() then
-                local cand = context:get_selected_candidate()
-                if cand and cand.text and cand.text ~= "" then
-                    local code = nil
-                    if utf8_len(cand.text) == 1 then
-                        code = context.input
-                    end
-                    core.append(cand.text, code)
+                if capture_selected_candidate(context) then
                     show_status(context)
                     return kAccepted
                 end
@@ -106,6 +153,12 @@ local function processor(key_event, env)
             end
         end
 
+        if should_topup(context, ch, env)
+            and capture_selected_candidate(context) then
+            context:clear()
+            return kNoop
+        end
+
         if key == "Escape" and is_empty_context(context) then
             core.cancel()
             return kAccepted
@@ -133,6 +186,15 @@ local function processor(key_event, env)
 end
 
 local function init(env)
+    local config = env.engine.schema.config
+    env.topup_set = string_to_set(config:get_string("topup/topup_with"))
+    env.alphabet = string_to_set(config:get_string("speller/alphabet"))
+    env.topup_min = config:get_int("topup/min_length")
+    env.topup_min_danzi =
+        config:get_int("topup/min_length_danzi") or env.topup_min
+    env.topup_max = config:get_int("topup/max_length")
+    env.topup_command = config:get_bool("topup/topup_command") or false
+
     core.optimize_self_word_codes()
     core.load_words()
     core.load_char_codes()

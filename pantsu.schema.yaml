@@ -178,6 +178,7 @@ engine:
     - table_translator@pantsuen
   filters:
     - lua_filter@*pantsu_make_word_filter
+    - lua_filter@*pantsu_dynamic_filter
     - simplifier
     - simplifier@jffh
     - simplifier@bmms
