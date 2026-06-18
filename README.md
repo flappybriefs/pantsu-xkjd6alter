@@ -28,7 +28,7 @@ GitHub仓库链接：https://github.com/flappybriefs/pantsu-xkjd6alter
 ---
 
 ## 一些大的更改
-###重大更新
+### 重大更新
 
 2026-06-19 使用vibe coding增加了**自造词**和**调频**及**删词**功能，ChatGPT救我命！
 对于调频稍作解释一下，打个比方：
