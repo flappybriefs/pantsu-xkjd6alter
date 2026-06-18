@@ -278,6 +278,47 @@ local function following_candidate_words(context)
     return result
 end
 
+local function same_code_candidate_words(context, model, code)
+    local composition = context.composition
+    if not composition or composition:empty() then
+        return {}
+    end
+    local segment = composition:back()
+    if not segment or not segment.menu then
+        return {}
+    end
+
+    segment.menu:prepare(200)
+    local count = segment.menu:candidate_count()
+    local result = {}
+    local seen = {}
+    for index = 0, math.min(count - 1, 199) do
+        local candidate = segment:get_candidate_at(index)
+        local word = candidate and candidate.text
+        if word and not seen[word] then
+            for _, item in ipairs(model.by_word[word] or {}) do
+                if item.active and item.code == code then
+                    table.insert(result, word)
+                    seen[word] = true
+                    break
+                end
+            end
+        end
+    end
+    return result
+end
+
+local function demote_same_code(context, model, entry)
+    local words = same_code_candidate_words(context, model, entry.code)
+    for index, word in ipairs(words) do
+        if word == entry.word and index < #words then
+            words[index], words[index + 1] = words[index + 1], words[index]
+            return dynamic.set_same_code_order(entry.code, words)
+        end
+    end
+    return false
+end
+
 local function descendant_entry(model, word, prefix)
     local best
     local ambiguous = false
@@ -488,6 +529,11 @@ local function adjust(action, context, word, input)
         ok, err = promote_and_pull(model, entry, following)
     elseif action == "demote" then
         ok, err = demote_and_pull(model, entry, following)
+        if not ok and err == "no_longer_code"
+            and demote_same_code(context, model, entry) then
+            write_log(action, model.entries)
+            return true
+        end
     else
         ok, err = delete_and_pull(model, entry, following)
     end

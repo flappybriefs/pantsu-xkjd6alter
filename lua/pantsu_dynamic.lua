@@ -1,6 +1,7 @@
 local M = {}
 
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
+M.order_file = "pantsu_candidate_order.tsv"
 M.build_state_file = "user.yaml"
 M.dictionary_files = {
     "pantsu.core.dict.yaml",
@@ -14,6 +15,9 @@ M.dictionary_files = {
 M.loaded = false
 M.build_time = nil
 M.roots = {}
+M.orders = {}
+M.orders_loaded = false
+M.order_roots_loaded = false
 
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
@@ -27,6 +31,68 @@ end
 
 local function read_code_fields(line)
     return string.match(line, "^([^\t]+)\t([^\t%s]+)")
+end
+
+local function load_orders()
+    if M.orders_loaded then
+        return
+    end
+    M.orders_loaded = true
+    M.orders = {}
+    local file = io.open(data_path(M.order_file), "r")
+    if not file then
+        return
+    end
+    for line in file:lines() do
+        local code, rank, word =
+            string.match(line, "^([^\t]+)\t(%d+)\t(.+)$")
+        if code and rank and word then
+            if not M.orders[code] then
+                M.orders[code] = {}
+            end
+            M.orders[code][word] = tonumber(rank)
+        end
+    end
+    file:close()
+end
+
+local function write_orders()
+    local target = data_path(M.order_file)
+    local temp = target .. ".tmp"
+    local file = io.open(temp, "w")
+    if not file then
+        return false
+    end
+    local codes = {}
+    for code in pairs(M.orders) do
+        table.insert(codes, code)
+    end
+    table.sort(codes)
+    for _, code in ipairs(codes) do
+        local words = {}
+        for word, rank in pairs(M.orders[code]) do
+            table.insert(words, { word = word, rank = rank })
+        end
+        table.sort(words, function(left, right)
+            if left.rank == right.rank then
+                return left.word < right.word
+            end
+            return left.rank < right.rank
+        end)
+        for _, item in ipairs(words) do
+            file:write(code, "\t", tostring(item.rank), "\t",
+                item.word, "\n")
+        end
+    end
+    if not file:close() then
+        os.remove(temp)
+        return false
+    end
+    if not os.rename(temp, target) then
+        os.remove(temp)
+        return false
+    end
+    return true
 end
 
 local function read_build_time()
@@ -254,11 +320,73 @@ local function snapshot_root(root, extra_suppress, deleted_words)
     end
     table.sort(state.entries, function(left, right)
         if left.code == right.code then
+            load_orders()
+            local ranks = M.orders[left.code]
+            local left_rank = ranks and ranks[left.word]
+            local right_rank = ranks and ranks[right.word]
+            if left_rank or right_rank then
+                left_rank = left_rank or 1000000 + left.order
+                right_rank = right_rank or 1000000 + right.order
+                if left_rank ~= right_rank then
+                    return left_rank < right_rank
+                end
+            end
             return left.order < right.order
         end
         return left.code < right.code
     end)
     M.roots[root] = state
+end
+
+local function root_for_code(code)
+    if string.len(code) > 4 then
+        return string.sub(code, 1, 4)
+    end
+    if string.len(code) > 1 then
+        return string.sub(code, 1, string.len(code) - 1)
+    end
+    return code
+end
+
+function M.set_same_code_order(code, words)
+    ensure_current_build()
+    load_orders()
+    local ranks = {}
+    for index, word in ipairs(words or {}) do
+        ranks[word] = index
+    end
+    if not next(ranks) then
+        return false
+    end
+    M.orders[code] = ranks
+    if not write_orders() then
+        return false
+    end
+    snapshot_root(root_for_code(code), words)
+    M.order_roots_loaded = true
+    return write_state()
+end
+
+local function ensure_order_roots()
+    if M.order_roots_loaded then
+        return
+    end
+    M.order_roots_loaded = true
+    load_orders()
+    local roots = {}
+    for code in pairs(M.orders) do
+        roots[root_for_code(code)] = true
+    end
+    local changed = false
+    for root in pairs(roots) do
+        if not M.roots[root] then
+            snapshot_root(root)
+            changed = true
+        end
+    end
+    if changed then
+        write_state()
+    end
 end
 
 function M.refresh_codes(codes, suppressed_words, preferred_root, deleted_words)
@@ -303,6 +431,7 @@ end
 
 function M.match(input)
     ensure_current_build()
+    ensure_order_roots()
     local best_root
     for root in pairs(M.roots) do
         if string.sub(input, 1, string.len(root)) == root
