@@ -193,16 +193,22 @@ local function push_down(model, entry, visiting)
                 visiting[entry] = nil
                 return true
             elseif #blocked == 1 then
-                local ok, err = push_down(model, blocked[1], visiting)
+                local ok = push_down(model, blocked[1], visiting)
                 if ok then
                     remove_from_code(model, entry)
                     attach_to_code(model, entry, next_code)
                     visiting[entry] = nil
                     return true
                 end
-                last_error = err
+                remove_from_code(model, entry)
+                attach_to_code(model, entry, next_code)
+                visiting[entry] = nil
+                return true
             else
-                last_error = "multiple_occupants:" .. next_code
+                remove_from_code(model, entry)
+                attach_to_code(model, entry, next_code)
+                visiting[entry] = nil
+                return true
             end
         else
             last_error = "ambiguous_full_code:" .. entry.word
@@ -221,13 +227,13 @@ local function promote(model, entry)
     detach(model, entry)
 
     local blocked = occupants(model, target_code)
-    if #blocked > 1 then
-        return nil, "multiple_occupants:" .. target_code
-    end
-    if #blocked == 1 then
-        local ok, err = push_down(model, blocked[1], {})
-        if not ok then
-            return nil, err
+    if #blocked > 0 then
+        local visiting = {}
+        for _, occupant in ipairs(blocked) do
+            local ok, err = push_down(model, occupant, visiting)
+            if not ok then
+                return nil, err
+            end
         end
     end
     attach_to_code(model, entry, target_code)
@@ -242,15 +248,8 @@ local function demote(model, entry)
     detach(model, entry)
 
     local blocked = occupants(model, target_code)
-    if #blocked > 1 then
-        return nil, "multiple_occupants:" .. target_code
-    end
     if #blocked == 1 then
-        local ok
-        ok, err = push_down(model, blocked[1], {})
-        if not ok then
-            return nil, err
-        end
+        push_down(model, blocked[1], {})
     end
     attach_to_code(model, entry, target_code)
     return true
@@ -510,8 +509,7 @@ local function adjust(action, context, word, input)
         return nil, err
     end
     local dynamic_root = root
-    if action == "delete" and entry.original_code == input
-        and string.len(input) > 1 then
+    if entry.original_code == input and string.len(input) > 1 then
         dynamic_root = string.sub(input, 1, string.len(input) - 1)
     end
     if string.len(dynamic_root) > 4 then

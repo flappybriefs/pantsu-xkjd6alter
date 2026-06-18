@@ -81,14 +81,23 @@ local function read_lines(path)
 end
 
 local function write_lines(path, lines)
-    local file = io.open(data_path(path), "w")
+    local target = data_path(path)
+    local temp = target .. ".pantsu-make-word.tmp"
+    local file = io.open(temp, "w")
     if not file then
         return false
     end
     for _, line in ipairs(lines) do
         file:write(line, "\n")
     end
-    file:close()
+    if not file:close() then
+        os.remove(temp)
+        return false
+    end
+    if not os.rename(temp, target) then
+        os.remove(temp)
+        return false
+    end
     return true
 end
 
@@ -132,12 +141,21 @@ local function read_optimization_state()
 end
 
 local function write_optimization_state(value)
-    local file = io.open(data_path(M.optimization_state_file), "w")
+    local target = data_path(M.optimization_state_file)
+    local temp = target .. ".tmp"
+    local file = io.open(temp, "w")
     if not file then
         return false
     end
     file:write(value or "", "\n")
-    file:close()
+    if not file:close() then
+        os.remove(temp)
+        return false
+    end
+    if not os.rename(temp, target) then
+        os.remove(temp)
+        return false
+    end
     return true
 end
 
@@ -379,6 +397,65 @@ local function code_for_char(ch, typed_code)
     return best or M.char_codes[ch]
 end
 
+local function selected_codes_for_word(word, typed_code)
+    local chars = utf8_chars(word)
+    local constraints = {}
+
+    local function constrain(index, prefix, third)
+        if index and chars[index] then
+            constraints[index] = {
+                prefix = prefix ~= "" and prefix or nil,
+                third = third ~= "" and third or nil,
+            }
+        end
+    end
+
+    local length = string.len(typed_code or "")
+    if #chars == 2 then
+        constrain(1, string.sub(typed_code, 1, math.min(2, length)),
+            length >= 5 and string.sub(typed_code, 5, 5) or nil)
+        if length >= 3 then
+            constrain(2, string.sub(typed_code, 3, math.min(4, length)),
+                length >= 6 and string.sub(typed_code, 6, 6) or nil)
+        end
+    elseif #chars == 3 then
+        for index = 1, math.min(3, length) do
+            constrain(index, string.sub(typed_code, index, index),
+                length >= index + 3
+                    and string.sub(typed_code, index + 3, index + 3) or nil)
+        end
+    elseif #chars >= 4 then
+        local indexes = { 1, 2, 3, #chars }
+        for position = 1, math.min(4, length) do
+            local index = indexes[position]
+            local third = nil
+            if position <= 2 and length >= position + 4 then
+                third = string.sub(typed_code, position + 4, position + 4)
+            end
+            constrain(index, string.sub(typed_code, position, position), third)
+        end
+    end
+
+    local selected = {}
+    for index, ch in ipairs(chars) do
+        local constraint = constraints[index]
+        local best = nil
+        for _, code in ipairs(M.char_code_list[ch] or {}) do
+            local prefix_ok = not constraint or not constraint.prefix
+                or code_startswith(code, constraint.prefix)
+            local third_ok = not constraint or not constraint.third
+                or string.sub(code, 3, 3) == constraint.third
+            if prefix_ok and third_ok
+                and (not best or string.len(code) > string.len(best)) then
+                best = code
+            end
+        end
+        selected[index] = best or code_for_char(
+            ch, constraint and constraint.prefix or nil)
+    end
+    return selected
+end
+
 function M.code_for_word(word, items)
     M.load_char_codes()
     local chars = utf8_chars(word)
@@ -564,7 +641,13 @@ function M.add_word(word, items)
         return nil, "write_failed"
     end
 
-    push_word(code, word)
+    if changed then
+        M.loaded_words = false
+        M.words_by_code = nil
+        M.load_words()
+    else
+        push_word(code, word)
+    end
     return code
 end
 
@@ -583,9 +666,16 @@ end
 function M.append(text, code)
     if M.mode and text and text ~= "" then
         local chars = utf8_chars(text)
-        for _, ch in ipairs(chars) do
+        local selected = nil
+        if #chars > 1 and code and code ~= "" then
+            selected = selected_codes_for_word(text, code)
+        end
+        for index, ch in ipairs(chars) do
             M.buffer = M.buffer .. ch
-            table.insert(M.buffer_items, { text = ch, code = code })
+            table.insert(M.buffer_items, {
+                text = ch,
+                code = selected and selected[index] or code,
+            })
         end
     end
 end
@@ -599,7 +689,9 @@ function M.confirm()
     local word = M.buffer
     local items = M.buffer_items
     local code, err = M.add_word(word, items)
-    M.cancel()
+    if code then
+        M.cancel()
+    end
     return code, word, err
 end
 

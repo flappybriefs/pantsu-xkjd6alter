@@ -73,8 +73,11 @@ local function load_state()
         if kind == "build" then
             state_build = root
         elseif kind == "root" and root ~= "" then
-            M.roots[root] = { entries = {}, suppress = {} }
+            M.roots[root] = { entries = {}, suppress = {}, deleted = {} }
         elseif kind == "suppress" and M.roots[root] and first ~= "" then
+            M.roots[root].suppress[first] = true
+        elseif kind == "deleted" and M.roots[root] and first ~= "" then
+            M.roots[root].deleted[first] = true
             M.roots[root].suppress[first] = true
         elseif kind == "entry" and M.roots[root]
             and first ~= "" and second ~= "" then
@@ -118,6 +121,14 @@ local function write_state()
         for _, word in ipairs(suppressed) do
             file:write("suppress\t", root, "\t", word, "\n")
         end
+        local deleted = {}
+        for word in pairs(state.deleted or {}) do
+            table.insert(deleted, word)
+        end
+        table.sort(deleted)
+        for _, word in ipairs(deleted) do
+            file:write("deleted\t", root, "\t", word, "\n")
+        end
         for index, entry in ipairs(state.entries) do
             file:write("entry\t", root, "\t", tostring(index), "\t",
                 entry.word, "\t", entry.code, "\n")
@@ -159,17 +170,46 @@ local function common_prefix(values)
     return prefix
 end
 
-local function snapshot_root(root, extra_suppress)
+local function snapshot_root(root, extra_suppress, deleted_words)
+    for old_root in pairs(M.roots) do
+        if string.sub(root, 1, string.len(old_root)) == old_root
+            and string.len(old_root) < string.len(root) then
+            root = old_root
+        end
+    end
+
+    local deleted = {}
+    for old_root, old_state in pairs(M.roots) do
+        if string.sub(old_root, 1, string.len(root)) == root
+            or string.sub(root, 1, string.len(old_root)) == old_root then
+            for word in pairs(old_state.deleted or {}) do
+                deleted[word] = true
+            end
+        end
+    end
+    local newly_deleted = {}
+    for _, word in ipairs(deleted_words or {}) do
+        newly_deleted[word] = true
+        deleted[word] = true
+    end
+    for _, word in ipairs(extra_suppress or {}) do
+        if not newly_deleted[word] then
+            deleted[word] = nil
+        end
+    end
+
     for _, word in ipairs(extra_suppress or {}) do
         for _, old_state in pairs(M.roots) do
-            local kept = {}
-            for _, entry in ipairs(old_state.entries) do
-                if entry.word ~= word then
-                    table.insert(kept, entry)
+            if old_state.suppress[word] then
+                local kept = {}
+                for _, entry in ipairs(old_state.entries) do
+                    if entry.word ~= word then
+                        table.insert(kept, entry)
+                    end
                 end
+                old_state.entries = kept
+                old_state.suppress[word] = true
             end
-            old_state.entries = kept
-            old_state.suppress[word] = true
         end
     end
 
@@ -184,7 +224,7 @@ local function snapshot_root(root, extra_suppress)
         M.roots[old_root] = nil
     end
 
-    local state = { entries = {}, suppress = {} }
+    local state = { entries = {}, suppress = {}, deleted = deleted }
     local order = 0
     for _, path in ipairs(M.dictionary_files) do
         local file = io.open(data_path(path), "r")
@@ -192,7 +232,8 @@ local function snapshot_root(root, extra_suppress)
             for line in file:lines() do
                 local word, code = read_code_fields(line)
                 if word and code
-                    and string.sub(code, 1, string.len(root)) == root then
+                    and string.sub(code, 1, string.len(root)) == root
+                    and not deleted[word] then
                     order = order + 1
                     table.insert(state.entries, {
                         word = word,
@@ -208,6 +249,9 @@ local function snapshot_root(root, extra_suppress)
     for _, word in ipairs(extra_suppress or {}) do
         state.suppress[word] = true
     end
+    for word in pairs(deleted) do
+        state.suppress[word] = true
+    end
     table.sort(state.entries, function(left, right)
         if left.code == right.code then
             return left.order < right.order
@@ -217,7 +261,7 @@ local function snapshot_root(root, extra_suppress)
     M.roots[root] = state
 end
 
-function M.refresh_codes(codes, suppressed_words, preferred_root)
+function M.refresh_codes(codes, suppressed_words, preferred_root, deleted_words)
     ensure_current_build()
     local clean_codes = {}
     for _, code in ipairs(codes or {}) do
@@ -235,23 +279,26 @@ function M.refresh_codes(codes, suppressed_words, preferred_root)
         and string.len(root) > preferred_root then
         root = string.sub(root, 1, preferred_root)
     end
-    snapshot_root(root, suppressed_words)
+    snapshot_root(root, suppressed_words, deleted_words)
     return write_state()
 end
 
 function M.refresh_entries(entries, preferred_root)
     local codes = {}
     local words = {}
+    local deleted = {}
     for _, entry in ipairs(entries or {}) do
         if not entry.active or entry.code ~= entry.original_code then
             table.insert(words, entry.word)
             table.insert(codes, entry.original_code)
             if entry.active then
                 table.insert(codes, entry.code)
+            else
+                table.insert(deleted, entry.word)
             end
         end
     end
-    return M.refresh_codes(codes, words, preferred_root)
+    return M.refresh_codes(codes, words, preferred_root, deleted)
 end
 
 function M.match(input)

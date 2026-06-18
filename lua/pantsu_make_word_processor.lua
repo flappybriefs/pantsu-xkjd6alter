@@ -8,10 +8,6 @@ local function is_empty_context(context)
     return context.input == ""
 end
 
-local function utf8_len(text)
-    return utf8.len(text or "") or 0
-end
-
 local function string_to_set(text)
     local result = {}
     for index = 1, string.len(text or "") do
@@ -67,11 +63,7 @@ local function capture_selected_candidate(context)
         return false
     end
 
-    local code = nil
-    if utf8_len(candidate.text) == 1 then
-        code = context.input
-    end
-    core.append(candidate.text, code)
+    core.append(candidate.text, context.input)
     return true
 end
 
@@ -88,13 +80,13 @@ local function processor(key_event, env)
             if context.input == "[" then
                 if core.buffer ~= "" then
                     local code, word = core.confirm()
-                    if word and word ~= "" then
-                        if code then
-                            dynamic.refresh_codes({ code }, { word }, 4)
-                        end
+                    if code and word and word ~= "" then
+                        dynamic.refresh_codes({ code }, { word }, 4)
                         env.engine:commit_text(word)
+                        context:clear()
+                    else
+                        show_status(context)
                     end
-                    context:clear()
                     return kAccepted
                 elseif context:has_menu() then
                     core.cancel()
