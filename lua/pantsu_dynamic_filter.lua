@@ -3,10 +3,17 @@ local dynamic = require("pantsu_dynamic")
 local function filter(input, env)
     local context = env.engine.context
     local typed = context.input
+    local status = dynamic.get_status(typed)
     local state = dynamic.match(typed)
     if not state then
         for candidate in input:iter() do
-            yield(candidate)
+            if status then
+                yield(ShadowCandidate(
+                    candidate, candidate.type, candidate.text, status))
+                status = nil
+            else
+                yield(candidate)
+            end
         end
         return
     end
@@ -28,7 +35,10 @@ local function filter(input, env)
                 has_exact = true
             end
             local candidate = Candidate(
-                candidate_type, 0, string.len(typed), entry.word, comment)
+                candidate_type .. "|" .. (entry.id or ""),
+                0, string.len(typed), entry.word,
+                status or comment)
+            status = nil
             candidate.quality = 1000000 - string.len(entry.code)
             yield(candidate)
             yielded[entry.word] = true
@@ -41,7 +51,13 @@ local function filter(input, env)
 
     for candidate in input:iter() do
         if not state.suppress[candidate.text] and not yielded[candidate.text] then
-            yield(candidate)
+            if status then
+                yield(ShadowCandidate(
+                    candidate, candidate.type, candidate.text, status))
+                status = nil
+            else
+                yield(candidate)
+            end
         end
     end
 end

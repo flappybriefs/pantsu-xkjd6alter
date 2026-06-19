@@ -12,6 +12,8 @@ GitHub仓库链接：https://github.com/flappybriefs/pantsu-xkjd6alter
 - 考虑到不需要太多候选，所以指定数字1-7为选字/词上屏，**8为将当前候选提前，9为将当前候选后移，0为将当前候选删除**，无需重新部署即可以直接使用；
 
 以上两个功能的演示：![自造词、调序及删减演示](自造词、调序及删减演示.gif)
+
+- 调频撤销Mac端用Command+z，win以及linux用Control+z；查看修改历史Mac端为Command+Shift+H，win以及linux用Ctrl+Shift+H；
 - 打字时使用单引号'开关emoji；
 - 按]开启临时英语；
 - /开头是诗词和东方project相关词汇，可以在pantsu.user.dict里面找到并修改/删除；

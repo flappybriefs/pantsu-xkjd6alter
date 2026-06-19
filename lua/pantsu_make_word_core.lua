@@ -1,3 +1,4 @@
+local store = require("pantsu_store")
 local M = {}
 
 M.word_file = "pantsu.user.dict.yaml"
@@ -642,9 +643,11 @@ function M.add_word(word, items)
     end
 
     if changed then
+        store.invalidate_index()
         M.loaded_words = false
         M.words_by_code = nil
         M.load_words()
+        store.record_order("make_word", code, word)
     else
         push_word(code, word)
     end

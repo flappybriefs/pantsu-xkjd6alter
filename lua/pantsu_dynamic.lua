@@ -1,5 +1,7 @@
+local store = require("pantsu_store")
 local M = {}
 
+M.state_version = "3"
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
 M.order_file = "pantsu_candidate_order.tsv"
 M.build_state_file = "user.yaml"
@@ -18,6 +20,8 @@ M.roots = {}
 M.orders = {}
 M.orders_loaded = false
 M.order_roots_loaded = false
+M.override_roots_loaded = false
+M.status = nil
 
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
@@ -27,10 +31,6 @@ local function data_path(path)
         return rime_api.get_user_data_dir() .. "/" .. path
     end
     return path
-end
-
-local function read_code_fields(line)
-    return string.match(line, "^([^\t]+)\t([^\t%s]+)")
 end
 
 local function load_orders()
@@ -92,6 +92,7 @@ local function write_orders()
         os.remove(temp)
         return false
     end
+    store.invalidate_signature()
     return true
 end
 
@@ -133,10 +134,17 @@ local function load_state()
     end
 
     local state_build
+    local state_signature
+    local state_version
+    local valid = true
     for line in file:lines() do
         local kind, root, first, second =
             string.match(line, "^([^\t]+)\t([^\t]*)\t?([^\t]*)\t?(.*)$")
-        if kind == "build" then
+        if kind == "format" then
+            state_version = root
+        elseif kind == "signature" then
+            state_signature = root
+        elseif kind == "build" then
             state_build = root
         elseif kind == "root" and root ~= "" then
             M.roots[root] = { entries = {}, suppress = {}, deleted = {} }
@@ -147,16 +155,26 @@ local function load_state()
             M.roots[root].suppress[first] = true
         elseif kind == "entry" and M.roots[root]
             and first ~= "" and second ~= "" then
-            local word, code = string.match(second, "^([^\t]+)\t([^\t]+)$")
+            local word, code, id =
+                string.match(second, "^([^\t]+)\t([^\t]+)\t?(.*)$")
             if word and code then
-                table.insert(M.roots[root].entries, { word = word, code = code })
+                table.insert(M.roots[root].entries, {
+                    word = word,
+                    code = code,
+                    id = id ~= "" and id or nil,
+                })
                 M.roots[root].suppress[word] = true
+            else
+                valid = false
             end
         end
     end
     file:close()
 
-    if state_build ~= M.build_time then
+    if state_version ~= M.state_version
+        or state_build ~= M.build_time
+        or state_signature ~= store.signature()
+        or not valid then
         clear_memory()
         remove_state_file()
     end
@@ -169,7 +187,9 @@ local function write_state()
     if not file then
         return false
     end
+    file:write("format\t", M.state_version, "\n")
     file:write("build\t", M.build_time or "", "\n")
+    file:write("signature\t", store.signature(), "\n")
 
     local roots = {}
     for root in pairs(M.roots) do
@@ -197,7 +217,8 @@ local function write_state()
         end
         for index, entry in ipairs(state.entries) do
             file:write("entry\t", root, "\t", tostring(index), "\t",
-                entry.word, "\t", entry.code, "\n")
+                entry.word, "\t", entry.code, "\t",
+                entry.id or "", "\n")
         end
     end
     file:close()
@@ -292,24 +313,26 @@ local function snapshot_root(root, extra_suppress, deleted_words)
 
     local state = { entries = {}, suppress = {}, deleted = deleted }
     local order = 0
-    for _, path in ipairs(M.dictionary_files) do
-        local file = io.open(data_path(path), "r")
-        if file then
-            for line in file:lines() do
-                local word, code = read_code_fields(line)
-                if word and code
-                    and string.sub(code, 1, string.len(root)) == root
-                    and not deleted[word] then
-                    order = order + 1
-                    table.insert(state.entries, {
-                        word = word,
-                        code = code,
-                        order = order,
-                    })
-                    state.suppress[word] = true
+    local valid_orders = {}
+    load_orders()
+    for _, entry in ipairs(store.entries(root)) do
+        state.suppress[entry.word] = true
+        if entry.active and not deleted[entry.word]
+            and string.sub(entry.code, 1, string.len(root)) == root then
+            order = order + 1
+            table.insert(state.entries, {
+                word = entry.word,
+                code = entry.code,
+                order = order,
+                id = entry.id,
+            })
+            if M.orders[entry.code] and M.orders[entry.code][entry.word] then
+                if not valid_orders[entry.code] then
+                    valid_orders[entry.code] = {}
                 end
+                valid_orders[entry.code][entry.word] =
+                    M.orders[entry.code][entry.word]
             end
-            file:close()
         end
     end
     for _, word in ipairs(extra_suppress or {}) do
@@ -335,6 +358,27 @@ local function snapshot_root(root, extra_suppress, deleted_words)
         end
         return left.code < right.code
     end)
+    local order_changed = false
+    load_orders()
+    for code, ranks in pairs(M.orders) do
+        if string.sub(code, 1, string.len(root)) == root then
+            local kept = valid_orders[code] or {}
+            local old_count, new_count = 0, 0
+            for _ in pairs(ranks) do old_count = old_count + 1 end
+            for _ in pairs(kept) do new_count = new_count + 1 end
+            if old_count ~= new_count then
+                if new_count > 1 then
+                    M.orders[code] = kept
+                else
+                    M.orders[code] = nil
+                end
+                order_changed = true
+            end
+        end
+    end
+    if order_changed then
+        write_orders()
+    end
     M.roots[root] = state
 end
 
@@ -367,6 +411,23 @@ function M.set_same_code_order(code, words)
     return write_state()
 end
 
+function M.get_same_code_order(code)
+    load_orders()
+    local ranks = M.orders[code] or {}
+    local result = {}
+    for word, rank in pairs(ranks) do
+        table.insert(result, { word = word, rank = rank })
+    end
+    table.sort(result, function(left, right)
+        return left.rank < right.rank
+    end)
+    local words = {}
+    for _, item in ipairs(result) do
+        table.insert(words, item.word)
+    end
+    return words
+end
+
 local function ensure_order_roots()
     if M.order_roots_loaded then
         return
@@ -387,6 +448,46 @@ local function ensure_order_roots()
     if changed then
         write_state()
     end
+end
+
+local function ensure_override_roots()
+    if M.override_roots_loaded then
+        return
+    end
+    M.override_roots_loaded = true
+    local changed = false
+    for root in pairs(store.override_roots()) do
+        snapshot_root(root)
+        changed = true
+    end
+    if changed then
+        write_state()
+    end
+end
+
+function M.invalidate()
+    M.loaded = false
+    M.roots = {}
+    M.orders = {}
+    M.orders_loaded = false
+    M.order_roots_loaded = false
+    M.override_roots_loaded = false
+    remove_state_file()
+end
+
+function M.set_status(input, message)
+    M.status = { input = input, message = message }
+end
+
+function M.clear_status()
+    M.status = nil
+end
+
+function M.get_status(input)
+    if M.status and M.status.input == input then
+        return M.status.message
+    end
+    return nil
 end
 
 function M.refresh_codes(codes, suppressed_words, preferred_root, deleted_words)
@@ -432,6 +533,7 @@ end
 function M.match(input)
     ensure_current_build()
     ensure_order_roots()
+    ensure_override_roots()
     local best_root
     for root in pairs(M.roots) do
         if string.sub(input, 1, string.len(root)) == root

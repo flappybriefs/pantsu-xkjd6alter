@@ -1,5 +1,6 @@
 local core = require("pantsu_make_word_core")
 local dynamic = require("pantsu_dynamic")
+local store = require("pantsu_store")
 
 local kAccepted = 1
 local kNoop = 2
@@ -8,6 +9,32 @@ local action_names = {
     ["9"] = "demote",
     ["0"] = "delete",
 }
+local pending_delete = nil
+
+local function is_macos()
+    if rime_api and rime_api.get_distribution_code_name then
+        local code = string.lower(
+            rime_api.get_distribution_code_name() or "")
+        return string.find(code, "squirrel", 1, true) ~= nil
+    end
+    return false
+end
+
+local function has_active_input(context)
+    return context.input ~= "" or context:has_menu()
+end
+
+local function is_platform_shortcut(key_event, keycode, shift)
+    if key_event.keycode ~= keycode or key_event:shift() ~= shift then
+        return false
+    end
+    if is_macos() then
+        return key_event:super() and not key_event:ctrl()
+            and not key_event:alt()
+    end
+    return key_event:ctrl() and not key_event:super()
+        and not key_event:alt()
+end
 
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
@@ -17,10 +44,6 @@ local function data_path(path)
         return rime_api.get_user_data_dir() .. "/" .. path
     end
     return path
-end
-
-local function read_code_fields(line)
-    return string.match(line, "^([^\t]+)\t([^\t%s]+)")
 end
 
 local function code_startswith(code, prefix)
@@ -33,34 +56,17 @@ local function load_chain(input)
         by_code = {},
         by_word = {},
     }
-    for _, path in ipairs(core.dictionary_files) do
-        local file = io.open(data_path(path), "r")
-        if file then
-            local line_number = 0
-            for line in file:lines() do
-                line_number = line_number + 1
-                local word, code = read_code_fields(line)
-                if word and code and code_startswith(code, input) then
-                    local entry = {
-                        path = path,
-                        line_number = line_number,
-                        word = word,
-                        code = code,
-                        original_code = code,
-                        active = true,
-                    }
-                    table.insert(model.entries, entry)
-                    if not model.by_code[code] then
-                        model.by_code[code] = {}
-                    end
-                    table.insert(model.by_code[code], entry)
-                    if not model.by_word[word] then
-                        model.by_word[word] = {}
-                    end
-                    table.insert(model.by_word[word], entry)
-                end
+    for _, entry in ipairs(store.entries(input)) do
+        table.insert(model.entries, entry)
+        if entry.active then
+            if not model.by_code[entry.code] then
+                model.by_code[entry.code] = {}
             end
-            file:close()
+            table.insert(model.by_code[entry.code], entry)
+            if not model.by_word[entry.word] then
+                model.by_word[entry.word] = {}
+            end
+            table.insert(model.by_word[entry.word], entry)
         end
     end
     return model
@@ -100,7 +106,14 @@ local function occupants(model, code, excluded)
     return result
 end
 
-local function locate_entry(model, word, input)
+local function locate_entry(model, word, input, candidate_id)
+    if candidate_id and candidate_id ~= "" then
+        for _, entry in ipairs(model.entries) do
+            if entry.id == candidate_id and entry.active then
+                return entry
+            end
+        end
+    end
     local exact
     local best
     local ambiguous = false
@@ -308,12 +321,20 @@ local function same_code_candidate_words(context, model, code)
     return result
 end
 
-local function demote_same_code(context, model, entry)
+local function move_same_code(context, model, entry, direction)
     local words = same_code_candidate_words(context, model, entry.code)
     for index, word in ipairs(words) do
-        if word == entry.word and index < #words then
-            words[index], words[index + 1] = words[index + 1], words[index]
-            return dynamic.set_same_code_order(entry.code, words)
+        local target = direction == "promote" and index - 1 or index + 1
+        if word == entry.word and target >= 1 and target <= #words then
+            if not store.begin(direction, entry.code, entry.word) then
+                return false
+            end
+            words[index], words[target] = words[target], words[index]
+            local ok = dynamic.set_same_code_order(entry.code, words)
+            if ok then
+                store.record_order(direction, entry.code, entry.word)
+            end
+            return ok
         end
     end
     return false
@@ -382,103 +403,8 @@ local function delete_and_pull(model, entry, candidate_words)
     return true
 end
 
-local function replace_code(line, code)
-    local prefix, suffix = string.match(line, "^([^\t]+\t)[^\t%s]+(.*)$")
-    if not prefix then
-        return line
-    end
-    return prefix .. code .. suffix
-end
-
-local function collect_changes(model)
-    local changes = {}
-    for _, entry in ipairs(model.entries) do
-        if not entry.active or entry.code ~= entry.original_code then
-            if not changes[entry.path] then
-                changes[entry.path] = {}
-            end
-            changes[entry.path][entry.line_number] = entry
-        end
-    end
-    return changes
-end
-
-local function discard_prepared(prepared)
-    for _, item in ipairs(prepared or {}) do
-        os.remove(item.temp)
-    end
-end
-
-local function prepare_files(changes)
-    local prepared = {}
-    for path, line_changes in pairs(changes) do
-        local target = data_path(path)
-        local temp = target .. ".pantsu-candidate-editor.tmp"
-        local source = io.open(target, "r")
-        if not source then
-            discard_prepared(prepared)
-            return nil, "read_failed:" .. path
-        end
-        local output = io.open(temp, "w")
-        if not output then
-            source:close()
-            discard_prepared(prepared)
-            return nil, "open_failed:" .. path
-        end
-
-        local line_number = 0
-        for line in source:lines() do
-            line_number = line_number + 1
-            local entry = line_changes[line_number]
-            if not entry then
-                output:write(line, "\n")
-            elseif entry.active then
-                output:write(replace_code(line, entry.code), "\n")
-            end
-        end
-        source:close()
-        output:close()
-        table.insert(prepared, { temp = temp, target = target, path = path })
-    end
-    return prepared
-end
-
-local function install_prepared(prepared)
-    local backed_up = {}
-    for _, item in ipairs(prepared) do
-        item.backup = item.target .. ".pantsu-candidate-editor.bak"
-        os.remove(item.backup)
-        if not os.rename(item.target, item.backup) then
-            for index = #backed_up, 1, -1 do
-                os.rename(backed_up[index].backup, backed_up[index].target)
-            end
-            discard_prepared(prepared)
-            return nil, "backup_failed:" .. item.path
-        end
-        table.insert(backed_up, item)
-    end
-
-    local installed = {}
-    for _, item in ipairs(prepared) do
-        if not os.rename(item.temp, item.target) then
-            for _, done in ipairs(installed) do
-                os.remove(done.target)
-            end
-            for index = #backed_up, 1, -1 do
-                os.rename(backed_up[index].backup, backed_up[index].target)
-            end
-            discard_prepared(prepared)
-            return nil, "install_failed:" .. item.path
-        end
-        table.insert(installed, item)
-    end
-    for _, item in ipairs(backed_up) do
-        os.remove(item.backup)
-    end
-    return true
-end
-
 local function write_error(action, word, input, err)
+    store.rotate_log("build/pantsu_candidate_editor.error.log", 262144)
     local file = io.open(data_path("build/pantsu_candidate_editor.error.log"), "a")
     if not file then
         return
@@ -490,6 +416,7 @@ local function write_error(action, word, input, err)
 end
 
 local function write_log(action, entries)
+    store.rotate_log("build/pantsu_candidate_editor.log", 524288)
     local file = io.open(data_path("build/pantsu_candidate_editor.log"), "a")
     if not file then
         return
@@ -505,10 +432,10 @@ local function write_log(action, entries)
     file:close()
 end
 
-local function adjust(action, context, word, input)
+local function adjust(action, context, word, input, candidate_id)
     local root = input
     local model = load_chain(root)
-    local entry, err = locate_entry(model, word, input)
+    local entry, err = locate_entry(model, word, input, candidate_id)
     if not entry then
         return nil, err
     end
@@ -517,7 +444,7 @@ local function adjust(action, context, word, input)
         and string.len(input) > 1 then
         root = string.sub(input, 1, string.len(input) - 1)
         model = load_chain(root)
-        entry, err = locate_entry(model, word, input)
+        entry, err = locate_entry(model, word, input, candidate_id)
         if not entry then
             return nil, err
         end
@@ -526,13 +453,16 @@ local function adjust(action, context, word, input)
     local ok
     local following = following_candidate_words(context)
     if action == "promote" then
+        if move_same_code(context, model, entry, "promote") then
+            return true, nil, input
+        end
         ok, err = promote_and_pull(model, entry, following)
     elseif action == "demote" then
         ok, err = demote_and_pull(model, entry, following)
         if not ok and err == "no_longer_code"
-            and demote_same_code(context, model, entry) then
+            and move_same_code(context, model, entry, "demote") then
             write_log(action, model.entries)
-            return true
+            return true, nil, input
         end
     else
         ok, err = delete_and_pull(model, entry, following)
@@ -541,16 +471,10 @@ local function adjust(action, context, word, input)
         return nil, err
     end
 
-    local changes = collect_changes(model)
-    if not next(changes) then
-        return nil, "no_change"
+    if not store.begin(action, input, word) then
+        return nil, "backup_failed"
     end
-    local prepared
-    prepared, err = prepare_files(changes)
-    if not prepared then
-        return nil, err
-    end
-    ok, err = install_prepared(prepared)
+    ok, err = store.commit(model.entries, action, input, word)
     if not ok then
         return nil, err
     end
@@ -565,10 +489,19 @@ local function adjust(action, context, word, input)
         write_error(action, word, input, "dynamic_refresh_failed")
     end
     write_log(action, model.entries)
-    return true
+    local focus_input = input
+    if action == "promote"
+        and string.len(entry.code) < string.len(input) then
+        focus_input = entry.code
+    end
+    return true, nil, focus_input
 end
 
-local function refresh_after_adjust(context, action, word, old_index)
+local function refresh_after_adjust(
+    context, action, word, old_index, focus_input)
+    if focus_input and focus_input ~= "" and focus_input ~= context.input then
+        context.input = focus_input
+    end
     context:refresh_non_confirmed_composition()
     local composition = context.composition
     if not composition or composition:empty() then
@@ -597,13 +530,63 @@ local function refresh_after_adjust(context, action, word, old_index)
     segment.selected_index = math.min(old_index, count - 1)
 end
 
+local error_messages = {
+    entry_not_found = "〔调频失败：词条已变化〕",
+    ambiguous_exact_entry = "〔调频失败：存在重复词条〕",
+    ambiguous_completion_entry = "〔调频失败：候选身份不明确〕",
+    ambiguous_full_code = "〔调频失败：存在多个后续码〕",
+    no_longer_code = "〔无法继续后移〕",
+    no_change = "〔没有可应用的变化〕",
+    backup_failed = "〔调频失败：无法创建撤销点〕",
+    override_write_failed = "〔调频失败：覆盖层写入失败〕",
+}
+
+local function show_error(context, err)
+    local message = error_messages[err]
+        or error_messages[string.match(err or "", "^[^:]+")]
+        or "〔调频失败：" .. tostring(err or "未知错误") .. "〕"
+    dynamic.set_status(context.input, message)
+    context:refresh_non_confirmed_composition()
+end
+
+local function candidate_identity(candidate)
+    return string.match(candidate.type or "", "^[^|]+|(.+)$")
+end
+
 local function processor(key_event, env)
-    if key_event:release() or key_event:ctrl() or key_event:alt() or core.mode then
+    if key_event:release() or key_event:alt() or core.mode then
+        return kNoop
+    end
+
+    local context = env.engine.context
+    local active_input = has_active_input(context)
+    if active_input
+        and is_platform_shortcut(key_event, 0x7a, false) then
+        local ok, err = store.undo()
+        if ok then
+            dynamic.invalidate()
+            dynamic.set_status(context.input, "〔已撤销上一次调频〕")
+            context:refresh_non_confirmed_composition()
+        else
+            show_error(context, err)
+        end
+        pending_delete = nil
+        return kAccepted
+    elseif active_input
+        and is_platform_shortcut(key_event, 0x68, true) then
+        local last = store.last_history()
+        dynamic.set_status(
+            context.input, last and "〔最近操作：" .. last .. "〕"
+                or "〔暂无操作历史〕")
+        context:refresh_non_confirmed_composition()
+        return kAccepted
+    elseif key_event:ctrl() or key_event:super() then
         return kNoop
     end
 
     local keycode = key_event.keycode
     if not keycode or keycode < 0x30 or keycode > 0x39 then
+        pending_delete = nil
         return kNoop
     end
     local action = action_names[string.char(keycode)]
@@ -611,7 +594,6 @@ local function processor(key_event, env)
         return kNoop
     end
 
-    local context = env.engine.context
     if not context:has_menu() or context.input == "" then
         return kNoop
     end
@@ -619,23 +601,44 @@ local function processor(key_event, env)
     if not candidate or not candidate.text or candidate.text == "" then
         return kNoop
     end
+    local identity = candidate_identity(candidate)
+    local delete_key = table.concat({
+        context.input,
+        candidate.text,
+        identity or "",
+    }, "\t")
+    if action == "delete" and pending_delete ~= delete_key then
+        pending_delete = delete_key
+        dynamic.set_status(
+            context.input, "〔再次按0确认删除，Esc取消〕")
+        context:refresh_non_confirmed_composition()
+        return kAccepted
+    end
+    if action ~= "delete" then
+        pending_delete = nil
+    end
     local composition = context.composition
     local segment = composition and not composition:empty()
         and composition:back() or nil
     local selected_index = segment and segment.selected_index or 0
 
-    local called, ok, err = pcall(
-        adjust, action, context, candidate.text, context.input)
+    local called, ok, err, focus_input = pcall(
+        adjust, action, context, candidate.text, context.input, identity)
     if not called then
         write_error(action, candidate.text, context.input, ok)
+        show_error(context, ok)
         return kAccepted
     elseif not ok then
         write_error(action, candidate.text, context.input, err)
+        show_error(context, err)
         return kAccepted
     end
 
+    pending_delete = nil
+    dynamic.set_status(
+        focus_input or context.input, "〔已应用，8/9/0继续，Esc退出〕")
     refresh_after_adjust(
-        context, action, candidate.text, selected_index)
+        context, action, candidate.text, selected_index, focus_input)
     return kAccepted
 end
 
