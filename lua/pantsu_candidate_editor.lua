@@ -635,8 +635,7 @@ local function processor(key_event, env)
     end
 
     pending_delete = nil
-    dynamic.set_status(
-        focus_input or context.input, "〔已应用，8/9/0继续，Esc退出〕")
+    dynamic.clear_status()
     refresh_after_adjust(
         context, action, candidate.text, selected_index, focus_input)
     return kAccepted
