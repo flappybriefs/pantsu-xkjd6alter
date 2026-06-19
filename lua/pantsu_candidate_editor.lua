@@ -568,6 +568,35 @@ local function adjust(action, context, word, input)
     return true
 end
 
+local function refresh_after_adjust(context, action, word, old_index)
+    context:refresh_non_confirmed_composition()
+    local composition = context.composition
+    if not composition or composition:empty() then
+        return
+    end
+    local segment = composition:back()
+    if not segment or not segment.menu then
+        return
+    end
+
+    segment.menu:prepare(200)
+    local count = segment.menu:candidate_count()
+    if count == 0 then
+        return
+    end
+
+    if action ~= "delete" then
+        for index = 0, math.min(count - 1, 199) do
+            local candidate = segment:get_candidate_at(index)
+            if candidate and candidate.text == word then
+                segment.selected_index = index
+                return
+            end
+        end
+    end
+    segment.selected_index = math.min(old_index, count - 1)
+end
+
 local function processor(key_event, env)
     if key_event:release() or key_event:ctrl() or key_event:alt() or core.mode then
         return kNoop
@@ -590,6 +619,10 @@ local function processor(key_event, env)
     if not candidate or not candidate.text or candidate.text == "" then
         return kNoop
     end
+    local composition = context.composition
+    local segment = composition and not composition:empty()
+        and composition:back() or nil
+    local selected_index = segment and segment.selected_index or 0
 
     local called, ok, err = pcall(
         adjust, action, context, candidate.text, context.input)
@@ -601,7 +634,8 @@ local function processor(key_event, env)
         return kAccepted
     end
 
-    context:clear()
+    refresh_after_adjust(
+        context, action, candidate.text, selected_index)
     return kAccepted
 end
 
