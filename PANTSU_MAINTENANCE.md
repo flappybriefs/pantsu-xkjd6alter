@@ -5,7 +5,7 @@
 - `8`：当前候选前移；同码候选内也可前移。
 - `9`：当前候选后移；同码候选内也可后移。
 - `0`：第一次标记删除，第二次确认删除。
-- macOS：`Command+Z` 撤销，`Command+Shift+H` 查看最近操作。
+- macOS：`Control+Z` 撤销，`Control+H` 查看最近操作。
 - Windows/Linux：`Ctrl+Z` 撤销，`Ctrl+Shift+H` 查看最近操作。
 - `Esc`：退出当前输入和连续调频。
 
@@ -14,6 +14,9 @@
 
 这些快捷键只在 Rime 已有输入码或候选菜单时生效。空状态下不会拦截，
 仍由当前应用处理。
+
+鼠须管会在前端忽略带 Command 的普通按键，因此 `Command+Z` 无法交给
+Rime Lua 处理。
 
 调频结果写入 `pantsu_overrides.tsv`，基础词库不再被日常操作反复重写。
 同码顺序保存在 `pantsu_candidate_order.tsv`。

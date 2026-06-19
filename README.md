@@ -13,7 +13,7 @@ GitHub仓库链接：https://github.com/flappybriefs/pantsu-xkjd6alter
 
 以上两个功能的演示：![自造词、调序及删减演示](自造词、调序及删减演示.gif)
 
-- 调频撤销Mac端用Command+z，win以及linux用Control+z；查看修改历史Mac端为Command+Shift+H，win以及linux用Ctrl+Shift+H；
+- 调频撤销Mac、win以及linux均用Control+z；查看修改历史Mac端为Ctrl+H，win以及linux用Ctrl+Shift+H；
 - 打字时使用单引号'开关emoji；
 - 按]开启临时英语；
 - /开头是诗词和东方project相关词汇，可以在pantsu.user.dict里面找到并修改/删除；

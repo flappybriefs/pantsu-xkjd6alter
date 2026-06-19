@@ -24,16 +24,21 @@ local function has_active_input(context)
     return context.input ~= "" or context:has_menu()
 end
 
-local function is_platform_shortcut(key_event, keycode, shift)
-    if key_event.keycode ~= keycode or key_event:shift() ~= shift then
+local function is_undo_shortcut(key_event)
+    if key_event.keycode ~= 0x7a or key_event:shift()
+        or key_event:alt() or key_event:super() then
         return false
     end
-    if is_macos() then
-        return key_event:super() and not key_event:ctrl()
-            and not key_event:alt()
+    return key_event:ctrl()
+end
+
+local function is_history_shortcut(key_event)
+    if key_event.keycode ~= 0x68
+        or key_event:alt() or key_event:super()
+        or not key_event:ctrl() then
+        return false
     end
-    return key_event:ctrl() and not key_event:super()
-        and not key_event:alt()
+    return is_macos() or key_event:shift()
 end
 
 local function data_path(path)
@@ -545,7 +550,7 @@ local function show_error(context, err)
     local message = error_messages[err]
         or error_messages[string.match(err or "", "^[^:]+")]
         or "〔调频失败：" .. tostring(err or "未知错误") .. "〕"
-    dynamic.set_status(context.input, message)
+    dynamic.set_status(context.input, message, "transient")
     context:refresh_non_confirmed_composition()
 end
 
@@ -553,52 +558,91 @@ local function candidate_identity(candidate)
     return string.match(candidate.type or "", "^[^|]+|(.+)$")
 end
 
+local function clear_transient_status(context, refresh)
+    if dynamic.status_kind() ~= "transient" then
+        return
+    end
+    dynamic.clear_status()
+    if refresh and has_active_input(context) then
+        context:refresh_non_confirmed_composition()
+    end
+end
+
+local function cancel_delete_confirmation(context, refresh)
+    if not pending_delete then
+        return
+    end
+    pending_delete = nil
+    if dynamic.status_kind() == "delete_confirm" then
+        dynamic.clear_status()
+        if refresh and has_active_input(context) then
+            context:refresh_non_confirmed_composition()
+        end
+    end
+end
+
 local function processor(key_event, env)
-    if key_event:release() or key_event:alt() or core.mode then
+    if key_event:release() then
         return kNoop
     end
 
     local context = env.engine.context
+    if key_event:alt() or core.mode then
+        clear_transient_status(context, true)
+        cancel_delete_confirmation(context, true)
+        return kNoop
+    end
+
     local active_input = has_active_input(context)
-    if active_input
-        and is_platform_shortcut(key_event, 0x7a, false) then
+    if active_input and is_undo_shortcut(key_event) then
+        clear_transient_status(context, false)
+        cancel_delete_confirmation(context, false)
         local ok, err = store.undo()
         if ok then
             dynamic.invalidate()
-            dynamic.set_status(context.input, "〔已撤销上一次调频〕")
+            dynamic.set_status(
+                context.input, "〔已撤销上一次调频〕", "transient")
             context:refresh_non_confirmed_composition()
         else
             show_error(context, err)
         end
-        pending_delete = nil
         return kAccepted
-    elseif active_input
-        and is_platform_shortcut(key_event, 0x68, true) then
+    elseif active_input and is_history_shortcut(key_event) then
+        clear_transient_status(context, false)
+        cancel_delete_confirmation(context, false)
         local last = store.last_history()
         dynamic.set_status(
             context.input, last and "〔最近操作：" .. last .. "〕"
-                or "〔暂无操作历史〕")
+                or "〔暂无操作历史〕", "transient")
         context:refresh_non_confirmed_composition()
         return kAccepted
     elseif key_event:ctrl() or key_event:super() then
+        clear_transient_status(context, true)
+        cancel_delete_confirmation(context, true)
         return kNoop
     end
 
     local keycode = key_event.keycode
     if not keycode or keycode < 0x30 or keycode > 0x39 then
-        pending_delete = nil
+        clear_transient_status(context, true)
+        cancel_delete_confirmation(context, true)
         return kNoop
     end
     local action = action_names[string.char(keycode)]
     if not action then
+        clear_transient_status(context, true)
+        cancel_delete_confirmation(context, true)
         return kNoop
     end
 
+    clear_transient_status(context, false)
     if not context:has_menu() or context.input == "" then
+        cancel_delete_confirmation(context, false)
         return kNoop
     end
     local candidate = context:get_selected_candidate()
     if not candidate or not candidate.text or candidate.text == "" then
+        cancel_delete_confirmation(context, false)
         return kNoop
     end
     local identity = candidate_identity(candidate)
@@ -610,12 +654,15 @@ local function processor(key_event, env)
     if action == "delete" and pending_delete ~= delete_key then
         pending_delete = delete_key
         dynamic.set_status(
-            context.input, "〔再次按0确认删除，Esc取消〕")
+            context.input, "〔再次按0确认删除，Esc取消〕",
+            "delete_confirm")
         context:refresh_non_confirmed_composition()
         return kAccepted
     end
     if action ~= "delete" then
-        pending_delete = nil
+        cancel_delete_confirmation(context, false)
+    else
+        dynamic.clear_status()
     end
     local composition = context.composition
     local segment = composition and not composition:empty()
@@ -625,10 +672,12 @@ local function processor(key_event, env)
     local called, ok, err, focus_input = pcall(
         adjust, action, context, candidate.text, context.input, identity)
     if not called then
+        pending_delete = nil
         write_error(action, candidate.text, context.input, ok)
         show_error(context, ok)
         return kAccepted
     elseif not ok then
+        pending_delete = nil
         write_error(action, candidate.text, context.input, err)
         show_error(context, err)
         return kAccepted
@@ -641,4 +690,14 @@ local function processor(key_event, env)
     return kAccepted
 end
 
-return { func = processor }
+local function init(env)
+    pending_delete = nil
+    dynamic.clear_status()
+    env.commit_connection =
+        env.engine.context.commit_notifier:connect(function()
+            pending_delete = nil
+            dynamic.clear_status()
+        end)
+end
+
+return { init = init, func = processor }

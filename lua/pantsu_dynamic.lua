@@ -475,12 +475,20 @@ function M.invalidate()
     remove_state_file()
 end
 
-function M.set_status(input, message)
-    M.status = { input = input, message = message }
+function M.set_status(input, message, kind)
+    M.status = {
+        input = input,
+        message = message,
+        kind = kind or "transient",
+    }
 end
 
 function M.clear_status()
     M.status = nil
+end
+
+function M.status_kind()
+    return M.status and M.status.kind or nil
 end
 
 function M.get_status(input)
