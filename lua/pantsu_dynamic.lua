@@ -1,7 +1,7 @@
 local store = require("pantsu_store")
 local M = {}
 
-M.state_version = "3"
+M.state_version = "4"
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
 M.order_file = "pantsu_candidate_order.tsv"
 M.build_state_file = "user.yaml"
@@ -37,6 +37,7 @@ local function load_orders()
     if M.orders_loaded then
         return
     end
+    store.ensure_runtime_files()
     M.orders_loaded = true
     M.orders = {}
     local file = io.open(data_path(M.order_file), "r")
@@ -265,26 +266,6 @@ local function snapshot_root(root, extra_suppress, deleted_words)
         end
     end
 
-    local deleted = {}
-    for old_root, old_state in pairs(M.roots) do
-        if string.sub(old_root, 1, string.len(root)) == root
-            or string.sub(root, 1, string.len(old_root)) == old_root then
-            for word in pairs(old_state.deleted or {}) do
-                deleted[word] = true
-            end
-        end
-    end
-    local newly_deleted = {}
-    for _, word in ipairs(deleted_words or {}) do
-        newly_deleted[word] = true
-        deleted[word] = true
-    end
-    for _, word in ipairs(extra_suppress or {}) do
-        if not newly_deleted[word] then
-            deleted[word] = nil
-        end
-    end
-
     for _, word in ipairs(extra_suppress or {}) do
         for _, old_state in pairs(M.roots) do
             if old_state.suppress[word] then
@@ -311,13 +292,22 @@ local function snapshot_root(root, extra_suppress, deleted_words)
         M.roots[old_root] = nil
     end
 
-    local state = { entries = {}, suppress = {}, deleted = deleted }
+    local state = { entries = {}, suppress = {}, deleted = {} }
     local order = 0
     local valid_orders = {}
+    local source_entries = store.entries(root)
+    local has_user_entry = {}
+    for _, entry in ipairs(source_entries) do
+        if entry.active and entry.path == "pantsu.user.dict.yaml" then
+            has_user_entry[entry.word] = true
+        end
+    end
     load_orders()
-    for _, entry in ipairs(store.entries(root)) do
+    for _, entry in ipairs(source_entries) do
         state.suppress[entry.word] = true
-        if entry.active and not deleted[entry.word]
+        if entry.active
+            and (entry.path == "pantsu.user.dict.yaml"
+                or not has_user_entry[entry.word])
             and string.sub(entry.code, 1, string.len(root)) == root then
             order = order + 1
             table.insert(state.entries, {
@@ -336,9 +326,6 @@ local function snapshot_root(root, extra_suppress, deleted_words)
         end
     end
     for _, word in ipairs(extra_suppress or {}) do
-        state.suppress[word] = true
-    end
-    for word in pairs(deleted) do
         state.suppress[word] = true
     end
     table.sort(state.entries, function(left, right)

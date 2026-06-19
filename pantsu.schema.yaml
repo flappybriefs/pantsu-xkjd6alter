@@ -152,7 +152,6 @@ engine:
     - lua_processor@*pantsu_candidate_editor
     - lua_processor@*pantsu_for_topup
     - lua_processor@*pantsu_smart_2
-    - lua_processor@*pantsu_select_character
     - speller
     - punctuator
     - selector
@@ -312,9 +311,6 @@ embeded_cands:
 
 
 key_binder:
-  #以词定字
-  select_first_character: "bracketleft"  # 左中括号 [
-  select_last_character: "bracketright"  # 右中括号 ]
   bindings:
     - {accept: minus, send: Page_Up, when: has_menu}
     - {accept: equal, send: Page_Down, when: has_menu}
@@ -326,6 +322,7 @@ key_binder:
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
     - { accept: apostrophe, toggle: show_es, when: has_menu }
+    - { when: always, accept: Control+1, select: english }
 
 
 recognizer:

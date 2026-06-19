@@ -4,9 +4,11 @@ M.version = "1"
 M.index_version = "2"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
+M.self_word_file = "pantsu_self_words.tsv"
 M.undo_meta_file = "build/pantsu_undo.meta"
 M.undo_override_file = "build/pantsu_undo.overrides.tsv"
 M.undo_order_file = "build/pantsu_undo.order.tsv"
+M.undo_self_word_file = "build/pantsu_undo.self_words.tsv"
 M.index_file = "build/pantsu_dictionary_index.tsv"
 M.order_file = "pantsu_candidate_order.tsv"
 M.dictionary_files = {
@@ -22,6 +24,7 @@ M.overrides = nil
 M.override_lookup = nil
 M.index = nil
 M.signature_cache = nil
+M.self_words_cache = nil
 
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
@@ -56,6 +59,34 @@ local function atomic_lines(path, lines)
         return false
     end
     return true
+end
+
+local function ensure_file(path, initial_lines)
+    local existing = io.open(data_path(path), "rb")
+    if existing then
+        existing:close()
+        return true
+    end
+    return atomic_lines(path, initial_lines)
+end
+
+function M.ensure_runtime_files()
+    local ok = true
+    if not ensure_file(M.override_file, {
+        "version\t" .. M.index_version,
+    }) then
+        ok = false
+    end
+    if not ensure_file(M.history_file, {}) then
+        ok = false
+    end
+    if not ensure_file(M.order_file, {}) then
+        ok = false
+    end
+    if not ensure_file(M.self_word_file, { "version\t1" }) then
+        ok = false
+    end
+    return ok
 end
 
 local function copy_file(source_path, target_path)
@@ -149,6 +180,7 @@ local function load_overrides()
     if M.overrides then
         return
     end
+    M.ensure_runtime_files()
     M.overrides = {}
     M.override_lookup = {}
     local file = io.open(data_path(M.override_file), "r")
@@ -201,6 +233,60 @@ local function find_override(id, path, line_number, word, base_code)
         end
     end
     return best
+end
+
+local function load_self_words()
+    if M.self_words_cache then
+        return
+    end
+    M.ensure_runtime_files()
+    M.self_words_cache = {}
+    local file = io.open(data_path(M.self_word_file), "r")
+    if not file then
+        return
+    end
+    for line in file:lines() do
+        local kind, word, code, active, updated, device =
+            string.match(line,
+                "^([^\t]+)\t([^\t]+)\t([^\t]+)\t([01])\t([^\t]+)\t(.*)$")
+        if kind == "word" and word and code then
+            local key = word .. "\t" .. code
+            M.self_words_cache[key] = {
+                word = word,
+                code = code,
+                active = active == "1",
+                updated = tonumber(updated) or 0,
+                device = device ~= "" and device or "unknown",
+            }
+        end
+    end
+    file:close()
+end
+
+local function write_self_words()
+    load_self_words()
+    local records = {}
+    for _, record in pairs(M.self_words_cache) do
+        table.insert(records, record)
+    end
+    table.sort(records, function(left, right)
+        if left.word == right.word then
+            return left.code < right.code
+        end
+        return left.word < right.word
+    end)
+    local lines = { "version\t1" }
+    for _, record in ipairs(records) do
+        table.insert(lines, table.concat({
+            "word",
+            record.word,
+            record.code,
+            record.active and "1" or "0",
+            tostring(record.updated or 0),
+            record.device or "unknown",
+        }, "\t"))
+    end
+    return atomic_lines(M.self_word_file, lines)
 end
 
 local function write_overrides()
@@ -418,6 +504,33 @@ function M.override_roots()
     return roots
 end
 
+function M.clear_word_overrides(path, word)
+    load_overrides()
+    local changed = false
+    for id, entry in pairs(M.overrides) do
+        if entry.path == path and entry.word == word then
+            M.overrides[id] = nil
+            changed = true
+        end
+    end
+    if changed and not write_overrides() then
+        return nil, "override_write_failed"
+    end
+    return true, changed
+end
+
+function M.effective_entry(path, word, base_code)
+    load_overrides()
+    local candidates = M.override_lookup[table.concat({
+        path, word, base_code,
+    }, "\t")] or {}
+    local override = candidates[1]
+    if override then
+        return override.active, override.code
+    end
+    return true, base_code
+end
+
 local function installation_id()
     local file = io.open(data_path("installation.yaml"), "r")
     if file then
@@ -433,7 +546,83 @@ local function installation_id()
     return "unknown"
 end
 
+function M.self_words()
+    load_self_words()
+    local result = {}
+    for key, record in pairs(M.self_words_cache) do
+        result[key] = {
+            word = record.word,
+            code = record.code,
+            active = record.active,
+            updated = record.updated,
+            device = record.device,
+        }
+    end
+    return result
+end
+
+function M.update_self_words(updates, only_missing)
+    load_self_words()
+    local changed = false
+    local now = os.time()
+    local device = installation_id()
+    for _, update in ipairs(updates or {}) do
+        local key = update.word and update.code
+            and update.word .. "\t" .. update.code or nil
+        local old = key and M.self_words_cache[key] or nil
+        if update.word and update.word ~= ""
+            and update.code and update.code ~= ""
+            and (not only_missing or not old) then
+            local active = update.active ~= false
+            if not old or old.active ~= active then
+                M.self_words_cache[key] = {
+                    word = update.word,
+                    code = update.code,
+                    active = active,
+                    updated = update.updated or now,
+                    device = update.device or device,
+                }
+                changed = true
+            end
+        end
+    end
+    if changed and not write_self_words() then
+        M.self_words_cache = nil
+        return nil, "self_word_write_failed"
+    end
+    return true, changed
+end
+
+function M.replace_self_word(word, codes)
+    load_self_words()
+    local wanted = {}
+    for _, code in ipairs(codes or {}) do
+        if code and code ~= "" then
+            wanted[code] = true
+        end
+    end
+    local updates = {}
+    for _, record in pairs(M.self_words_cache) do
+        if record.word == word and record.active and not wanted[record.code] then
+            table.insert(updates, {
+                word = word,
+                code = record.code,
+                active = false,
+            })
+        end
+    end
+    for code in pairs(wanted) do
+        table.insert(updates, {
+            word = word,
+            code = code,
+            active = true,
+        })
+    end
+    return M.update_self_words(updates)
+end
+
 local function append_history(action, input, word, details)
+    M.ensure_runtime_files()
     M.rotate_log(M.history_file, 1048576)
     local file = io.open(data_path(M.history_file), "a")
     if not file then
@@ -452,7 +641,8 @@ end
 
 function M.begin(action, input, word)
     if not copy_file(M.override_file, M.undo_override_file)
-        or not copy_file(M.order_file, M.undo_order_file) then
+        or not copy_file(M.order_file, M.undo_order_file)
+        or not copy_file(M.self_word_file, M.undo_self_word_file) then
         return false
     end
     return atomic_lines(M.undo_meta_file, {
@@ -497,6 +687,37 @@ function M.commit(entries, action, input, word)
     if not write_overrides() then
         return nil, "override_write_failed"
     end
+    local self_updates = {}
+    for _, entry in ipairs(entries or {}) do
+        if entry.path == "pantsu.user.dict.yaml"
+            and (entry.active ~= entry.initial_active
+                or entry.code ~= entry.original_code) then
+            if entry.code ~= entry.original_code then
+                table.insert(self_updates, {
+                    word = entry.word,
+                    code = entry.original_code,
+                    active = false,
+                })
+            end
+            table.insert(self_updates, {
+                word = entry.word,
+                code = entry.active and entry.code or entry.original_code,
+                active = entry.active,
+            })
+        end
+    end
+    if #self_updates > 0 then
+        local self_ok, self_err = M.update_self_words(self_updates)
+        if not self_ok then
+            restore_file(M.undo_override_file, M.override_file)
+            restore_file(M.undo_self_word_file, M.self_word_file)
+            M.overrides = nil
+            M.override_lookup = nil
+            M.self_words_cache = nil
+            M.signature_cache = nil
+            return nil, self_err
+        end
+    end
     append_history(action, input, word, tostring(changed))
     return true
 end
@@ -529,12 +750,14 @@ function M.undo()
     local description = meta:read("*l") or ""
     meta:close()
     if not restore_file(M.undo_override_file, M.override_file)
-        or not restore_file(M.undo_order_file, M.order_file) then
+        or not restore_file(M.undo_order_file, M.order_file)
+        or not restore_file(M.undo_self_word_file, M.self_word_file) then
         return nil, "undo_restore_failed"
     end
     os.remove(data_path(M.undo_meta_file))
     M.overrides = nil
     M.override_lookup = nil
+    M.self_words_cache = nil
     M.signature_cache = nil
     append_history("undo", "-", "-", description)
     return true
@@ -583,5 +806,7 @@ function M.rotate_log(path, max_bytes)
     os.remove(target .. ".1")
     os.rename(target, target .. ".1")
 end
+
+M.ensure_runtime_files()
 
 return M

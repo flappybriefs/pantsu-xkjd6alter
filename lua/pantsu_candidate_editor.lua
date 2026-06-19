@@ -55,6 +55,16 @@ local function code_startswith(code, prefix)
     return string.sub(code, 1, string.len(prefix)) == prefix
 end
 
+local function word_min_code_length(word)
+    local length = utf8.len(word or "") or 0
+    if length == 3 then
+        return 3
+    elseif length >= 2 then
+        return 4
+    end
+    return 1
+end
+
 local function load_chain(input)
     local model = {
         entries = {},
@@ -238,8 +248,8 @@ local function push_down(model, entry, visiting)
 end
 
 local function promote(model, entry)
-    if string.len(entry.code) <= 1 then
-        return nil, "code_too_short"
+    if string.len(entry.code) <= word_min_code_length(entry.word) then
+        return nil, "word_code_too_short"
     end
     local target_code = string.sub(entry.code, 1, string.len(entry.code) - 1)
     detach(model, entry)
@@ -535,6 +545,27 @@ local function refresh_after_adjust(
     segment.selected_index = math.min(old_index, count - 1)
 end
 
+local function upper_level_hint(code, word)
+    if not code or string.len(code) <= 1 then
+        return nil
+    end
+    if string.len(code) <= word_min_code_length(word) then
+        return "〔已到该词允许的最短码〕"
+    end
+    local parent = string.sub(code, 1, string.len(code) - 1)
+    local occupant
+    for _, entry in ipairs(store.entries(parent)) do
+        if entry.active and entry.code == parent and entry.word ~= word then
+            occupant = entry.word
+            break
+        end
+    end
+    if occupant then
+        return "〔再前移：" .. parent .. " 当前为“" .. occupant .. "”〕"
+    end
+    return "〔再前移：" .. parent .. " 当前为空码〕"
+end
+
 local error_messages = {
     entry_not_found = "〔调频失败：词条已变化〕",
     ambiguous_exact_entry = "〔调频失败：存在重复词条〕",
@@ -542,8 +573,10 @@ local error_messages = {
     ambiguous_full_code = "〔调频失败：存在多个后续码〕",
     no_longer_code = "〔无法继续后移〕",
     no_change = "〔没有可应用的变化〕",
+    word_code_too_short = "〔已到该词允许的最短码〕",
     backup_failed = "〔调频失败：无法创建撤销点〕",
     override_write_failed = "〔调频失败：覆盖层写入失败〕",
+    self_word_write_failed = "〔调频失败：自造词记录写入失败〕",
 }
 
 local function show_error(context, err)
@@ -685,6 +718,12 @@ local function processor(key_event, env)
 
     pending_delete = nil
     dynamic.clear_status()
+    if action == "promote" then
+        local hint = upper_level_hint(focus_input, candidate.text)
+        if hint then
+            dynamic.set_status(focus_input, hint, "transient")
+        end
+    end
     refresh_after_adjust(
         context, action, candidate.text, selected_index, focus_input)
     return kAccepted
@@ -693,6 +732,7 @@ end
 local function init(env)
     pending_delete = nil
     dynamic.clear_status()
+    store.ensure_runtime_files()
     env.commit_connection =
         env.engine.context.commit_notifier:connect(function()
             pending_delete = nil

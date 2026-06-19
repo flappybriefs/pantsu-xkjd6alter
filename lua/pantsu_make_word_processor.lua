@@ -1,5 +1,6 @@
 local core = require("pantsu_make_word_core")
 local dynamic = require("pantsu_dynamic")
+local store = require("pantsu_store")
 
 local kAccepted = 1
 local kNoop = 2
@@ -79,9 +80,16 @@ local function processor(key_event, env)
         if key == "space" then
             if context.input == "[" then
                 if core.buffer ~= "" then
-                    local code, word = core.confirm()
+                    local code, word, _, moved_entries = core.confirm()
                     if code and word and word ~= "" then
-                        dynamic.refresh_codes({ code }, { word }, 4)
+                        if moved_entries and #moved_entries > 0 then
+                            dynamic.refresh_entries(moved_entries, 4)
+                        end
+                        for _, added_code in ipairs(
+                            core.last_codes or { code }) do
+                            dynamic.refresh_codes(
+                                { added_code }, { word }, 4)
+                        end
                         env.engine:commit_text(word)
                         context:clear()
                     else
@@ -168,8 +176,10 @@ local function processor(key_event, env)
         return kNoop
     end
 
-    if ch == "[" and is_empty_context(context) then
-        core.start()
+    if ch == "[" then
+        local target_code =
+            not is_empty_context(context) and context.input or nil
+        core.start(target_code)
         show_status(context)
         return kAccepted
     end
@@ -178,6 +188,8 @@ local function processor(key_event, env)
 end
 
 local function init(env)
+    store.ensure_runtime_files()
+    core.restore_self_words()
     local config = env.engine.schema.config
     env.topup_set = string_to_set(config:get_string("topup/topup_with"))
     env.alphabet = string_to_set(config:get_string("speller/alphabet"))
@@ -187,7 +199,6 @@ local function init(env)
     env.topup_max = config:get_int("topup/max_length")
     env.topup_command = config:get_bool("topup/topup_command") or false
 
-    core.optimize_self_word_codes()
     core.load_words()
     core.load_char_codes()
 end
