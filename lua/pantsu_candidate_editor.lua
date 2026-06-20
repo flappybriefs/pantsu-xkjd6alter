@@ -40,8 +40,12 @@ local function is_history_shortcut(key_event)
         or not key_event:ctrl() then
         return false
     end
-    return is_macos() and not key_event:shift()
-        or not is_macos() and key_event:shift()
+    if is_macos() then
+        return not key_event:shift()
+    end
+    -- Hamster sends Control+h. Keep Control+Shift+h compatible with
+    -- desktop Linux/Windows configurations as well.
+    return true
 end
 
 local function code_startswith(code, prefix)

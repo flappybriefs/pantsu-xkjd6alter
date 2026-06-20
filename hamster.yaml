@@ -9,6 +9,8 @@ rime:
     - "^.*pantsu_candidate_order[.]tsv$"
     - "^.*pantsu_self_words[.]tsv$"
     - "^.*pantsu_history[.]tsv$"
+    - "^.*pantsu_performance[.]tsv$"
+    - "^.*pantsu_performance[.]enabled$"
   regexOnCopyAppGroupDictFile:
     - "^.*[.]userdb.*$"
     - "^.*[.]txt$"
@@ -17,6 +19,8 @@ rime:
     - "^.*pantsu_candidate_order[.]tsv$"
     - "^.*pantsu_self_words[.]tsv$"
     - "^.*pantsu_history[.]tsv$"
+    - "^.*pantsu_performance[.]tsv$"
+    - "^.*pantsu_performance[.]enabled$"
 
 keyboards:
   - name: 胖次-键道

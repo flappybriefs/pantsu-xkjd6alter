@@ -6,11 +6,15 @@
 - `9`：当前候选后移；同码候选内也可后移。
 - `0`：第一次标记删除，第二次确认删除。
 - macOS：`Control+Z` 撤销，`Control+H` 查看最近操作。
-- Windows/Linux：`Ctrl+Z` 撤销，`Ctrl+Shift+H` 查看最近操作。
+- Windows/Linux/仓输入法：`Ctrl+Z` 撤销，`Ctrl+H` 查看最近操作；
+  桌面端原有的 `Ctrl+Shift+H` 也继续兼容。
 - `Esc`：退出当前输入和连续调频。
 
 成功调频后只刷新候选顺序，不显示常驻成功提示；删除确认、失败原因、
 撤销结果和主动查看历史仍会显示。
+
+词条改码后，旧码继续组句时会把旧词前缀替换为该码当前首选；沿新码
+继续输入时保留原词，避免前移、后移或删除后仍出现旧顺序句子。
 
 这些快捷键只在 Rime 已有输入码或候选菜单时生效。空状态下不会拦截，
 仍由当前应用处理。
@@ -41,7 +45,7 @@
 
 - 空输入时按 `[`：按常规最短空码规则造词。
 - 已有输入码时按 `[`：锁定当前输入码造词。
-- 每次造词先显示编码、被后移词和飞键数量；再次按空格才真正保存。
+- 选入字词后立即显示最终编码、被后移词和飞键数量；按一次空格直接保存。
 - 按 `]`：进入英文单词模式；Lua 不再截获该键。
 - 锁定码必须是所造词完整编码或飞键完整编码的前缀，否则显示可用全码。
 - 锁定码已有词时，原词自动后移；新词原本在后续码时自动提前。
@@ -61,6 +65,8 @@
 
 ```bash
 python3 tools/pantsu_maintenance.py health
+python3 tools/pantsu_maintenance.py repair-overrides
+python3 tools/pantsu_maintenance.py migrate-orders
 python3 tools/pantsu_maintenance.py history -n 30
 python3 tools/pantsu_maintenance.py performance -n 20
 python3 tools/pantsu_maintenance.py backup
@@ -87,7 +93,10 @@ python3 tools/pantsu_maintenance.py sync-export
 python3 tools/pantsu_maintenance.py sync-merge
 ```
 
-覆盖记录和自造词状态按操作时间合并。无法自动解决的内容写入
+覆盖记录和自造词状态按操作时间合并。同码排序按编码分别合并，因此一台
+设备调整编码 A、另一台设备调整编码 B 时不会再整文件互相覆盖；同一编码
+发生竞争时采用较新的状态，删除排序也保留墓碑，避免旧设备重新带回。
+无法自动解决的内容写入
 `pantsu_sync_conflicts.tsv`，不会静默覆盖。
 
 ## 性能观测

@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE_FILES = [
     "pantsu_overrides.tsv",
     "pantsu_candidate_order.tsv",
+    "pantsu_self_words.tsv",
     "pantsu.user.dict.yaml",
     "pantsu_history.tsv",
 ]
@@ -67,9 +68,93 @@ def parse_overrides(path: Path) -> dict[str, list[str]]:
 
 
 def write_overrides(entries: dict[str, list[str]]) -> None:
-    lines = ["version\t1"]
+    lines = ["version\t2"]
+    current = ROOT / "pantsu_overrides.tsv"
+    if current.exists():
+        runtime_lines = [
+            raw
+            for raw in current.read_text(encoding="utf-8-sig").splitlines()
+            if raw.startswith("runtime\t")
+        ]
+        if runtime_lines:
+            lines.append(runtime_lines[-1])
     lines.extend("\t".join(entries[key]) for key in sorted(entries))
     atomic_write(ROOT / "pantsu_overrides.tsv", "\n".join(lines) + "\n")
+
+
+def parse_self_word_records(path: Path) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    if not path.exists():
+        return result
+    for raw in path.read_text(encoding="utf-8-sig").splitlines():
+        fields = raw.split("\t")
+        if fields and fields[0] == "word" and len(fields) >= 6:
+            result[f"{fields[1]}\t{fields[2]}"] = fields
+    return result
+
+
+def write_self_word_records(entries: dict[str, list[str]]) -> None:
+    lines = ["version\t1"]
+    lines.extend("\t".join(entries[key]) for key in sorted(entries))
+    atomic_write(ROOT / "pantsu_self_words.tsv", "\n".join(lines) + "\n")
+
+
+def parse_candidate_orders(path: Path) -> dict[str, dict[str, object]]:
+    result: dict[str, dict[str, object]] = {}
+    if not path.exists():
+        return result
+    legacy_time = path.stat().st_mtime_ns // 1_000_000_000
+    for raw in path.read_text(encoding="utf-8-sig").splitlines():
+        fields = raw.split("\t")
+        if len(fields) >= 5 and fields[0] == "meta":
+            updated = int(fields[2]) if fields[2].isdigit() else 0
+            result[fields[1]] = {
+                "updated": updated or legacy_time,
+                "device": fields[3],
+                "active": fields[4] == "1",
+                "items": [],
+            }
+        elif len(fields) >= 4 and fields[0] == "item" and fields[2].isdigit():
+            state = result.setdefault(fields[1], {
+                "updated": legacy_time,
+                "device": "legacy",
+                "active": True,
+                "items": [],
+            })
+            state["items"].append([fields[2], fields[3]])
+        elif len(fields) >= 3 and fields[1].isdigit():
+            state = result.setdefault(fields[0], {
+                "updated": legacy_time,
+                "device": "legacy",
+                "active": True,
+                "items": [],
+            })
+            state["items"].append([fields[1], fields[2]])
+    for state in result.values():
+        state["items"].sort(key=lambda item: (int(item[0]), item[1]))
+    return result
+
+
+def write_candidate_orders(entries: dict[str, dict[str, object]]) -> None:
+    lines: list[str] = ["version\t2"]
+    for code in sorted(entries):
+        state = entries[code]
+        lines.append("\t".join([
+            "meta",
+            code,
+            str(state["updated"]),
+            str(state["device"]),
+            "1" if state["active"] else "0",
+        ]))
+        if state["active"]:
+            lines.extend(
+                "\t".join(["item", code, *record])
+                for record in state["items"]
+            )
+    atomic_write(
+        ROOT / "pantsu_candidate_order.tsv",
+        "\n".join(lines) + "\n",
+    )
 
 
 def merge_sync(directories: list[str]) -> None:
@@ -86,23 +171,59 @@ def merge_sync(directories: list[str]) -> None:
                 conflicts.append("\t".join(["override", key, *current, *record]))
     write_overrides(merged)
 
-    order_sources = [ROOT / "pantsu_candidate_order.tsv"]
-    order_sources += [
+    order_sources = [ROOT / "pantsu_candidate_order.tsv"] + [
         Path(directory) / "pantsu_candidate_order.tsv"
         for directory in directories
     ]
     order_sources = [path for path in order_sources if path.exists()]
-    if order_sources:
-        newest = max(order_sources, key=lambda path: path.stat().st_mtime_ns)
-        shutil.copy2(newest, ROOT / "pantsu_candidate_order.tsv")
+    merged_orders: dict[str, dict[str, object]] = {}
+    for path in order_sources:
+        for code, state in parse_candidate_orders(path).items():
+            current = merged_orders.get(code)
+            incoming_key = (int(state["updated"]), str(state["device"]))
+            current_key = (
+                int(current["updated"]),
+                str(current["device"]),
+            ) if current else None
+            if current and incoming_key[0] == current_key[0] and current != state:
+                conflicts.append(
+                    "\t".join([
+                        "candidate_order",
+                        code,
+                        str(current["device"]),
+                        str(state["device"]),
+                        str(path),
+                    ])
+                )
+            if current is None or incoming_key > current_key:
+                merged_orders[code] = state
+    write_candidate_orders(merged_orders)
 
-    merge_self_words(directories, conflicts)
+    self_words = parse_self_word_records(ROOT / "pantsu_self_words.tsv")
+    for directory in directories:
+        incoming = parse_self_word_records(
+            Path(directory) / "pantsu_self_words.tsv"
+        )
+        for key, record in incoming.items():
+            current = self_words.get(key)
+            if current is None or int(record[4]) > int(current[4]):
+                self_words[key] = record
+            elif int(record[4]) == int(current[4]) and record != current:
+                conflicts.append(
+                    "\t".join(["self_word", key, *current, *record])
+                )
+    write_self_word_records(self_words)
     if conflicts:
         atomic_write(
             ROOT / "pantsu_sync_conflicts.tsv",
             "\n".join(conflicts) + "\n",
         )
-    print(f"合并完成：{len(merged)} 条覆盖，{len(conflicts)} 条冲突")
+    else:
+        (ROOT / "pantsu_sync_conflicts.tsv").unlink(missing_ok=True)
+    print(
+        f"合并完成：{len(merged)} 条覆盖，"
+        f"{len(self_words)} 个自造词状态，{len(conflicts)} 条冲突"
+    )
 
 
 def installation_id() -> str:
@@ -134,6 +255,47 @@ def sync_merge() -> None:
         print("没有发现其他设备的同步状态")
         return
     merge_sync(directories)
+
+
+def migrate_candidate_orders() -> None:
+    backup()
+    path = ROOT / "pantsu_candidate_order.tsv"
+    states = parse_candidate_orders(path)
+    local_id = installation_id()
+    for state in states.values():
+        if state["device"] == "legacy":
+            state["device"] = local_id
+    write_candidate_orders(states)
+    print(f"已迁移 {len(states)} 个同码排序状态")
+
+
+def show_performance(limit: int) -> None:
+    path = ROOT / "pantsu_performance.tsv"
+    if not path.exists():
+        print("尚无性能记录；先执行一次自造词、前移、后移或删除")
+        return
+    rows = []
+    for raw in path.read_text(encoding="utf-8-sig").splitlines():
+        fields = raw.split("\t")
+        if len(fields) >= 9 and fields[0].isdigit():
+            rows.append(fields)
+    labels = {
+        "promote": "前移",
+        "demote": "后移",
+        "delete": "删除",
+        "make_word_preview": "造词预览",
+        "make_word_save": "造词保存",
+    }
+    for fields in rows[-limit:]:
+        stamp = dt.datetime.fromtimestamp(int(fields[0])).strftime(
+            "%m-%d %H:%M:%S"
+        )
+        action = labels.get(fields[2], fields[2])
+        print(
+            f"{stamp}  {action:<8} {fields[4]:<12} "
+            f"{fields[6]:>9} ms  {fields[5]}"
+        )
+        print(f"  {fields[7]}")
 
 
 def self_word_lines(path: Path) -> tuple[list[str], int, int]:
@@ -174,8 +336,18 @@ def merge_self_words(directories: list[str], conflicts: list[str]) -> None:
 def health() -> None:
     issues: list[str] = []
     valid_chars = set("abcdefghijklmnopqrstuvwxyz;/`")
-    seen: dict[tuple[str, str], tuple[str, int]] = {}
+    seen: dict[tuple[str, str], tuple[str, int, str]] = {}
     active_words: set[tuple[str, str]] = set()
+    user_lines, user_start, user_end = self_word_lines(
+        ROOT / "pantsu.user.dict.yaml"
+    )
+
+    def is_self_word(name: str, number: int) -> bool:
+        return (
+            name == "pantsu.user.dict.yaml"
+            and user_start + 2 <= number <= user_end
+        )
+
     for name in DICTIONARIES:
         path = ROOT / name
         if not path.exists():
@@ -195,21 +367,28 @@ def health() -> None:
                 issues.append(f"invalid_code\t{name}:{number}\t{word}\t{code}")
             key = (word, code)
             if key in seen:
-                old_name, old_number = seen[key]
-                issues.append(
-                    f"duplicate\t{word}\t{code}\t"
-                    f"{old_name}:{old_number}\t{name}:{number}"
+                old_name, old_number, old_raw = seen[key]
+                expected_self_override = (
+                    is_self_word(old_name, old_number)
+                    or is_self_word(name, number)
                 )
+                if raw == old_raw and not expected_self_override:
+                    issues.append(
+                        f"duplicate\t{word}\t{code}\t"
+                        f"{old_name}:{old_number}\t{name}:{number}"
+                    )
             else:
-                seen[key] = (name, number)
+                seen[key] = (name, number, raw)
             active_words.add(key)
 
     orders = ROOT / "pantsu_candidate_order.tsv"
     if orders.exists():
-        for number, raw in enumerate(orders.read_text(encoding="utf-8").splitlines(), 1):
-            fields = raw.split("\t")
-            if len(fields) < 3 or (fields[2], fields[0]) not in active_words:
-                issues.append(f"orphan_order\t{number}\t{raw}")
+        for code, state in parse_candidate_orders(orders).items():
+            if not state["active"]:
+                continue
+            for _, word in state["items"]:
+                if (word, code) not in active_words:
+                    issues.append(f"orphan_order\t{code}\t{word}")
 
     overrides = parse_overrides(ROOT / "pantsu_overrides.tsv")
     for record in overrides.values():
@@ -265,6 +444,60 @@ def apply_overrides() -> None:
     print(f"已将 {len(entries)} 条覆盖合并回基础词库")
 
 
+def repair_overrides() -> None:
+    backup()
+    entries = parse_overrides(ROOT / "pantsu_overrides.tsv")
+    by_source: dict[tuple[str, str, str], list[list[str]]] = {}
+    for record in entries.values():
+        by_source.setdefault(
+            (record[2], record[4], record[5]), []
+        ).append(record)
+
+    repaired: dict[str, list[str]] = {}
+    unresolved: list[str] = []
+    file_lines: dict[str, list[str]] = {}
+    for (name, word, code), records in by_source.items():
+        lines = file_lines.setdefault(
+            name,
+            (ROOT / name).read_text(encoding="utf-8-sig").splitlines(),
+        )
+        candidates = [
+            number
+            for number, raw in enumerate(lines, 1)
+            if raw.rstrip("\r") == f"{word}\t{code}"
+        ]
+        unused = set(candidates)
+        records.sort(key=lambda item: int(item[3]))
+        for record in records:
+            old_line = int(record[3])
+            if unused:
+                line_number = min(
+                    unused,
+                    key=lambda number: (abs(number - old_line), number),
+                )
+                unused.remove(line_number)
+                record[3] = str(line_number)
+                record[1] = f"{name}:{line_number}:{word}:{code}"
+            else:
+                unresolved.append("\t".join(record))
+            repaired[record[1]] = record
+
+    write_overrides(repaired)
+    if unresolved:
+        atomic_write(
+            ROOT / "pantsu_override_repair_unresolved.tsv",
+            "\n".join(unresolved) + "\n",
+        )
+    else:
+        (ROOT / "pantsu_override_repair_unresolved.tsv").unlink(
+            missing_ok=True
+        )
+    print(
+        f"已重定位 {len(repaired) - len(unresolved)} 条覆盖，"
+        f"{len(unresolved)} 条无法定位"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="胖次键道维护工具")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -277,8 +510,12 @@ def main() -> None:
     history_parser.add_argument("-n", type=int, default=30)
     sub.add_parser("health")
     sub.add_parser("apply-overrides")
+    sub.add_parser("repair-overrides")
     sub.add_parser("sync-export")
     sub.add_parser("sync-merge")
+    sub.add_parser("migrate-orders")
+    performance_parser = sub.add_parser("performance")
+    performance_parser.add_argument("-n", type=int, default=20)
     args = parser.parse_args()
     if args.command == "backup":
         backup()
@@ -292,10 +529,16 @@ def main() -> None:
         health()
     elif args.command == "apply-overrides":
         apply_overrides()
+    elif args.command == "repair-overrides":
+        repair_overrides()
     elif args.command == "sync-export":
         sync_export()
     elif args.command == "sync-merge":
         sync_merge()
+    elif args.command == "migrate-orders":
+        migrate_candidate_orders()
+    elif args.command == "performance":
+        show_performance(args.n)
 
 
 if __name__ == "__main__":

@@ -941,7 +941,7 @@ local function plan_summary(plan)
     if plan.same_code_words then
         table.insert(parts, "六码同码置顶")
     end
-    return "〔" .. table.concat(parts, "；") .. "；再次确认〕"
+    return "〔" .. table.concat(parts, "；") .. "〕"
 end
 
 function M.plan_word(word, items, target_code, profile)
@@ -1233,6 +1233,13 @@ function M.backspace_buffer()
     table.remove(M.buffer_items)
 end
 
+function M.prepare_preview()
+    if M.pending_plan or utf8_len(M.buffer) < 2 then
+        return M.pending_plan
+    end
+    return M.preview()
+end
+
 function M.preview(profile)
     local own_profile = not profile
     profile = profile or profiler.start(
@@ -1259,7 +1266,9 @@ function M.confirm(profile)
     local word = M.buffer
     if not M.pending_plan then
         local plan, preview_err = M.preview(profile)
-        return nil, word, preview_err, nil, plan and "preview" or nil
+        if not plan then
+            return nil, word, preview_err
+        end
     end
     local code, err, moved_entries =
         M.apply_plan(M.pending_plan, profile)

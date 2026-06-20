@@ -2,7 +2,7 @@ local M = {}
 
 M.version = "2"
 M.index_version = "2"
-M.runtime_version = "2026-06-20.5"
+M.runtime_version = "2026-06-20.8"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
 M.self_word_file = "pantsu_self_words.tsv"
@@ -11,6 +11,7 @@ M.undo_fallback_dir = "build"
 M.undo_runtime_dir = nil
 M.undo_limit = 7
 M.index_file = "build/pantsu_dictionary_index.tsv"
+M.index_dirty_file = "build/pantsu_dictionary_index.dirty"
 M.order_file = "pantsu_candidate_order.tsv"
 M.dictionary_files = {
     "pantsu.core.dict.yaml",
@@ -29,6 +30,7 @@ M.self_words_cache = nil
 M.pending_memory = nil
 M.runtime_files_ready = false
 M.dirty_index_files = {}
+M.index_dirty_loaded = false
 
 local migrate_undo_files
 
@@ -136,6 +138,52 @@ end
 local function atomic_lines(path, lines)
     local content = #lines > 0 and table.concat(lines, "\n") .. "\n" or ""
     return verified_write(data_path(path), content)
+end
+
+local function read_last_build_time()
+    local file = io.open(data_path("user.yaml"), "r")
+    if not file then
+        return nil
+    end
+    for line in file:lines() do
+        local value = string.match(line, "^%s*last_build_time:%s*(%d+)")
+        if value then
+            file:close()
+            return value
+        end
+    end
+    file:close()
+    return nil
+end
+
+local function load_dirty_index_files()
+    if M.index_dirty_loaded then
+        return
+    end
+    M.index_dirty_loaded = true
+    local file = io.open(data_path(M.index_dirty_file), "r")
+    if not file then
+        return
+    end
+    for line in file:lines() do
+        if line ~= "" then
+            M.dirty_index_files[line] = true
+        end
+    end
+    file:close()
+end
+
+local function write_dirty_index_files()
+    local paths = {}
+    for path in pairs(M.dirty_index_files) do
+        table.insert(paths, path)
+    end
+    table.sort(paths)
+    if #paths == 0 then
+        os.remove(data_path(M.index_dirty_file))
+        return true
+    end
+    return atomic_lines(M.index_dirty_file, paths)
 end
 
 local function ensure_runtime_marker()
@@ -495,7 +543,10 @@ local function scan_file_ranges(path)
 end
 
 local function write_index(ranges)
-    local lines = { "version\t" .. M.version }
+    local lines = {
+        "version\t" .. M.index_version,
+        "build\t" .. (read_last_build_time() or ""),
+    }
     for _, path in ipairs(M.dictionary_files) do
         table.insert(lines, table.concat({
             "file", path, tostring(file_size(path)),
@@ -514,6 +565,9 @@ local function write_index(ranges)
     if not atomic_lines(M.index_file, lines) then
         return nil
     end
+    M.dirty_index_files = {}
+    M.index_dirty_loaded = true
+    os.remove(data_path(M.index_dirty_file))
     return ranges
 end
 
@@ -524,14 +578,20 @@ local function load_index()
     local ranges = {}
     local by_file = {}
     local stored_sizes = {}
-    local version_valid = true
+    local stored_build
+    local version_valid = false
+    local build_seen = false
+    load_dirty_index_files()
     local file = io.open(data_path(M.index_file), "r")
     if file then
         for line in file:lines() do
             local kind, a, b, c, d, e =
                 string.match(line, "^([^\t]+)\t?([^\t]*)\t?([^\t]*)\t?([^\t]*)\t?([^\t]*)\t?(.*)$")
-            if kind == "version" and a ~= M.index_version then
-                version_valid = false
+            if kind == "version" then
+                version_valid = a == M.index_version
+            elseif kind == "build" then
+                build_seen = true
+                stored_build = a ~= "" and a or nil
             elseif kind == "file" then
                 stored_sizes[a] = tonumber(b)
             elseif kind == "range" then
@@ -552,8 +612,11 @@ local function load_index()
         version_valid = false
     end
     local changed = false
+    local current_build = read_last_build_time()
     for _, path in ipairs(M.dictionary_files) do
         local reusable = version_valid
+            and build_seen
+            and stored_build == current_build
             and not M.dirty_index_files[path]
             and stored_sizes[path] == file_size(path)
         local file_ranges = reusable and by_file[path]
@@ -577,10 +640,18 @@ function M.invalidate_index(path)
     M.index = nil
     M.signature_cache = nil
     if path then
+        load_dirty_index_files()
         M.dirty_index_files[path] = true
+        if not write_dirty_index_files() then
+            M.dirty_index_files = {}
+            M.index_dirty_loaded = true
+            os.remove(data_path(M.index_file))
+        end
     else
         M.dirty_index_files = {}
+        M.index_dirty_loaded = true
         os.remove(data_path(M.index_file))
+        os.remove(data_path(M.index_dirty_file))
     end
 end
 

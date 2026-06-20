@@ -50,14 +50,23 @@ local function filter(input, env)
     end
 
     for candidate in input:iter() do
-        if not state.suppress[candidate.text] and not yielded[candidate.text] then
+        local rewritten =
+            dynamic.rewrite_candidate(state, candidate.text, typed)
+        if rewritten
+            and not dynamic.suppresses_candidate(state, rewritten, typed)
+            and not yielded[rewritten] then
             if status then
                 yield(ShadowCandidate(
-                    candidate, candidate.type, candidate.text, status))
+                    candidate, candidate.type, rewritten, status))
                 status = nil
+            elseif rewritten ~= candidate.text then
+                yield(ShadowCandidate(
+                    candidate, candidate.type, rewritten,
+                    candidate.comment or ""))
             else
                 yield(candidate)
             end
+            yielded[rewritten] = true
         end
     end
 end

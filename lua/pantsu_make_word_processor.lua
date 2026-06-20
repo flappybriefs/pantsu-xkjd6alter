@@ -66,21 +66,16 @@ local function capture_selected_candidate(context)
     end
 
     core.append(candidate.text, context.input)
+    core.prepare_preview()
     return true
 end
 
 local function finish_word(context, env, marker)
     local performance = profiler.start(
-        core.pending_plan and "make_word_save" or "make_word_preview",
+        "make_word_save",
         core.target_code or "-", core.buffer)
-    local code, word, err, moved_entries, stage =
+    local code, word, err, moved_entries =
         core.confirm(performance)
-    if stage == "preview" then
-        show_status(context, marker)
-        performance:mark("candidate_refresh")
-        performance:finish("preview")
-        return true
-    end
     if code and word and word ~= "" then
         if moved_entries and #moved_entries > 0 then
             dynamic.refresh_entries(moved_entries, 4)
@@ -147,6 +142,7 @@ local function processor(key_event, env)
             if key == "BackSpace" or key == "Backspace" then
                 if core.buffer ~= "" then
                     core.backspace_buffer()
+                    core.prepare_preview()
                     show_status(context, "[")
                 else
                     core.cancel()

@@ -25,6 +25,7 @@ local function filter(input, env)
             end
             return
         end
+        core.prepare_preview()
         local target = core.target_code
             and "〔保存到 " .. core.target_code .. "〕" or nil
         local mismatch = core.last_error
@@ -40,7 +41,7 @@ local function filter(input, env)
             or error_messages[core.last_error]
             or (core.last_error and "〔保存失败：" .. core.last_error .. "〕")
             or target
-            or "〔空格预览〕"
+            or "〔空格保存〕"
         yield(Candidate("pantsu_make_word", 0, 1, core.buffer, comment))
         return
     end

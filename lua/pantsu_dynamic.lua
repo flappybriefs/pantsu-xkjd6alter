@@ -1,7 +1,7 @@
 local store = require("pantsu_store")
 local M = {}
 
-M.state_version = "4"
+M.state_version = "7"
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
 M.order_file = "pantsu_candidate_order.tsv"
 M.build_state_file = "user.yaml"
@@ -18,6 +18,7 @@ M.loaded = false
 M.build_time = nil
 M.roots = {}
 M.orders = {}
+M.order_meta = {}
 M.orders_loaded = false
 M.order_roots_loaded = false
 M.override_roots_loaded = false
@@ -33,6 +34,21 @@ local function data_path(path)
     return path
 end
 
+local function installation_id()
+    local file = io.open(data_path("installation.yaml"), "r")
+    if file then
+        for line in file:lines() do
+            local value = string.match(line, "^installation_id:%s*(.+)$")
+            if value then
+                file:close()
+                return value
+            end
+        end
+        file:close()
+    end
+    return "unknown"
+end
+
 local function load_orders()
     if M.orders_loaded then
         return
@@ -40,39 +56,88 @@ local function load_orders()
     store.ensure_runtime_files()
     M.orders_loaded = true
     M.orders = {}
+    M.order_meta = {}
     local file = io.open(data_path(M.order_file), "r")
     if not file then
         return
     end
     for line in file:lines() do
-        local code, rank, word =
-            string.match(line, "^([^\t]+)\t(%d+)\t(.+)$")
-        if code and rank and word then
+        local kind, code, a, b, c =
+            string.match(line,
+                "^([^\t]+)\t?([^\t]*)\t?([^\t]*)\t?([^\t]*)\t?(.*)$")
+        if kind == "meta" and code ~= "" then
+            M.order_meta[code] = {
+                updated = tonumber(a) or 0,
+                device = b ~= "" and b or "unknown",
+                active = c == "1",
+            }
+        elseif kind == "item" and code ~= ""
+            and tonumber(a) and b ~= "" then
             if not M.orders[code] then
                 M.orders[code] = {}
             end
-            M.orders[code][word] = tonumber(rank)
+            M.orders[code][b] = tonumber(a)
+        else
+            local legacy_code, rank, word =
+                string.match(line, "^([^\t]+)\t(%d+)\t(.+)$")
+            if legacy_code and rank and word then
+                if not M.orders[legacy_code] then
+                    M.orders[legacy_code] = {}
+                end
+                M.orders[legacy_code][word] = tonumber(rank)
+                M.order_meta[legacy_code] = {
+                    updated = 0,
+                    device = "legacy",
+                    active = true,
+                }
+            end
         end
     end
     file:close()
+    for code in pairs(M.orders) do
+        if not M.order_meta[code] then
+            M.order_meta[code] = {
+                updated = 0,
+                device = "legacy",
+                active = true,
+            }
+        end
+    end
 end
 
 local function write_orders()
     local target = data_path(M.order_file)
     local temp = target .. ".tmp"
-    local lines = {}
+    local lines = { "version\t2" }
     local file = io.open(temp, "w")
     if not file then
         return false
     end
     local codes = {}
     for code in pairs(M.orders) do
+        if not M.order_meta[code] then
+            M.order_meta[code] = {
+                updated = os.time(),
+                device = installation_id(),
+                active = true,
+            }
+        end
+    end
+    for code in pairs(M.order_meta) do
         table.insert(codes, code)
     end
     table.sort(codes)
     for _, code in ipairs(codes) do
+        local meta = M.order_meta[code]
+        table.insert(lines, table.concat({
+            "meta",
+            code,
+            tostring(meta.updated or 0),
+            meta.device or "unknown",
+            meta.active and "1" or "0",
+        }, "\t"))
         local words = {}
-        for word, rank in pairs(M.orders[code]) do
+        for word, rank in pairs(M.orders[code] or {}) do
             table.insert(words, { word = word, rank = rank })
         end
         table.sort(words, function(left, right)
@@ -81,10 +146,12 @@ local function write_orders()
             end
             return left.rank < right.rank
         end)
-        for _, item in ipairs(words) do
-            table.insert(lines, table.concat({
-                code, tostring(item.rank), item.word,
-            }, "\t"))
+        if meta.active then
+            for _, item in ipairs(words) do
+                table.insert(lines, table.concat({
+                    "item", code, tostring(item.rank), item.word,
+                }, "\t"))
+            end
         end
     end
     local content = #lines > 0 and table.concat(lines, "\n") .. "\n" or ""
@@ -169,12 +236,38 @@ local function load_state()
         elseif kind == "build" then
             state_build = root
         elseif kind == "root" and root ~= "" then
-            M.roots[root] = { entries = {}, suppress = {}, deleted = {} }
+            M.roots[root] = {
+                entries = {},
+                suppress = {},
+                deleted = {},
+                redirects = {},
+            }
         elseif kind == "suppress" and M.roots[root] and first ~= "" then
             M.roots[root].suppress[first] = true
         elseif kind == "deleted" and M.roots[root] and first ~= "" then
-            M.roots[root].deleted[first] = true
+            if not M.roots[root].deleted[first] then
+                M.roots[root].deleted[first] = {}
+            end
+            table.insert(
+                M.roots[root].deleted[first],
+                second ~= "" and second or "*")
             M.roots[root].suppress[first] = true
+        elseif kind == "redirect" and M.roots[root]
+            and first ~= "" and second ~= "" then
+            local old_code, new_code =
+                string.match(second, "^([^\t]+)\t([^\t]+)$")
+            if old_code and new_code then
+                if not M.roots[root].redirects[first] then
+                    M.roots[root].redirects[first] = {}
+                end
+                table.insert(M.roots[root].redirects[first], {
+                    old_code = old_code,
+                    new_code = new_code,
+                })
+                M.roots[root].suppress[first] = true
+            else
+                valid = false
+            end
         elseif kind == "entry" and M.roots[root]
             and first ~= "" and second ~= "" then
             local word, code, id =
@@ -235,7 +328,30 @@ local function write_state()
         end
         table.sort(deleted)
         for _, word in ipairs(deleted) do
-            file:write("deleted\t", root, "\t", word, "\n")
+            local codes = state.deleted[word]
+            table.sort(codes)
+            for _, code in ipairs(codes) do
+                file:write("deleted\t", root, "\t", word, "\t",
+                    code, "\n")
+            end
+        end
+        local redirected = {}
+        for word in pairs(state.redirects or {}) do
+            table.insert(redirected, word)
+        end
+        table.sort(redirected)
+        for _, word in ipairs(redirected) do
+            local redirects = state.redirects[word]
+            table.sort(redirects, function(left, right)
+                if left.old_code == right.old_code then
+                    return left.new_code < right.new_code
+                end
+                return left.old_code < right.old_code
+            end)
+            for _, redirect in ipairs(redirects) do
+                file:write("redirect\t", root, "\t", word, "\t",
+                    redirect.old_code, "\t", redirect.new_code, "\n")
+            end
         end
         for index, entry in ipairs(state.entries) do
             file:write("entry\t", root, "\t", tostring(index), "\t",
@@ -327,7 +443,12 @@ local function snapshot_root(root, extra_suppress, deleted_words)
         M.roots[old_root] = nil
     end
 
-    local state = { entries = {}, suppress = {}, deleted = {} }
+    local state = {
+        entries = {},
+        suppress = {},
+        deleted = {},
+        redirects = {},
+    }
     local order = 0
     local valid_orders = {}
     local source_entries = store.entries(root)
@@ -340,6 +461,20 @@ local function snapshot_root(root, extra_suppress, deleted_words)
     load_orders()
     for _, entry in ipairs(source_entries) do
         state.suppress[entry.word] = true
+        if not entry.active then
+            if not state.deleted[entry.word] then
+                state.deleted[entry.word] = {}
+            end
+            table.insert(state.deleted[entry.word], entry.base_code)
+        elseif entry.base_code ~= entry.code then
+            if not state.redirects[entry.word] then
+                state.redirects[entry.word] = {}
+            end
+            table.insert(state.redirects[entry.word], {
+                old_code = entry.base_code,
+                new_code = entry.code,
+            })
+        end
         if entry.active
             and (entry.path == "pantsu.user.dict.yaml"
                 or not has_user_entry[entry.word])
@@ -361,6 +496,12 @@ local function snapshot_root(root, extra_suppress, deleted_words)
         end
     end
     for _, word in ipairs(extra_suppress or {}) do
+        state.suppress[word] = true
+    end
+    for _, word in ipairs(deleted_words or {}) do
+        if not state.deleted[word] then
+            state.deleted[word] = { "*" }
+        end
         state.suppress[word] = true
     end
     table.sort(state.entries, function(left, right)
@@ -391,8 +532,18 @@ local function snapshot_root(root, extra_suppress, deleted_words)
             if old_count ~= new_count then
                 if new_count > 1 then
                     M.orders[code] = kept
+                    M.order_meta[code] = {
+                        updated = os.time(),
+                        device = installation_id(),
+                        active = true,
+                    }
                 else
                     M.orders[code] = nil
+                    M.order_meta[code] = {
+                        updated = os.time(),
+                        device = installation_id(),
+                        active = false,
+                    }
                 end
                 order_changed = true
             end
@@ -425,8 +576,14 @@ function M.set_same_code_order(code, words)
         return false
     end
     M.orders[code] = ranks
+    M.order_meta[code] = {
+        updated = os.time(),
+        device = installation_id(),
+        active = true,
+    }
     if not write_orders() then
         M.orders = {}
+        M.order_meta = {}
         M.orders_loaded = false
         return false
     end
@@ -501,6 +658,7 @@ function M.invalidate()
     M.loaded = false
     M.roots = {}
     M.orders = {}
+    M.order_meta = {}
     M.orders_loaded = false
     M.order_roots_loaded = false
     M.override_roots_loaded = false
@@ -585,6 +743,100 @@ function M.match(input)
         return nil
     end
     return M.roots[best_root], best_root
+end
+
+local function deleted_codes(value)
+    if value == true then
+        return { "*" }
+    end
+    return value or {}
+end
+
+local function redirect_list(value)
+    if value and value.old_code then
+        return { value }
+    end
+    return value or {}
+end
+
+function M.suppresses_candidate(state, text, typed)
+    if not state or not text then
+        return false
+    end
+    if state.suppress[text] then
+        return true
+    end
+    for word, codes in pairs(state.deleted or {}) do
+        if word ~= "" and string.sub(text, 1, string.len(word)) == word then
+            for _, code in ipairs(deleted_codes(codes)) do
+                if code == "*" or (typed
+                    and string.sub(typed, 1, string.len(code)) == code) then
+                    return true
+                end
+            end
+        end
+    end
+    for word, redirects in pairs(state.redirects or {}) do
+        for _, redirect in ipairs(redirect_list(redirects)) do
+            local follows_old = typed
+                and string.sub(typed, 1, string.len(redirect.old_code))
+                    == redirect.old_code
+            local follows_new = typed
+                and string.sub(redirect.new_code, 1, string.len(typed)) == typed
+            if follows_old and not follows_new
+                and string.sub(text, 1, string.len(word)) == word then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function exact_word(state, code, excluded)
+    for _, entry in ipairs(state.entries or {}) do
+        if entry.code == code and entry.word ~= excluded then
+            return entry.word
+        end
+    end
+    return nil
+end
+
+function M.rewrite_candidate(state, text, typed)
+    if not state or not text or not typed then
+        return text
+    end
+    local matched_word
+    local matched_redirect
+    for word, redirects in pairs(state.redirects or {}) do
+        for _, redirect in ipairs(redirect_list(redirects)) do
+            local follows_old =
+                string.sub(typed, 1, string.len(redirect.old_code))
+                    == redirect.old_code
+            local follows_new =
+                string.sub(redirect.new_code, 1, string.len(typed)) == typed
+            local better_match = not matched_word
+                or string.len(word) > string.len(matched_word)
+                or (word == matched_word
+                    and string.len(redirect.old_code)
+                        > string.len(matched_redirect.old_code))
+            if follows_old and not follows_new
+                and string.sub(text, 1, string.len(word)) == word
+                and better_match then
+                matched_word = word
+                matched_redirect = redirect
+            end
+        end
+    end
+    if matched_word then
+        local replacement =
+            exact_word(state, matched_redirect.old_code, matched_word)
+        if not replacement then
+            return nil
+        end
+        return replacement
+            .. string.sub(text, string.len(matched_word) + 1)
+    end
+    return text
 end
 
 return M
