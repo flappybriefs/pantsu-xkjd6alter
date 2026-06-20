@@ -1,7 +1,7 @@
 local store = require("pantsu_store")
 local M = {}
 
-M.state_version = "7"
+M.state_version = "8"
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
 M.order_file = "pantsu_candidate_order.tsv"
 M.build_state_file = "user.yaml"
@@ -11,8 +11,10 @@ M.dictionary_files = {
     "pantsu.cizu.dict.yaml",
     "pantsu.temp.dict.yaml",
     "pantsu.user.dict.yaml",
+    "pantsu.zzc.dict.yaml",
     "pantsu.waigua.dict.yaml",
 }
+M.self_word_dict_file = "pantsu.zzc.dict.yaml"
 
 M.loaded = false
 M.build_time = nil
@@ -454,7 +456,7 @@ local function snapshot_root(root, extra_suppress, deleted_words)
     local source_entries = store.entries(root)
     local has_user_entry = {}
     for _, entry in ipairs(source_entries) do
-        if entry.active and entry.path == "pantsu.user.dict.yaml" then
+        if entry.active and entry.path == M.self_word_dict_file then
             has_user_entry[entry.word] = true
         end
     end
@@ -476,7 +478,7 @@ local function snapshot_root(root, extra_suppress, deleted_words)
             })
         end
         if entry.active
-            and (entry.path == "pantsu.user.dict.yaml"
+            and (entry.path == M.self_word_dict_file
                 or not has_user_entry[entry.word])
             and string.sub(entry.code, 1, string.len(root)) == root then
             order = order + 1

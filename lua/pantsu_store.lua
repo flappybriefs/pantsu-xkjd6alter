@@ -2,10 +2,11 @@ local M = {}
 
 M.version = "2"
 M.index_version = "2"
-M.runtime_version = "2026-06-20.8"
+M.runtime_version = "2026-06-21.1"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
 M.self_word_file = "pantsu_self_words.tsv"
+M.self_word_dict_file = "pantsu.zzc.dict.yaml"
 M.undo_dir = "build/pantsu_undo"
 M.undo_fallback_dir = "build"
 M.undo_runtime_dir = nil
@@ -19,6 +20,7 @@ M.dictionary_files = {
     "pantsu.cizu.dict.yaml",
     "pantsu.temp.dict.yaml",
     "pantsu.user.dict.yaml",
+    "pantsu.zzc.dict.yaml",
     "pantsu.waigua.dict.yaml",
 }
 
@@ -695,7 +697,7 @@ function M.entries(input, profile)
                         local active = not override or override.active
                         if string.sub(base_code, 1, #input) == input
                             or (active and string.sub(code, 1, #input) == input) then
-                            if range.path == "pantsu.user.dict.yaml" and active then
+                            if range.path == M.self_word_dict_file and active then
                                 found_self[word .. "\t" .. code] = true
                             end
                             table.insert(result, {
@@ -731,7 +733,7 @@ function M.entries(input, profile)
             if active and string.sub(code, 1, #input) == input then
                 table.insert(result, {
                     id = id,
-                    path = "pantsu.user.dict.yaml",
+                    path = M.self_word_dict_file,
                     line_number = 0,
                     word = record.word,
                     base_code = record.code,
@@ -1222,7 +1224,7 @@ function M.commit(entries, action, input, word, defer_finish, profile)
     end
     local self_updates = {}
     for _, entry in ipairs(entries or {}) do
-        if entry.path == "pantsu.user.dict.yaml"
+        if entry.path == M.self_word_dict_file
             and (entry.active ~= entry.initial_active
                 or entry.code ~= entry.original_code) then
             if entry.code ~= entry.original_code then

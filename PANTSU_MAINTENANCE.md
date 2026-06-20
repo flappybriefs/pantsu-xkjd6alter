@@ -36,7 +36,8 @@
 直接从 TSV 加载。
 
 仓输入法的 `hamster.yaml` 已设置 `rime.overrideDictFiles: false`，部署前会
-把键盘端的 `pantsu.user.dict.yaml`、自造词、调频和同码顺序状态回拷到
+把键盘端的 `pantsu.user.dict.yaml`、`pantsu.zzc.dict.yaml`、自造词、
+调频和同码顺序状态回拷到
 应用文件；`build/pantsu_undo/` 不会参与复制。
 旧手机若曾在仓的设置界面开启“重新部署时覆盖词库文件”，需要手动关闭
 一次；应用界面设置的优先级高于 YAML。
@@ -117,5 +118,7 @@ clock	lua_cpu_ms
 将 `enabled` 改为 `0` 可停止记录。手机可直接在“键盘文件”中查看
 `pantsu_performance.tsv`；电脑可使用 `performance` 命令汇总。
 
-运行时会缓存必要文件检查和撤销目录位置；自造词修改用户词库后，仅重建
-`pantsu.user.dict.yaml` 对应的索引段，不再重新扫描全部基础词库。
+运行时会缓存必要文件检查和撤销目录位置。自造词单独保存在很小的
+`pantsu.zzc.dict.yaml`；首次升级会从 `pantsu.user.dict.yaml` 的旧自造词区
+自动迁移，之后只重建 `pantsu.zzc.dict.yaml` 对应的索引段，不再重新扫描
+或重写完整用户词库。

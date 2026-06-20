@@ -4,7 +4,7 @@
 # 键道6 扩展词库控制
 ---
 name: pantsu.extended
-version: "Q1"
+version: "Q2"
 sort: original
 use_preset_vocabulary: false
 import_tables:
@@ -30,6 +30,7 @@ import_tables:
 # 扩展：自定义
   - pantsu.temp
   - pantsu.user
+  - pantsu.zzc
   # ---------------------------------------
 # 扩展：外挂
   - pantsu.waigua

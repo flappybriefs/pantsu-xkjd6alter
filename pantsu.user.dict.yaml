@@ -346,7 +346,6 @@ ____	;z
 ‖	;fbd	72
 ∶	;fbd	71
 ＂	;fbd	70
-	;fbd	69
 ｀	;fbd	68
 ｜	;fbd	67
 点数e	;fd	100
@@ -1607,7 +1606,6 @@ NEET姬	/neetj
 有顶天	/ydt
 是非曲直厅	/efqft
 妖怪之山	/ygfe
-迷途竹林	/mtql
 法界	/fsjd
 命莲寺	/mls
 灼热地狱	/frdy
@@ -1634,9 +1632,7 @@ NEET姬	/neetj
 #用语、种族、身份
 博丽大结界	/bldjj
 魔法使	/mfe
-骚灵	/szlg
 守矢	/edek
-异变	/ykbm
 蓬莱人	/plr
 抱头蹲防	/btdf
 隙间	/xkjm
@@ -1695,7 +1691,6 @@ NEET姬	/neetj
 抱B撞	/bbf
 擦弹	/csdf
 道中	/dzfy
-非符	/fwfj
 收卡	/edks
 全避	/qtbk
 时符	/ekfj
@@ -63482,13 +63477,3 @@ NEET姬	/neetj
 龘	/dsovo
 #endregion <gbk>#
 
-#region <自造词>#
-天逆𬭸	tnlvo
-天行键	txjvui
-天行	tmhpv
-天行键得这么打	txjdvu
-翅根	wkgnu
-鸡翅根	jwgau
-慢戳戳	mwwo
-风险判断	fxpdu
-#endregion <自造词>#

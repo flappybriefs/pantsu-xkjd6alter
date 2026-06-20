@@ -3,7 +3,8 @@ local dynamic = require("pantsu_dynamic")
 local profiler = require("pantsu_profiler")
 local M = {}
 
-M.word_file = "pantsu.user.dict.yaml"
+M.word_file = "pantsu.zzc.dict.yaml"
+M.legacy_word_file = "pantsu.user.dict.yaml"
 M.char_dict_file = "pantsu.danzi.dict.yaml"
 M.build_state_file = "user.yaml"
 M.optimization_state_file = "build/pantsu_make_word_optimized.state"
@@ -13,6 +14,7 @@ M.dictionary_files = {
     "pantsu.cizu.dict.yaml",
     "pantsu.temp.dict.yaml",
     "pantsu.user.dict.yaml",
+    "pantsu.zzc.dict.yaml",
     "pantsu.waigua.dict.yaml",
 }
 M.word_region_start = "#region <自造词>#"
@@ -134,6 +136,51 @@ local function find_word_region(lines)
         end
     end
     return start_index, end_index
+end
+
+local function default_word_lines()
+    return {
+        "---",
+        "name: pantsu.zzc",
+        'version: "1.0"',
+        "sort: original",
+        "...",
+        "",
+        M.word_region_start,
+        M.word_region_end,
+    }
+end
+
+local function legacy_word_seed()
+    local result = {}
+    local lines = read_lines(M.legacy_word_file)
+    local start_index, end_index = find_word_region(lines)
+    if not start_index or not end_index then
+        return result
+    end
+    for index = start_index + 1, end_index - 1 do
+        local word, code = read_code_fields(lines[index])
+        if word and code then
+            table.insert(result, { word = word, code = code, active = true })
+        end
+    end
+    return result
+end
+
+local function clear_legacy_word_region()
+    local lines = read_lines(M.legacy_word_file)
+    local start_index, end_index = find_word_region(lines)
+    if not start_index or not end_index or end_index == start_index + 1 then
+        return true, false
+    end
+    for index = end_index - 1, start_index + 1, -1 do
+        table.remove(lines, index)
+    end
+    if not write_lines(M.legacy_word_file, lines) then
+        return nil, "legacy_write_failed"
+    end
+    store.invalidate_index(M.legacy_word_file)
+    return true, true
 end
 
 local function read_last_build_time()
@@ -260,6 +307,11 @@ end
 
 function M.restore_self_words()
     local lines = read_lines(M.word_file)
+    local file_created = false
+    if #lines == 0 then
+        lines = default_word_lines()
+        file_created = true
+    end
     local start_index, end_index = find_word_region(lines)
     local region_created = false
     if not start_index or not end_index then
@@ -286,6 +338,9 @@ function M.restore_self_words()
         end
     end
     local journal_authoritative = store.has_self_word_records()
+    if not journal_authoritative and #seed == 0 then
+        seed = legacy_word_seed()
+    end
     if not journal_authoritative then
         local seeded, seed_err = store.update_self_words(seed, true)
         if not seeded then
@@ -295,7 +350,7 @@ function M.restore_self_words()
 
     local records = store.self_words()
     local found = {}
-    local changed = region_created and 1 or 0
+    local changed = (file_created or region_created) and 1 or 0
     for index = end_index - 1, start_index + 1, -1 do
         local word, code = read_code_fields(lines[index])
         local key = word and code and word .. "\t" .. code or nil
@@ -333,6 +388,10 @@ function M.restore_self_words()
     if changed > 0 and not write_lines(M.word_file, lines) then
         return nil, "write_failed"
     end
+    local legacy_ok, legacy_changed = clear_legacy_word_region()
+    if not legacy_ok then
+        return nil, legacy_changed
+    end
     local override_changed = false
     local cleared_words = {}
     for _, record in pairs(records) do
@@ -340,6 +399,12 @@ function M.restore_self_words()
         local ok, cleared = true, false
         if not cleared_words[word] then
             ok, cleared = store.clear_word_overrides(M.word_file, word)
+            if ok then
+                local legacy_clear_ok, legacy_cleared =
+                    store.clear_word_overrides(M.legacy_word_file, word)
+                ok = legacy_clear_ok
+                cleared = cleared or legacy_cleared
+            end
             cleared_words[word] = true
         end
         if not ok then
@@ -347,7 +412,7 @@ function M.restore_self_words()
         end
         override_changed = override_changed or cleared
     end
-    if changed > 0 or override_changed then
+    if changed > 0 or legacy_changed or override_changed then
         store.invalidate_index(M.word_file)
         M.loaded_words = false
         M.words_by_code = nil

@@ -13,6 +13,7 @@ STATE_FILES = [
     "pantsu_candidate_order.tsv",
     "pantsu_self_words.tsv",
     "pantsu.user.dict.yaml",
+    "pantsu.zzc.dict.yaml",
     "pantsu_history.tsv",
 ]
 DICTIONARIES = [
@@ -21,6 +22,7 @@ DICTIONARIES = [
     "pantsu.cizu.dict.yaml",
     "pantsu.temp.dict.yaml",
     "pantsu.user.dict.yaml",
+    "pantsu.zzc.dict.yaml",
     "pantsu.waigua.dict.yaml",
 ]
 
@@ -306,7 +308,7 @@ def self_word_lines(path: Path) -> tuple[list[str], int, int]:
 
 
 def merge_self_words(directories: list[str], conflicts: list[str]) -> None:
-    target = ROOT / "pantsu.user.dict.yaml"
+    target = ROOT / "pantsu.zzc.dict.yaml"
     lines, start, end = self_word_lines(target)
     by_word: dict[str, set[str]] = {}
     for raw in lines[start + 1 : end]:
@@ -314,7 +316,7 @@ def merge_self_words(directories: list[str], conflicts: list[str]) -> None:
             word, code = raw.split("\t", 1)
             by_word.setdefault(word, set()).add(code)
     for directory in directories:
-        source = Path(directory) / "pantsu.user.dict.yaml"
+        source = Path(directory) / "pantsu.zzc.dict.yaml"
         if not source.exists():
             continue
         incoming, incoming_start, incoming_end = self_word_lines(source)
@@ -339,12 +341,12 @@ def health() -> None:
     seen: dict[tuple[str, str], tuple[str, int, str]] = {}
     active_words: set[tuple[str, str]] = set()
     user_lines, user_start, user_end = self_word_lines(
-        ROOT / "pantsu.user.dict.yaml"
+        ROOT / "pantsu.zzc.dict.yaml"
     )
 
     def is_self_word(name: str, number: int) -> bool:
         return (
-            name == "pantsu.user.dict.yaml"
+            name == "pantsu.zzc.dict.yaml"
             and user_start + 2 <= number <= user_end
         )
 
