@@ -2,6 +2,7 @@ local M = {}
 
 M.version = "2"
 M.index_version = "2"
+M.runtime_version = "2026-06-20.5"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
 M.self_word_file = "pantsu_self_words.tsv"
@@ -25,6 +26,9 @@ M.override_lookup = nil
 M.index = nil
 M.signature_cache = nil
 M.self_words_cache = nil
+M.pending_memory = nil
+M.runtime_files_ready = false
+M.dirty_index_files = {}
 
 local migrate_undo_files
 
@@ -54,8 +58,7 @@ local function directory_writable(path)
 end
 
 local function ensure_undo_directory()
-    if M.undo_runtime_dir
-        and directory_writable(M.undo_runtime_dir) then
+    if M.undo_runtime_dir then
         return M.undo_runtime_dir
     end
     if not directory_writable(M.undo_dir)
@@ -98,10 +101,8 @@ local function read_code_fields(line)
     return string.match(line, "^([^\t]+)\t([^\t%s]+)")
 end
 
-local function atomic_lines(path, lines)
-    local target = data_path(path)
-    local temp = target .. ".tmp"
-    local content = #lines > 0 and table.concat(lines, "\n") .. "\n" or ""
+local function verified_write(target, content, temp_suffix)
+    local temp = target .. (temp_suffix or ".tmp")
     local file = io.open(temp, "w")
     if not file then
         return false
@@ -111,9 +112,17 @@ local function atomic_lines(path, lines)
         os.remove(temp)
         return false
     end
-    if not os.rename(temp, target) then
+    local renamed = os.rename and os.rename(temp, target)
+    if not renamed then
         os.remove(temp)
-        return false
+        file = io.open(target, "wb")
+        if not file then
+            return false
+        end
+        file:write(content)
+        if not file:close() then
+            return false
+        end
     end
     local check = io.open(target, "rb")
     if not check then
@@ -122,6 +131,37 @@ local function atomic_lines(path, lines)
     local saved = check:read("*a")
     check:close()
     return saved == content
+end
+
+local function atomic_lines(path, lines)
+    local content = #lines > 0 and table.concat(lines, "\n") .. "\n" or ""
+    return verified_write(data_path(path), content)
+end
+
+local function ensure_runtime_marker()
+    local path = data_path(M.override_file)
+    local lines = {}
+    local found = false
+    local runtime_count = 0
+    local file = io.open(path, "r")
+    if file then
+        for line in file:lines() do
+            if string.match(line, "^runtime\t") then
+                runtime_count = runtime_count + 1
+                if line == "runtime\t" .. M.runtime_version then
+                    found = true
+                end
+            else
+                table.insert(lines, line)
+            end
+        end
+        file:close()
+    end
+    if found and runtime_count == 1 then
+        return true
+    end
+    table.insert(lines, 2, "runtime\t" .. M.runtime_version)
+    return atomic_lines(M.override_file, lines)
 end
 
 local function ensure_file(path, initial_lines)
@@ -134,10 +174,15 @@ local function ensure_file(path, initial_lines)
 end
 
 function M.ensure_runtime_files()
+    if M.runtime_files_ready then
+        return true
+    end
     local ok = true
     if not ensure_file(M.override_file, {
         "version\t" .. M.index_version,
     }) then
+        ok = false
+    elseif not ensure_runtime_marker() then
         ok = false
     end
     if not ensure_file(M.history_file, {}) then
@@ -149,13 +194,13 @@ function M.ensure_runtime_files()
     if not ensure_file(M.self_word_file, { "version\t1" }) then
         ok = false
     end
-    if not migrate_undo_files or not migrate_undo_files() then
-        ok = false
+    if migrate_undo_files and migrate_undo_files() then
+        local undo_history = history_path()
+        if undo_history then
+            ensure_file(undo_history, {})
+        end
     end
-    local undo_history = history_path()
-    if not undo_history or not ensure_file(undo_history, {}) then
-        ok = false
-    end
+    M.runtime_files_ready = ok
     return ok
 end
 
@@ -166,24 +211,7 @@ local function copy_file(source_path, target_path)
     end
     local content = source:read("*a")
     source:close()
-    local target = io.open(data_path(target_path) .. ".tmp", "wb")
-    if not target then
-        return false
-    end
-    target:write(content)
-    if not target:close() then
-        return false
-    end
-    if not os.rename(data_path(target_path) .. ".tmp", data_path(target_path)) then
-        return false
-    end
-    local check = io.open(data_path(target_path), "rb")
-    if not check then
-        return false
-    end
-    local saved = check:read("*a")
-    check:close()
-    return saved == content
+    return verified_write(data_path(target_path), content)
 end
 
 local function restore_file(snapshot_path, target_path)
@@ -197,25 +225,26 @@ local function restore_file(snapshot_path, target_path)
         os.remove(data_path(target_path))
         return true
     end
-    local temp = data_path(target_path) .. ".tmp"
-    local target = io.open(temp, "wb")
-    if not target then
-        return false
+    return verified_write(data_path(target_path), content)
+end
+
+local function capture_file(path)
+    local file = io.open(data_path(path), "rb")
+    if not file then
+        return { missing = true }
     end
-    target:write(content)
-    if not target:close() then
-        return false
+    local content = file:read("*a")
+    file:close()
+    return { content = content }
+end
+
+local function restore_capture(snapshot, target_path)
+    if not snapshot or snapshot.missing then
+        os.remove(data_path(target_path))
+        return true
     end
-    if not os.rename(temp, data_path(target_path)) then
-        return false
-    end
-    local check = io.open(data_path(target_path), "rb")
-    if not check then
-        return false
-    end
-    local saved = check:read("*a")
-    check:close()
-    return saved == content
+    return verified_write(
+        data_path(target_path), snapshot.content or "")
 end
 
 local function file_size(path)
@@ -390,7 +419,10 @@ local function write_overrides()
     table.sort(entries, function(left, right)
         return left.id < right.id
     end)
-    local lines = { "version\t" .. M.index_version }
+    local lines = {
+        "version\t" .. M.index_version,
+        "runtime\t" .. M.runtime_version,
+    }
     for _, entry in ipairs(entries) do
         table.insert(lines, table.concat({
             "entry",
@@ -408,52 +440,66 @@ local function write_overrides()
     local ok = atomic_lines(M.override_file, lines)
     if ok then
         M.signature_cache = nil
-        M.overrides = nil
-        M.override_lookup = nil
+        M.override_lookup = {}
+        for _, entry in pairs(M.overrides) do
+            local key = table.concat({
+                entry.path, entry.word, entry.base_code,
+            }, "\t")
+            if not M.override_lookup[key] then
+                M.override_lookup[key] = {}
+            end
+            table.insert(M.override_lookup[key], entry)
+        end
     end
     return ok
 end
 
-local function build_index()
-    local lines = { "version\t" .. M.version }
+local function scan_file_ranges(path)
     local ranges = {}
-    for _, path in ipairs(M.dictionary_files) do
-        local size = file_size(path)
-        table.insert(lines, table.concat({ "file", path, tostring(size) }, "\t"))
-        local file = io.open(data_path(path), "rb")
-        if file then
-            local line_number = 0
-            local current
-            while true do
-                local start = file:seek()
-                local line = file:read("*l")
-                if not line then
-                    break
-                end
-                line_number = line_number + 1
-                local _, code = read_code_fields(line)
-                local prefix = code and string.sub(code, 1, math.min(2, #code))
-                if prefix ~= current then
-                    if current then
-                        ranges[#ranges].finish = start
-                    end
-                    if prefix then
-                        table.insert(ranges, {
-                            path = path,
-                            prefix = prefix,
-                            start = start,
-                            finish = size,
-                            line_number = line_number,
-                        })
-                    end
-                    current = prefix
-                end
+    local size = file_size(path)
+    local file = io.open(data_path(path), "rb")
+    if file then
+        local line_number = 0
+        local current
+        while true do
+            local start = file:seek()
+            local line = file:read("*l")
+            if not line then
+                break
             end
-            if current and ranges[#ranges] then
-                ranges[#ranges].finish = size
+            line_number = line_number + 1
+            local _, code = read_code_fields(line)
+            local prefix = code and string.sub(code, 1, math.min(2, #code))
+            if prefix ~= current then
+                if current then
+                    ranges[#ranges].finish = start
+                end
+                if prefix then
+                    table.insert(ranges, {
+                        path = path,
+                        prefix = prefix,
+                        start = start,
+                        finish = size,
+                        line_number = line_number,
+                    })
+                end
+                current = prefix
             end
-            file:close()
         end
+        if current and ranges[#ranges] then
+            ranges[#ranges].finish = size
+        end
+        file:close()
+    end
+    return ranges
+end
+
+local function write_index(ranges)
+    local lines = { "version\t" .. M.version }
+    for _, path in ipairs(M.dictionary_files) do
+        table.insert(lines, table.concat({
+            "file", path, tostring(file_size(path)),
+        }, "\t"))
     end
     for _, range in ipairs(ranges) do
         table.insert(lines, table.concat({
@@ -476,22 +522,23 @@ local function load_index()
         return M.index
     end
     local ranges = {}
-    local valid = true
-    local seen_files = {}
+    local by_file = {}
+    local stored_sizes = {}
+    local version_valid = true
     local file = io.open(data_path(M.index_file), "r")
     if file then
         for line in file:lines() do
             local kind, a, b, c, d, e =
                 string.match(line, "^([^\t]+)\t?([^\t]*)\t?([^\t]*)\t?([^\t]*)\t?([^\t]*)\t?(.*)$")
             if kind == "version" and a ~= M.index_version then
-                valid = false
+                version_valid = false
             elseif kind == "file" then
-                seen_files[a] = true
-                if tonumber(b) ~= file_size(a) then
-                    valid = false
-                end
+                stored_sizes[a] = tonumber(b)
             elseif kind == "range" then
-                table.insert(ranges, {
+                if not by_file[a] then
+                    by_file[a] = {}
+                end
+                table.insert(by_file[a], {
                     path = a,
                     prefix = b,
                     start = tonumber(c),
@@ -502,24 +549,39 @@ local function load_index()
         end
         file:close()
     else
-        valid = false
+        version_valid = false
     end
+    local changed = false
     for _, path in ipairs(M.dictionary_files) do
-        if not seen_files[path] then
-            valid = false
+        local reusable = version_valid
+            and not M.dirty_index_files[path]
+            and stored_sizes[path] == file_size(path)
+        local file_ranges = reusable and by_file[path]
+            or scan_file_ranges(path)
+        if not reusable then
+            changed = true
+        end
+        for _, range in ipairs(file_ranges or {}) do
+            table.insert(ranges, range)
         end
     end
-    if not valid then
-        ranges = build_index() or {}
+    if changed then
+        ranges = write_index(ranges) or ranges
     end
     M.index = ranges
+    M.dirty_index_files = {}
     return ranges
 end
 
-function M.invalidate_index()
+function M.invalidate_index(path)
     M.index = nil
     M.signature_cache = nil
-    os.remove(data_path(M.index_file))
+    if path then
+        M.dirty_index_files[path] = true
+    else
+        M.dirty_index_files = {}
+        os.remove(data_path(M.index_file))
+    end
 end
 
 function M.invalidate_signature()
@@ -531,8 +593,11 @@ local function range_matches(prefix, input)
         or string.sub(input, 1, #prefix) == prefix
 end
 
-function M.entries(input)
+function M.entries(input, profile)
     load_overrides()
+    if profile then
+        profile:mark("overrides_load")
+    end
     local result = {}
     local found_self = {}
     for _, range in ipairs(load_index()) do
@@ -581,6 +646,9 @@ function M.entries(input)
             end
         end
     end
+    if profile then
+        profile:mark("dictionary_scan")
+    end
     load_self_words()
     for key, record in pairs(M.self_words_cache) do
         if record.active and not found_self[key]
@@ -604,6 +672,9 @@ function M.entries(input)
                 })
             end
         end
+    end
+    if profile then
+        profile:mark("self_words_merge")
     end
     return result
 end
@@ -762,20 +833,33 @@ end
 
 local function append_history(action, input, word, details)
     M.ensure_runtime_files()
-    M.rotate_log(M.history_file, 1048576)
-    local file = io.open(data_path(M.history_file), "a")
-    if not file then
-        return
+    local lines = {}
+    local file = io.open(data_path(M.history_file), "r")
+    if file then
+        for line in file:lines() do
+            if line ~= "" then
+                table.insert(lines, line)
+            end
+        end
+        file:close()
     end
-    file:write(table.concat({
+    table.insert(lines, table.concat({
         tostring(os.time()),
         installation_id(),
         action,
         input or "-",
         word or "-",
         details or "-",
-    }, "\t"), "\n")
-    file:close()
+    }, "\t"))
+    local total = 0
+    for _, line in ipairs(lines) do
+        total = total + #line + 1
+    end
+    while total > 1048576 and #lines > 1 do
+        total = total - #lines[1] - 1
+        table.remove(lines, 1)
+    end
+    return atomic_lines(M.history_file, lines)
 end
 
 local function snapshot_file(slot, kind)
@@ -803,7 +887,8 @@ local function migrate_file(source, destination)
         os.remove(data_path(source))
         return true
     end
-    if os.rename(data_path(source), data_path(destination)) then
+    if os.rename
+        and os.rename(data_path(source), data_path(destination)) then
         return true
     end
     if not copy_file(source, destination) then
@@ -870,9 +955,30 @@ local function read_undo_lines()
     return lines
 end
 
-function M.begin(action, input, word)
+function M.begin(action, input, word, profile)
+    M.ensure_runtime_files()
+    if profile then
+        profile:mark("runtime_files")
+    end
+    M.pending_memory = {
+        description = table.concat({
+            tostring(os.time()),
+            action,
+            input or "-",
+            word or "-",
+        }, "\t"),
+        overrides = capture_file(M.override_file),
+        order = capture_file(M.order_file),
+        self_words = capture_file(M.self_word_file),
+    }
+    if profile then
+        profile:mark("memory_snapshot")
+    end
     if not migrate_undo_files() then
-        return false
+        if profile then
+            profile:mark("undo_unavailable")
+        end
+        return true
     end
     remove_pending()
     if not copy_file(M.override_file, pending_path("overrides"))
@@ -880,7 +986,7 @@ function M.begin(action, input, word)
         or not copy_file(
             M.self_word_file, pending_path("self_words")) then
         remove_pending()
-        return false
+        return true
     end
     local ok = atomic_lines(meta_path(), {
         table.concat({
@@ -892,15 +998,33 @@ function M.begin(action, input, word)
     })
     if not ok then
         remove_pending()
+        if profile then
+            profile:mark("undo_memory_only")
+        end
+        return true
     end
-    return ok
+    if profile then
+        profile:mark("undo_pending")
+    end
+    return true
 end
 
-function M.finish(action, input, word, details)
+function M.finish(action, input, word, details, profile)
     local meta_file = meta_path()
     local meta = meta_file and io.open(data_path(meta_file), "r")
     if not meta then
-        return nil, "backup_missing"
+        if not M.pending_memory then
+            return nil, "backup_missing"
+        end
+        M.pending_memory = nil
+        append_history(action, input, word, details or "-")
+        if profile then
+            profile:mark("operation_history")
+        end
+        return true
+    end
+    if profile then
+        profile:mark("undo_rotate")
     end
     local description = meta:read("*l") or table.concat({
         tostring(os.time()), action, input or "-", word or "-",
@@ -939,12 +1063,34 @@ function M.finish(action, input, word, details)
     if not atomic_lines(history_path(), history) then
         return nil, "backup_history_failed"
     end
+    if profile then
+        profile:mark("undo_history")
+    end
     remove_pending()
+    M.pending_memory = nil
     append_history(action, input, word, details or "-")
+    if profile then
+        profile:mark("operation_history")
+    end
     return true
 end
 
 function M.rollback_pending()
+    if M.pending_memory then
+        local override_ok = restore_capture(
+            M.pending_memory.overrides, M.override_file)
+        local order_ok = restore_capture(
+            M.pending_memory.order, M.order_file)
+        local self_word_ok = restore_capture(
+            M.pending_memory.self_words, M.self_word_file)
+        M.pending_memory = nil
+        remove_pending()
+        M.overrides = nil
+        M.override_lookup = nil
+        M.self_words_cache = nil
+        M.signature_cache = nil
+        return override_ok and order_ok and self_word_ok
+    end
     local meta_file = meta_path()
     local meta = meta_file and io.open(data_path(meta_file), "r")
     if not meta then
@@ -966,7 +1112,7 @@ function M.rollback_pending()
     return ok
 end
 
-function M.commit(entries, action, input, word, defer_finish)
+function M.commit(entries, action, input, word, defer_finish, profile)
     load_overrides()
     local changed = 0
     local now = os.time()
@@ -1000,6 +1146,9 @@ function M.commit(entries, action, input, word, defer_finish)
         M.rollback_pending()
         return nil, "override_write_failed"
     end
+    if profile then
+        profile:mark("overrides_write")
+    end
     local self_updates = {}
     for _, entry in ipairs(entries or {}) do
         if entry.path == "pantsu.user.dict.yaml"
@@ -1026,9 +1175,12 @@ function M.commit(entries, action, input, word, defer_finish)
             return nil, self_err
         end
     end
+    if profile then
+        profile:mark("self_words_write")
+    end
     if not defer_finish then
         local finished, finish_err =
-            M.finish(action, input, word, tostring(changed))
+            M.finish(action, input, word, tostring(changed), profile)
         if not finished then
             M.rollback_pending()
             return nil, finish_err
@@ -1037,8 +1189,8 @@ function M.commit(entries, action, input, word, defer_finish)
     return true
 end
 
-function M.record_order(action, input, word)
-    return M.finish(action, input, word, "same_code")
+function M.record_order(action, input, word, profile)
+    return M.finish(action, input, word, "same_code", profile)
 end
 
 function M.signature()
@@ -1169,21 +1321,6 @@ function M.last_history()
         word or "",
         input or "",
     }, " ")
-end
-
-function M.rotate_log(path, max_bytes)
-    local target = data_path(path)
-    local file = io.open(target, "rb")
-    if not file then
-        return
-    end
-    local size = file:seek("end") or 0
-    file:close()
-    if size <= max_bytes then
-        return
-    end
-    os.remove(target .. ".1")
-    os.rename(target, target .. ".1")
 end
 
 M.ensure_runtime_files()

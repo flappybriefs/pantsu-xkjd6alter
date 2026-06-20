@@ -21,7 +21,8 @@
 撤销快照保存在 `build/pantsu_undo/`，由 Lua 自动创建并仅保留最近 7 步。
 旧版根目录中的 `pantsu_undo_*.tsv` 会自动迁入。该目录属于设备本地临时
 状态，不需要复制到手机或参与同步；部署后缺失时会在第一次加载或操作时
-重新创建。
+重新创建。仓的键盘运行环境若不能创建该目录，会自动改用内存回滚点：
+删除、调频和自造词仍会写入根目录 TSV，只是本次键盘进程没有磁盘多步撤销。
 
 调频结果写入 `pantsu_overrides.tsv`，基础词库不再被日常操作反复重写。
 同码顺序保存在 `pantsu_candidate_order.tsv`。
@@ -41,10 +42,7 @@
 - 空输入时按 `[`：按常规最短空码规则造词。
 - 已有输入码时按 `[`：锁定当前输入码造词。
 - 每次造词先显示编码、被后移词和飞键数量；再次按空格才真正保存。
-- 空输入时按 `]`：进入英文单词模式。
-- 已有输入码时按 `]`：进入自由收集造词；随后正常输入并上屏多个片段，
-  再按 `]` 显示影响预览，再按一次 `]` 或空格确认保存。收集到的词会
-  保存到进入模式前的当前码。
+- 按 `]`：进入英文单词模式；Lua 不再截获该键。
 - 锁定码必须是所造词完整编码或飞键完整编码的前缀，否则显示可用全码。
 - 锁定码已有词时，原词自动后移；新词原本在后续码时自动提前。
 - 普通造词和锁定码造词都会生成星空键道 6 的飞键等价码，例如
@@ -54,6 +52,8 @@
   自造词都不会进入单字码区。
 - 所有关键 TSV 和 YAML 写入后都会立即重新读取校验；手机端写入失败时
   会显示错误，不再把半写状态当作成功。
+- 仓若不支持临时文件重命名，会自动改为直接写入并回读校验。当前运行版
+  会在 `pantsu_overrides.tsv` 中保留 `runtime	2026-06-20.3` 标记。
 
 ## 维护工具
 
@@ -62,6 +62,7 @@
 ```bash
 python3 tools/pantsu_maintenance.py health
 python3 tools/pantsu_maintenance.py history -n 30
+python3 tools/pantsu_maintenance.py performance -n 20
 python3 tools/pantsu_maintenance.py backup
 python3 tools/pantsu_maintenance.py restore 20260619-120000
 ```
@@ -88,3 +89,24 @@ python3 tools/pantsu_maintenance.py sync-merge
 
 覆盖记录和自造词状态按操作时间合并。无法自动解决的内容写入
 `pantsu_sync_conflicts.tsv`，不会静默覆盖。
+
+## 性能观测
+
+自造词、前移、后移和删除会把各步骤耗时写入
+`pantsu_performance.tsv`，最多保留最近 300 次操作。计时单位是
+Lua CPU 毫秒，适合比较索引、TSV、YAML 和候选刷新哪个阶段较慢；
+日志写入自身的耗时不计入总数。
+
+`pantsu_performance.enabled` 默认内容为：
+
+```text
+enabled	1
+limit	300
+clock	lua_cpu_ms
+```
+
+将 `enabled` 改为 `0` 可停止记录。手机可直接在“键盘文件”中查看
+`pantsu_performance.tsv`；电脑可使用 `performance` 命令汇总。
+
+运行时会缓存必要文件检查和撤销目录位置；自造词修改用户词库后，仅重建
+`pantsu.user.dict.yaml` 对应的索引段，不再重新扫描全部基础词库。

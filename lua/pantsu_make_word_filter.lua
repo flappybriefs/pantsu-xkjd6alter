@@ -15,11 +15,9 @@ local error_messages = {
 
 local function filter(input, env)
     local context = env.engine.context
-    if context.input == "["
-        or (context.input == "]" and core.mode == "collect") then
-        local collect_mode = context.input == "]"
-        if context.input == "[" and not core.mode then
-            core.start(nil, collect_mode)
+    if context.input == "[" then
+        if not core.mode then
+            core.start(nil)
         end
         if core.buffer == "" then
             for cand in input:iter() do
@@ -42,7 +40,7 @@ local function filter(input, env)
             or error_messages[core.last_error]
             or (core.last_error and "〔保存失败：" .. core.last_error .. "〕")
             or target
-            or (collect_mode and "〔再次按]预览并保存〕" or "〔空格预览〕")
+            or "〔空格预览〕"
         yield(Candidate("pantsu_make_word", 0, 1, core.buffer, comment))
         return
     end

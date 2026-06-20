@@ -93,9 +93,17 @@ local function write_orders()
         os.remove(temp)
         return false
     end
-    if not os.rename(temp, target) then
+    local renamed = os.rename and os.rename(temp, target)
+    if not renamed then
         os.remove(temp)
-        return false
+        file = io.open(target, "wb")
+        if not file then
+            return false
+        end
+        file:write(content)
+        if not file:close() then
+            return false
+        end
     end
     local check = io.open(target, "rb")
     if not check then
@@ -239,9 +247,25 @@ local function write_state()
         os.remove(temp)
         return false
     end
-    if not os.rename(temp, target) then
+    local temp_file = io.open(temp, "rb")
+    local expected = temp_file and temp_file:read("*a") or nil
+    if temp_file then
+        temp_file:close()
+    end
+    local renamed = os.rename and os.rename(temp, target)
+    if not renamed then
         os.remove(temp)
-        return false
+        if not expected then
+            return false
+        end
+        file = io.open(target, "wb")
+        if not file then
+            return false
+        end
+        file:write(expected)
+        if not file:close() then
+            return false
+        end
     end
     local check = io.open(target, "rb")
     if not check then

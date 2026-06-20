@@ -1,5 +1,6 @@
 local core = require("pantsu_make_word_core")
 local dynamic = require("pantsu_dynamic")
+local profiler = require("pantsu_profiler")
 local store = require("pantsu_store")
 
 local kAccepted = 1
@@ -43,16 +44,6 @@ local function is_history_shortcut(key_event)
         or not is_macos() and key_event:shift()
 end
 
-local function data_path(path)
-    if string.sub(path, 1, 1) == "/" then
-        return path
-    end
-    if rime_api and rime_api.get_user_data_dir then
-        return rime_api.get_user_data_dir() .. "/" .. path
-    end
-    return path
-end
-
 local function code_startswith(code, prefix)
     return string.sub(code, 1, string.len(prefix)) == prefix
 end
@@ -67,13 +58,13 @@ local function word_min_code_length(word)
     return 1
 end
 
-local function load_chain(input)
+local function load_chain(input, profile)
     local model = {
         entries = {},
         by_code = {},
         by_word = {},
     }
-    for _, entry in ipairs(store.entries(input)) do
+    for _, entry in ipairs(store.entries(input, profile)) do
         table.insert(model.entries, entry)
         if entry.active then
             if not model.by_code[entry.code] then
@@ -85,6 +76,9 @@ local function load_chain(input)
             end
             table.insert(model.by_word[entry.word], entry)
         end
+    end
+    if profile then
+        profile:mark("chain_model")
     end
     return model
 end
@@ -338,19 +332,23 @@ local function same_code_candidate_words(context, model, code)
     return result
 end
 
-local function move_same_code(context, model, entry, direction)
+local function move_same_code(context, model, entry, direction, profile)
     local words = same_code_candidate_words(context, model, entry.code)
+    if profile then
+        profile:mark("same_code_candidates")
+    end
     for index, word in ipairs(words) do
         local target = direction == "promote" and index - 1 or index + 1
         if word == entry.word and target >= 1 and target <= #words then
-            if not store.begin(direction, entry.code, entry.word) then
+            if not store.begin(
+                direction, entry.code, entry.word, profile) then
                 return false
             end
             words[index], words[target] = words[target], words[index]
             local ok = dynamic.set_same_code_order(entry.code, words)
             if ok then
                 local recorded = store.record_order(
-                    direction, entry.code, entry.word)
+                    direction, entry.code, entry.word, profile)
                 if not recorded then
                     store.rollback_pending()
                     dynamic.invalidate()
@@ -429,39 +427,13 @@ local function delete_and_pull(model, entry, candidate_words)
     return true
 end
 
-local function write_error(action, word, input, err)
-    store.rotate_log("build/pantsu_candidate_editor.error.log", 262144)
-    local file = io.open(data_path("build/pantsu_candidate_editor.error.log"), "a")
-    if not file then
-        return
-    end
-    file:write(os.date("%Y-%m-%d %H:%M:%S"), "\t",
-        action, "\t", word, "\t", input, "\t",
-        err or "unknown error", "\n")
-    file:close()
-end
-
-local function write_log(action, entries)
-    store.rotate_log("build/pantsu_candidate_editor.log", 524288)
-    local file = io.open(data_path("build/pantsu_candidate_editor.log"), "a")
-    if not file then
-        return
-    end
-    local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-    for _, entry in ipairs(entries) do
-        if not entry.active or entry.code ~= entry.original_code then
-            file:write(timestamp, "\t", action, "\t", entry.path, "\t",
-                entry.word, "\t", entry.original_code, "\t",
-                entry.active and entry.code or "<deleted>", "\n")
-        end
-    end
-    file:close()
-end
-
-local function adjust(action, context, word, input, candidate_id)
+local function adjust(action, context, word, input, candidate_id, profile)
     local root = input
-    local model = load_chain(root)
+    local model = load_chain(root, profile)
     local entry, err = locate_entry(model, word, input, candidate_id)
+    if profile then
+        profile:mark("entry_locate")
+    end
     if not entry then
         return nil, err
     end
@@ -469,8 +441,11 @@ local function adjust(action, context, word, input, candidate_id)
     if action == "promote" and entry.code == input
         and string.len(input) > 1 then
         root = string.sub(input, 1, string.len(input) - 1)
-        model = load_chain(root)
+        model = load_chain(root, profile)
         entry, err = locate_entry(model, word, input, candidate_id)
+        if profile then
+            profile:mark("parent_entry_locate")
+        end
         if not entry then
             return nil, err
         end
@@ -478,16 +453,20 @@ local function adjust(action, context, word, input, candidate_id)
 
     local ok
     local following = following_candidate_words(context)
+    if profile then
+        profile:mark("following_candidates")
+    end
     if action == "promote" then
-        if move_same_code(context, model, entry, "promote") then
+        if move_same_code(
+            context, model, entry, "promote", profile) then
             return true, nil, input
         end
         ok, err = promote_and_pull(model, entry, following)
     elseif action == "demote" then
         ok, err = demote_and_pull(model, entry, following)
         if not ok and err == "no_longer_code"
-            and move_same_code(context, model, entry, "demote") then
-            write_log(action, model.entries)
+            and move_same_code(
+                context, model, entry, "demote", profile) then
             return true, nil, input
         end
     else
@@ -496,11 +475,15 @@ local function adjust(action, context, word, input, candidate_id)
     if not ok then
         return nil, err
     end
+    if profile then
+        profile:mark("chain_mutation")
+    end
 
-    if not store.begin(action, input, word) then
+    if not store.begin(action, input, word, profile) then
         return nil, "backup_failed"
     end
-    ok, err = store.commit(model.entries, action, input, word)
+    ok, err = store.commit(
+        model.entries, action, input, word, false, profile)
     if not ok then
         return nil, err
     end
@@ -512,9 +495,14 @@ local function adjust(action, context, word, input, candidate_id)
         dynamic_root = string.sub(dynamic_root, 1, 4)
     end
     if not dynamic.refresh_entries(model.entries, dynamic_root) then
-        write_error(action, word, input, "dynamic_refresh_failed")
+        if profile then
+            profile:mark("dynamic_refresh_failed")
+        end
+    else
+        if profile then
+            profile:mark("dynamic_refresh")
+        end
     end
-    write_log(action, model.entries)
     local focus_input = input
     if action == "promote"
         and string.len(entry.code) < string.len(input) then
@@ -766,17 +754,20 @@ local function processor(key_event, env)
         and composition:back() or nil
     local selected_index = segment and segment.selected_index or 0
 
+    local performance = profiler.start(
+        action, context.input, candidate.text)
     local called, ok, err, focus_input = pcall(
-        adjust, action, context, candidate.text, context.input, identity)
+        adjust, action, context, candidate.text, context.input,
+        identity, performance)
     if not called then
         pending_delete = nil
-        write_error(action, candidate.text, context.input, ok)
         show_error(context, ok)
+        performance:finish("error", tostring(ok))
         return kAccepted
     elseif not ok then
         pending_delete = nil
-        write_error(action, candidate.text, context.input, err)
         show_error(context, err)
+        performance:finish("failed", tostring(err))
         return kAccepted
     end
 
@@ -784,12 +775,15 @@ local function processor(key_event, env)
     dynamic.clear_status()
     if action == "promote" then
         local hint = upper_level_hint(focus_input, candidate.text)
+        performance:mark("upper_level_hint")
         if hint then
             dynamic.set_status(focus_input, hint, "transient")
         end
     end
     refresh_after_adjust(
         context, action, candidate.text, selected_index, focus_input)
+    performance:mark("candidate_refresh")
+    performance:finish("ok")
     return kAccepted
 end
 

@@ -1,5 +1,6 @@
 local store = require("pantsu_store")
 local dynamic = require("pantsu_dynamic")
+local profiler = require("pantsu_profiler")
 local M = {}
 
 M.word_file = "pantsu.user.dict.yaml"
@@ -30,7 +31,6 @@ M.last_codes = {}
 M.last_refresh_codes = {}
 M.pending_plan = nil
 M.preview_text = nil
-M.collect_mode = false
 
 local function utf8_chars(text)
     local chars = {}
@@ -102,9 +102,17 @@ local function write_lines(path, lines)
         os.remove(temp)
         return false
     end
-    if not os.rename(temp, target) then
+    local renamed = os.rename and os.rename(temp, target)
+    if not renamed then
         os.remove(temp)
-        return false
+        file = io.open(target, "wb")
+        if not file then
+            return false
+        end
+        file:write(content)
+        if not file:close() then
+            return false
+        end
     end
     local check = io.open(target, "rb")
     if not check then
@@ -157,18 +165,27 @@ end
 local function write_optimization_state(value)
     local target = data_path(M.optimization_state_file)
     local temp = target .. ".tmp"
+    local content = (value or "") .. "\n"
     local file = io.open(temp, "w")
     if not file then
         return false
     end
-    file:write(value or "", "\n")
+    file:write(content)
     if not file:close() then
         os.remove(temp)
         return false
     end
-    if not os.rename(temp, target) then
+    local renamed = os.rename and os.rename(temp, target)
+    if not renamed then
         os.remove(temp)
-        return false
+        file = io.open(target, "wb")
+        if not file then
+            return false
+        end
+        file:write(content)
+        if not file:close() then
+            return false
+        end
     end
     return true
 end
@@ -331,7 +348,7 @@ function M.restore_self_words()
         override_changed = override_changed or cleared
     end
     if changed > 0 or override_changed then
-        store.invalidate_index()
+        store.invalidate_index(M.word_file)
         M.loaded_words = false
         M.words_by_code = nil
     end
@@ -447,6 +464,7 @@ function M.optimize_self_word_codes()
         write_optimization_state(build_time)
     end
     if changed > 0 then
+        store.invalidate_index(M.word_file)
         M.loaded_words = false
         M.words_by_code = nil
     end
@@ -926,9 +944,11 @@ local function plan_summary(plan)
     return "〔" .. table.concat(parts, "；") .. "；再次确认〕"
 end
 
-function M.plan_word(word, items, target_code, collect_mode)
+function M.plan_word(word, items, target_code, profile)
     M.load_words()
+    if profile then profile:mark("word_index_load") end
     local full_codes, err = M.fly_codes_for_word(word, items)
+    if profile then profile:mark("fly_codes") end
     if not full_codes then
         return nil, err
     end
@@ -953,19 +973,11 @@ function M.plan_word(word, items, target_code, collect_mode)
                 break
             end
         end
-        if not matching_full and collect_mode then
-            for _, full_code in ipairs(M.full_codes_for_word(word)) do
-                if code_startswith(full_code, target_code) then
-                    matching_full = full_code
-                    table.insert(full_codes, full_code)
-                    break
-                end
-            end
-        end
         if not matching_full then
             return nil, "target_code_mismatch:" .. table.concat(full_codes, "/")
         end
     end
+    if profile then profile:mark("target_validate") end
 
     local codes = {}
     local seen_codes = {}
@@ -986,6 +998,7 @@ function M.plan_word(word, items, target_code, collect_mode)
         end
     end
     primary = primary or codes[1]
+    if profile then profile:mark("shortest_codes") end
 
     local moved_entries = {}
     local same_code_words
@@ -998,6 +1011,7 @@ function M.plan_word(word, items, target_code, collect_mode)
         moved_entries = moved_or_err
         same_code_words = same_code_order
     end
+    if profile then profile:mark("target_reorder") end
 
     local previous_codes = {}
     for _, record in pairs(store.self_words()) do
@@ -1005,6 +1019,7 @@ function M.plan_word(word, items, target_code, collect_mode)
             table.insert(previous_codes, record.code)
         end
     end
+    if profile then profile:mark("previous_codes") end
 
     local plan = {
         word = word,
@@ -1046,11 +1061,19 @@ local function word_file_with(word, codes)
     return lines
 end
 
-function M.apply_plan(plan)
+function M.apply_plan(plan, profile)
+    local own_profile = not profile
+    profile = profile or profiler.start(
+        "make_word_save",
+        plan and plan.primary or "-",
+        plan and plan.word or "-")
     if not plan or not plan.word or not plan.primary then
+        profile:finish("failed", "missing_plan")
         return nil, "missing_plan"
     end
-    if not store.begin("make_word", plan.primary, plan.word) then
+    if not store.begin(
+        "make_word", plan.primary, plan.word, profile) then
+        profile:finish("failed", "backup_failed")
         return nil, "backup_failed"
     end
 
@@ -1065,59 +1088,70 @@ function M.apply_plan(plan)
     if moved then
         local moved_ok, moved_err = store.commit(
             plan.moved_entries, "make_word",
-            plan.primary, plan.word, true)
+            plan.primary, plan.word, true, profile)
         if not moved_ok then
             store.rollback_pending()
+            profile:finish("failed", tostring(moved_err))
             return nil, moved_err
         end
     end
+    profile:mark("occupied_chain")
 
     local override_ok, override_changed =
         store.clear_word_overrides(M.word_file, plan.word)
     if not override_ok then
         store.rollback_pending()
+        profile:finish("failed", tostring(override_changed))
         return nil, override_changed
     end
+    profile:mark("clear_old_overrides")
     local journal_ok, journal_changed =
         store.replace_self_word(plan.word, plan.codes)
     if not journal_ok then
         store.rollback_pending()
+        profile:finish("failed", tostring(journal_changed))
         return nil, journal_changed
     end
+    profile:mark("self_word_journal")
     if not write_lines(
         M.word_file, word_file_with(plan.word, plan.codes)) then
         store.rollback_pending()
         M.restore_self_words()
+        profile:finish("failed", "write_failed")
         return nil, "write_failed"
     end
+    profile:mark("user_yaml_write")
     if plan.same_code_words
         and not dynamic.set_same_code_order(
             plan.primary, plan.same_code_words) then
         store.rollback_pending()
         M.restore_self_words()
         dynamic.invalidate()
+        profile:finish("failed", "same_code_order_write_failed")
         return nil, "same_code_order_write_failed"
     end
+    profile:mark("same_code_order")
     local finished, finish_err = store.finish(
         "make_word", plan.primary, plan.word,
-        tostring(#plan.codes) .. "_codes")
+        tostring(#plan.codes) .. "_codes", profile)
     if not finished then
         store.rollback_pending()
         M.restore_self_words()
         dynamic.invalidate()
+        profile:finish("failed", tostring(finish_err))
         return nil, finish_err
     end
 
     if moved or override_changed or journal_changed then
-        store.invalidate_index()
+        store.invalidate_index(M.word_file)
         M.loaded_words = false
         M.words_by_code = nil
-        M.load_words()
     else
         for _, code in ipairs(plan.codes) do
             push_word(code, plan.word)
         end
     end
+    profile:mark("word_cache_invalidate")
     M.last_codes = plan.codes
     local refresh_seen = {}
     M.last_refresh_codes = {}
@@ -1133,23 +1167,24 @@ function M.apply_plan(plan)
             table.insert(M.last_refresh_codes, code)
         end
     end
+    if own_profile then
+        profile:finish("ok")
+    end
     return plan.primary, nil, plan.moved_entries
 end
 
-function M.add_word(word, items, target_code, collect_mode)
-    local plan, err = M.plan_word(
-        word, items, target_code, collect_mode)
+function M.add_word(word, items, target_code)
+    local plan, err = M.plan_word(word, items, target_code)
     if not plan then
         return nil, err
     end
     return M.apply_plan(plan)
 end
 
-function M.start(target_code, collect_mode)
+function M.start(target_code)
     store.ensure_runtime_files()
     M.restore_self_words()
-    M.mode = collect_mode and "collect" or "manual"
-    M.collect_mode = collect_mode or false
+    M.mode = "manual"
     M.buffer = ""
     M.buffer_items = {}
     M.last_error = nil
@@ -1162,7 +1197,6 @@ end
 
 function M.cancel()
     M.mode = false
-    M.collect_mode = false
     M.buffer = ""
     M.buffer_items = {}
     M.last_error = nil
@@ -1199,28 +1233,36 @@ function M.backspace_buffer()
     table.remove(M.buffer_items)
 end
 
-function M.preview()
+function M.preview(profile)
+    local own_profile = not profile
+    profile = profile or profiler.start(
+        "make_word_preview", M.target_code or "-", M.buffer)
     local plan, err = M.plan_word(
-        M.buffer, M.buffer_items, M.target_code, M.collect_mode)
+        M.buffer, M.buffer_items, M.target_code, profile)
     if not plan then
         M.last_error = err
         M.pending_plan = nil
         M.preview_text = nil
+        profile:finish("failed", tostring(err))
         return nil, err
     end
     M.pending_plan = plan
     M.preview_text = plan.summary
     M.last_error = nil
+    if own_profile then
+        profile:finish("ok")
+    end
     return plan
 end
 
-function M.confirm()
+function M.confirm(profile)
     local word = M.buffer
     if not M.pending_plan then
-        local plan, preview_err = M.preview()
+        local plan, preview_err = M.preview(profile)
         return nil, word, preview_err, nil, plan and "preview" or nil
     end
-    local code, err, moved_entries = M.apply_plan(M.pending_plan)
+    local code, err, moved_entries =
+        M.apply_plan(M.pending_plan, profile)
     if code then
         M.cancel()
     else

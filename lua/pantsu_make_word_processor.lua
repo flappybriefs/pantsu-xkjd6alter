@@ -1,5 +1,6 @@
 local core = require("pantsu_make_word_core")
 local dynamic = require("pantsu_dynamic")
+local profiler = require("pantsu_profiler")
 local store = require("pantsu_store")
 
 local kAccepted = 1
@@ -69,10 +70,15 @@ local function capture_selected_candidate(context)
 end
 
 local function finish_word(context, env, marker)
-    local was_collect = core.collect_mode
-    local code, word, err, moved_entries, stage = core.confirm()
+    local performance = profiler.start(
+        core.pending_plan and "make_word_save" or "make_word_preview",
+        core.target_code or "-", core.buffer)
+    local code, word, err, moved_entries, stage =
+        core.confirm(performance)
     if stage == "preview" then
         show_status(context, marker)
+        performance:mark("candidate_refresh")
+        performance:finish("preview")
         return true
     end
     if code and word and word ~= "" then
@@ -83,13 +89,16 @@ local function finish_word(context, env, marker)
             core.last_refresh_codes or core.last_codes or { code }) do
             dynamic.refresh_codes({ added_code }, { word }, 4)
         end
-        if not was_collect then
-            env.engine:commit_text(word)
-        end
+        performance:mark("dynamic_refresh")
+        env.engine:commit_text(word)
         context:clear()
+        performance:mark("commit_and_clear")
+        performance:finish("ok")
         return true
     end
     show_status(context, marker)
+    performance:mark("error_display")
+    performance:finish("failed", tostring(err))
     return false, err
 end
 
@@ -101,47 +110,6 @@ local function processor(key_event, env)
 
     local context = env.engine.context
     local key, ch = event_key(key_event)
-
-    if core.mode == "collect" then
-        if key == "Escape" then
-            core.cancel()
-            context:clear()
-            return kAccepted
-        end
-        if ch == "]" then
-            if context.input ~= "" and context.input ~= "]"
-                and context:has_menu() then
-                local candidate = context:get_selected_candidate()
-                if candidate and candidate.text and candidate.text ~= "" then
-                    core.append(candidate.text, context.input)
-                    env.ignore_collect_commit = true
-                    env.engine:commit_text(candidate.text)
-                end
-                context:clear()
-            end
-            if core.buffer == "" then
-                core.last_error = "too_short"
-                show_status(context, "]")
-                return kAccepted
-            end
-            finish_word(context, env, "]")
-            return kAccepted
-        end
-        if context.input == "]" then
-            if key == "space" or key == "Return" or key == "KP_Enter" then
-                finish_word(context, env, "]")
-                return kAccepted
-            end
-            if key == "BackSpace" or key == "Backspace" then
-                core.pending_plan = nil
-                core.preview_text = nil
-                context:clear()
-                return kAccepted
-            end
-            context:clear()
-        end
-        return kNoop
-    end
 
     if core.mode then
         if key == "space" then
@@ -237,15 +205,6 @@ local function processor(key_event, env)
         return kAccepted
     end
 
-    if ch == "]" then
-        if is_empty_context(context) then
-            return kNoop
-        end
-        core.start(context.input, true)
-        context:clear()
-        return kAccepted
-    end
-
     return kNoop
 end
 
@@ -263,20 +222,6 @@ local function init(env)
 
     core.load_words()
     core.load_char_codes()
-    env.ignore_collect_commit = false
-    env.collect_connection =
-        env.engine.context.commit_notifier:connect(function(context)
-            if env.ignore_collect_commit then
-                env.ignore_collect_commit = false
-                return
-            end
-            if core.mode == "collect" then
-                local text = context:get_commit_text()
-                if text and text ~= "" then
-                    core.append(text)
-                end
-            end
-        end)
 end
 
 local function fini(env)
