@@ -26,9 +26,9 @@ local function event_key(key_event)
     return repr, nil
 end
 
-local function show_status(context)
+local function show_status(context, marker)
     context:clear()
-    context.input = "["
+    context.input = marker or "["
 end
 
 local function should_topup(context, ch, env)
@@ -68,33 +68,86 @@ local function capture_selected_candidate(context)
     return true
 end
 
+local function finish_word(context, env, marker)
+    local was_collect = core.collect_mode
+    local code, word, err, moved_entries, stage = core.confirm()
+    if stage == "preview" then
+        show_status(context, marker)
+        return true
+    end
+    if code and word and word ~= "" then
+        if moved_entries and #moved_entries > 0 then
+            dynamic.refresh_entries(moved_entries, 4)
+        end
+        for _, added_code in ipairs(
+            core.last_refresh_codes or core.last_codes or { code }) do
+            dynamic.refresh_codes({ added_code }, { word }, 4)
+        end
+        if not was_collect then
+            env.engine:commit_text(word)
+        end
+        context:clear()
+        return true
+    end
+    show_status(context, marker)
+    return false, err
+end
+
 local function processor(key_event, env)
-    if key_event:release() or key_event:ctrl() or key_event:alt() then
+    if key_event:release() or key_event:ctrl()
+        or key_event:alt() or key_event:super() then
         return kNoop
     end
 
     local context = env.engine.context
     local key, ch = event_key(key_event)
 
+    if core.mode == "collect" then
+        if key == "Escape" then
+            core.cancel()
+            context:clear()
+            return kAccepted
+        end
+        if ch == "]" then
+            if context.input ~= "" and context.input ~= "]"
+                and context:has_menu() then
+                local candidate = context:get_selected_candidate()
+                if candidate and candidate.text and candidate.text ~= "" then
+                    core.append(candidate.text, context.input)
+                    env.ignore_collect_commit = true
+                    env.engine:commit_text(candidate.text)
+                end
+                context:clear()
+            end
+            if core.buffer == "" then
+                core.last_error = "too_short"
+                show_status(context, "]")
+                return kAccepted
+            end
+            finish_word(context, env, "]")
+            return kAccepted
+        end
+        if context.input == "]" then
+            if key == "space" or key == "Return" or key == "KP_Enter" then
+                finish_word(context, env, "]")
+                return kAccepted
+            end
+            if key == "BackSpace" or key == "Backspace" then
+                core.pending_plan = nil
+                core.preview_text = nil
+                context:clear()
+                return kAccepted
+            end
+            context:clear()
+        end
+        return kNoop
+    end
+
     if core.mode then
         if key == "space" then
             if context.input == "[" then
                 if core.buffer ~= "" then
-                    local code, word, _, moved_entries = core.confirm()
-                    if code and word and word ~= "" then
-                        if moved_entries and #moved_entries > 0 then
-                            dynamic.refresh_entries(moved_entries, 4)
-                        end
-                        for _, added_code in ipairs(
-                            core.last_codes or { code }) do
-                            dynamic.refresh_codes(
-                                { added_code }, { word }, 4)
-                        end
-                        env.engine:commit_text(word)
-                        context:clear()
-                    else
-                        show_status(context)
-                    end
+                    finish_word(context, env, "[")
                     return kAccepted
                 elseif context:has_menu() then
                     core.cancel()
@@ -108,7 +161,7 @@ local function processor(key_event, env)
 
             if context:has_menu() then
                 if capture_selected_candidate(context) then
-                    show_status(context)
+                    show_status(context, "[")
                     return kAccepted
                 end
             end
@@ -126,7 +179,7 @@ local function processor(key_event, env)
             if key == "BackSpace" or key == "Backspace" then
                 if core.buffer ~= "" then
                     core.backspace_buffer()
-                    show_status(context)
+                    show_status(context, "[")
                 else
                     core.cancel()
                     context:clear()
@@ -180,7 +233,16 @@ local function processor(key_event, env)
         local target_code =
             not is_empty_context(context) and context.input or nil
         core.start(target_code)
-        show_status(context)
+        show_status(context, "[")
+        return kAccepted
+    end
+
+    if ch == "]" then
+        if is_empty_context(context) then
+            return kNoop
+        end
+        core.start(context.input, true)
+        context:clear()
         return kAccepted
     end
 
@@ -201,6 +263,20 @@ local function init(env)
 
     core.load_words()
     core.load_char_codes()
+    env.ignore_collect_commit = false
+    env.collect_connection =
+        env.engine.context.commit_notifier:connect(function(context)
+            if env.ignore_collect_commit then
+                env.ignore_collect_commit = false
+                return
+            end
+            if core.mode == "collect" then
+                local text = context:get_commit_text()
+                if text and text ~= "" then
+                    core.append(text)
+                end
+            end
+        end)
 end
 
 local function fini(env)

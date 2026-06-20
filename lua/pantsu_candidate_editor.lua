@@ -10,6 +10,7 @@ local action_names = {
     ["0"] = "delete",
 }
 local pending_delete = nil
+local history_mode = false
 
 local function is_macos()
     if rime_api and rime_api.get_distribution_code_name then
@@ -38,7 +39,8 @@ local function is_history_shortcut(key_event)
         or not key_event:ctrl() then
         return false
     end
-    return is_macos() or key_event:shift()
+    return is_macos() and not key_event:shift()
+        or not is_macos() and key_event:shift()
 end
 
 local function data_path(path)
@@ -347,7 +349,16 @@ local function move_same_code(context, model, entry, direction)
             words[index], words[target] = words[target], words[index]
             local ok = dynamic.set_same_code_order(entry.code, words)
             if ok then
-                store.record_order(direction, entry.code, entry.word)
+                local recorded = store.record_order(
+                    direction, entry.code, entry.word)
+                if not recorded then
+                    store.rollback_pending()
+                    dynamic.invalidate()
+                    return false
+                end
+            else
+                store.rollback_pending()
+                dynamic.invalidate()
             end
             return ok
         end
@@ -575,6 +586,11 @@ local error_messages = {
     no_change = "〔没有可应用的变化〕",
     word_code_too_short = "〔已到该词允许的最短码〕",
     backup_failed = "〔调频失败：无法创建撤销点〕",
+    backup_missing = "〔保存失败：撤销点丢失〕",
+    backup_rotate_failed = "〔保存失败：历史快照写入失败〕",
+    backup_history_failed = "〔保存失败：历史记录写入失败〕",
+    nothing_to_undo = "〔暂无可撤销操作〕",
+    undo_restore_failed = "〔撤销失败：快照读取失败〕",
     override_write_failed = "〔调频失败：覆盖层写入失败〕",
     self_word_write_failed = "〔调频失败：自造词记录写入失败〕",
 }
@@ -599,6 +615,17 @@ local function clear_transient_status(context, refresh)
     if refresh and has_active_input(context) then
         context:refresh_non_confirmed_composition()
     end
+end
+
+local function history_status(items)
+    if #items == 0 then
+        return "〔暂无可撤销操作〕"
+    end
+    local parts = {}
+    for index, item in ipairs(items) do
+        table.insert(parts, tostring(index) .. item.label)
+    end
+    return "〔" .. table.concat(parts, "；") .. "；按序号撤销〕"
 end
 
 local function cancel_delete_confirmation(context, refresh)
@@ -628,13 +655,19 @@ local function processor(key_event, env)
 
     local active_input = has_active_input(context)
     if active_input and is_undo_shortcut(key_event) then
+        history_mode = false
         clear_transient_status(context, false)
         cancel_delete_confirmation(context, false)
         local ok, err = store.undo()
         if ok then
+            local restored, restore_err = core.restore_self_words()
+            if not restored and restore_err then
+                show_error(context, restore_err)
+                return kAccepted
+            end
             dynamic.invalidate()
             dynamic.set_status(
-                context.input, "〔已撤销上一次调频〕", "transient")
+                context.input, "〔已撤销上一次操作〕", "transient")
             context:refresh_non_confirmed_composition()
         else
             show_error(context, err)
@@ -643,10 +676,10 @@ local function processor(key_event, env)
     elseif active_input and is_history_shortcut(key_event) then
         clear_transient_status(context, false)
         cancel_delete_confirmation(context, false)
-        local last = store.last_history()
+        local items = store.undo_items()
+        history_mode = #items > 0
         dynamic.set_status(
-            context.input, last and "〔最近操作：" .. last .. "〕"
-                or "〔暂无操作历史〕", "transient")
+            context.input, history_status(items), "history")
         context:refresh_non_confirmed_composition()
         return kAccepted
     elseif key_event:ctrl() or key_event:super() then
@@ -656,6 +689,37 @@ local function processor(key_event, env)
     end
 
     local keycode = key_event.keycode
+    if history_mode and keycode and keycode >= 0x31 and keycode <= 0x37 then
+        local index = keycode - 0x30
+        local items = store.undo_items()
+        if index <= #items then
+            local ok, err = store.undo(index)
+            history_mode = false
+            if ok then
+                local restored, restore_err = core.restore_self_words()
+                if not restored and restore_err then
+                    show_error(context, restore_err)
+                    return kAccepted
+                end
+                dynamic.invalidate()
+                dynamic.set_status(
+                    context.input,
+                    "〔已撤销至第" .. tostring(index) .. "步之前〕",
+                    "transient")
+                context:refresh_non_confirmed_composition()
+            else
+                show_error(context, err)
+            end
+            return kAccepted
+        end
+    end
+    if history_mode then
+        history_mode = false
+        if dynamic.status_kind() == "history" then
+            dynamic.clear_status()
+            context:refresh_non_confirmed_composition()
+        end
+    end
     if not keycode or keycode < 0x30 or keycode > 0x39 then
         clear_transient_status(context, true)
         cancel_delete_confirmation(context, true)
@@ -731,11 +795,13 @@ end
 
 local function init(env)
     pending_delete = nil
+    history_mode = false
     dynamic.clear_status()
     store.ensure_runtime_files()
     env.commit_connection =
         env.engine.context.commit_notifier:connect(function()
             pending_delete = nil
+            history_mode = false
             dynamic.clear_status()
         end)
 end

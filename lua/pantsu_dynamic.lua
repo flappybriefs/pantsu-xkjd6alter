@@ -60,6 +60,7 @@ end
 local function write_orders()
     local target = data_path(M.order_file)
     local temp = target .. ".tmp"
+    local lines = {}
     local file = io.open(temp, "w")
     if not file then
         return false
@@ -81,16 +82,28 @@ local function write_orders()
             return left.rank < right.rank
         end)
         for _, item in ipairs(words) do
-            file:write(code, "\t", tostring(item.rank), "\t",
-                item.word, "\n")
+            table.insert(lines, table.concat({
+                code, tostring(item.rank), item.word,
+            }, "\t"))
         end
     end
+    local content = #lines > 0 and table.concat(lines, "\n") .. "\n" or ""
+    file:write(content)
     if not file:close() then
         os.remove(temp)
         return false
     end
     if not os.rename(temp, target) then
         os.remove(temp)
+        return false
+    end
+    local check = io.open(target, "rb")
+    if not check then
+        return false
+    end
+    local saved = check:read("*a")
+    check:close()
+    if saved ~= content then
         return false
     end
     store.invalidate_signature()
@@ -222,12 +235,25 @@ local function write_state()
                 entry.id or "", "\n")
         end
     end
-    file:close()
+    if not file:close() then
+        os.remove(temp)
+        return false
+    end
     if not os.rename(temp, target) then
         os.remove(temp)
         return false
     end
-    return true
+    local check = io.open(target, "rb")
+    if not check then
+        return false
+    end
+    local content = check:read("*a")
+    check:close()
+    return content
+        and string.match(content, "^format\t" .. M.state_version .. "\n")
+        and string.find(
+            content, "\nsignature\t" .. store.signature() .. "\n",
+            1, true) ~= nil
 end
 
 local function ensure_current_build()
@@ -263,21 +289,6 @@ local function snapshot_root(root, extra_suppress, deleted_words)
         if string.sub(root, 1, string.len(old_root)) == old_root
             and string.len(old_root) < string.len(root) then
             root = old_root
-        end
-    end
-
-    for _, word in ipairs(extra_suppress or {}) do
-        for _, old_state in pairs(M.roots) do
-            if old_state.suppress[word] then
-                local kept = {}
-                for _, entry in ipairs(old_state.entries) do
-                    if entry.word ~= word then
-                        table.insert(kept, entry)
-                    end
-                end
-                old_state.entries = kept
-                old_state.suppress[word] = true
-            end
         end
     end
 
@@ -391,11 +402,17 @@ function M.set_same_code_order(code, words)
     end
     M.orders[code] = ranks
     if not write_orders() then
+        M.orders = {}
+        M.orders_loaded = false
         return false
     end
     snapshot_root(root_for_code(code), words)
     M.order_roots_loaded = true
-    return write_state()
+    if not write_state() then
+        M.invalidate()
+        return false
+    end
+    return true
 end
 
 function M.get_same_code_order(code)
@@ -444,6 +461,10 @@ local function ensure_override_roots()
     M.override_roots_loaded = true
     local changed = false
     for root in pairs(store.override_roots()) do
+        snapshot_root(root)
+        changed = true
+    end
+    for root in pairs(store.self_word_roots()) do
         snapshot_root(root)
         changed = true
     end

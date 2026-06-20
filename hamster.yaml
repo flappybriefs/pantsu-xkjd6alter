@@ -1,3 +1,23 @@
+# 部署前先把键盘端产生的用户状态回拷到应用目录，避免重新部署重置。
+rime:
+  overrideDictFiles: false
+  regexOnOverrideDictFiles:
+    - "^.*[.]userdb.*$"
+    - "^.*[.]txt$"
+    - "^.*pantsu[.]user[.]dict[.]yaml$"
+    - "^.*pantsu_overrides[.]tsv$"
+    - "^.*pantsu_candidate_order[.]tsv$"
+    - "^.*pantsu_self_words[.]tsv$"
+    - "^.*pantsu_history[.]tsv$"
+  regexOnCopyAppGroupDictFile:
+    - "^.*[.]userdb.*$"
+    - "^.*[.]txt$"
+    - "^.*pantsu[.]user[.]dict[.]yaml$"
+    - "^.*pantsu_overrides[.]tsv$"
+    - "^.*pantsu_candidate_order[.]tsv$"
+    - "^.*pantsu_self_words[.]tsv$"
+    - "^.*pantsu_history[.]tsv$"
+
 keyboards:
   - name: 胖次-键道
     isPrimary: false
@@ -231,6 +251,12 @@ keyboards:
                 percentage: 0.1
               landscape:
                 percentage: 0.07
+            swipe:
+              - action: shortCommand(sendKeys(Control+z))
+                label: 撤销
+                display: true
+                processByRIME: true
+                direction: down
           - action:
               character:
                 char: g
@@ -274,6 +300,12 @@ keyboards:
                 percentage: 0.1
               landscape:
                 percentage: 0.07
+            swipe:
+              - action: shortCommand(sendKeys(Control+h))
+                label: 历史
+                display: true
+                processByRIME: true
+                direction: down
           - action:
               character:
                 char: k
@@ -566,6 +598,7 @@ keyboards:
       bottom: 6
       top: 4
       right: 3
+
   - name: 数字符号-键道
     isPrimary: false
     rows:
@@ -1903,6 +1936,12 @@ keyboards:
                 percentage: 0.1
               landscape:
                 percentage: 0.07
+            swipe:
+              - action: shortCommand(sendKeys(Control+z))
+                label: 撤销
+                display: true
+                processByRIME: true
+                direction: down
           - action:
               character:
                 char: g
@@ -1946,6 +1985,12 @@ keyboards:
                 percentage: 0.1
               landscape:
                 percentage: 0.07
+            swipe:
+              - action: shortCommand(sendKeys(Control+h))
+                label: 历史
+                display: true
+                processByRIME: true
+                direction: down
           - action:
               character:
                 char: k

@@ -1,4 +1,5 @@
 local store = require("pantsu_store")
+local dynamic = require("pantsu_dynamic")
 local M = {}
 
 M.word_file = "pantsu.user.dict.yaml"
@@ -26,6 +27,10 @@ M.loaded_words = false
 M.last_error = nil
 M.target_code = nil
 M.last_codes = {}
+M.last_refresh_codes = {}
+M.pending_plan = nil
+M.preview_text = nil
+M.collect_mode = false
 
 local function utf8_chars(text)
     local chars = {}
@@ -87,13 +92,12 @@ end
 local function write_lines(path, lines)
     local target = data_path(path)
     local temp = target .. ".pantsu-make-word.tmp"
+    local content = #lines > 0 and table.concat(lines, "\n") .. "\n" or ""
     local file = io.open(temp, "w")
     if not file then
         return false
     end
-    for _, line in ipairs(lines) do
-        file:write(line, "\n")
-    end
+    file:write(content)
     if not file:close() then
         os.remove(temp)
         return false
@@ -102,7 +106,13 @@ local function write_lines(path, lines)
         os.remove(temp)
         return false
     end
-    return true
+    local check = io.open(target, "rb")
+    if not check then
+        return false
+    end
+    local saved = check:read("*a")
+    check:close()
+    return saved == content
 end
 
 local function find_word_region(lines)
@@ -258,9 +268,12 @@ function M.restore_self_words()
             })
         end
     end
-    local seeded, seed_err = store.update_self_words(seed, true)
-    if not seeded then
-        return nil, seed_err
+    local journal_authoritative = store.has_self_word_records()
+    if not journal_authoritative then
+        local seeded, seed_err = store.update_self_words(seed, true)
+        if not seeded then
+            return nil, seed_err
+        end
     end
 
     local records = store.self_words()
@@ -270,7 +283,11 @@ function M.restore_self_words()
         local word, code = read_code_fields(lines[index])
         local key = word and code and word .. "\t" .. code or nil
         local record = key and records[key] or nil
-        if record then
+        if journal_authoritative and not record then
+            table.remove(lines, index)
+            end_index = end_index - 1
+            changed = changed + 1
+        elseif record then
             if not record.active or found[key] then
                 table.remove(lines, index)
                 end_index = end_index - 1
@@ -547,12 +564,12 @@ local function selected_codes_for_word(word, typed_code)
 end
 
 local function encode_word_codes(chars, codes)
-    if #codes == 2 then
+    if #chars == 2 then
         return string.sub(codes[1], 1, 2)
             .. string.sub(codes[2], 1, 2)
             .. string.sub(codes[1], 3, 3)
             .. string.sub(codes[2], 3, 3)
-    elseif #codes == 3 then
+    elseif #chars == 3 then
         return string.sub(codes[1], 1, 1)
             .. string.sub(codes[2], 1, 1)
             .. string.sub(codes[3], 1, 1)
@@ -850,8 +867,27 @@ end
 
 local function make_target_available(code, word)
     local model = load_chain(string.sub(code, 1, 1))
+    local blocked = occupants(model, code, word)
+    if #blocked > 0 and string.len(code) >= 6 then
+        local words = { word }
+        local seen = { [word] = true }
+        for _, old_word in ipairs(dynamic.get_same_code_order(code)) do
+            if not seen[old_word] then
+                seen[old_word] = true
+                table.insert(words, old_word)
+            end
+        end
+        for _, entry in ipairs(blocked) do
+            if not seen[entry.word] then
+                seen[entry.word] = true
+                table.insert(words, entry.word)
+            end
+        end
+        return true, {}, words
+    end
+
     local changed = false
-    for _, entry in ipairs(occupants(model, code, word)) do
+    for _, entry in ipairs(blocked) do
         local ok, err = push_down(model, entry, {})
         if not ok then
             return nil, err
@@ -861,21 +897,50 @@ local function make_target_available(code, word)
     if not changed then
         return true, {}
     end
-    if not store.begin("make_word", code, word) then
-        return nil, "backup_failed"
-    end
-    local ok, err = store.commit(model.entries, "make_word", code, word)
-    if not ok then
-        return nil, err
-    end
     return true, model.entries
 end
 
-function M.add_word(word, items, target_code)
+local function plan_summary(plan)
+    local parts = { "保存 " .. plan.primary }
+    local moved = 0
+    for _, entry in ipairs(plan.moved_entries or {}) do
+        if entry.active ~= entry.initial_active
+            or entry.code ~= entry.original_code then
+            moved = moved + 1
+            if moved <= 2 then
+                table.insert(parts, entry.word .. " "
+                    .. entry.original_code .. "→"
+                    .. (entry.active and entry.code or "删除"))
+            end
+        end
+    end
+    if moved > 2 then
+        table.insert(parts, "另影响" .. tostring(moved - 2) .. "词")
+    end
+    if #plan.codes > 1 then
+        table.insert(parts, "含" .. tostring(#plan.codes - 1) .. "个飞键码")
+    end
+    if plan.same_code_words then
+        table.insert(parts, "六码同码置顶")
+    end
+    return "〔" .. table.concat(parts, "；") .. "；再次确认〕"
+end
+
+function M.plan_word(word, items, target_code, collect_mode)
     M.load_words()
     local full_codes, err = M.fly_codes_for_word(word, items)
     if not full_codes then
         return nil, err
+    end
+    local selected_full = M.code_for_word(word, items)
+    if selected_full then
+        local ordered = { selected_full }
+        for _, full_code in ipairs(full_codes) do
+            if full_code ~= selected_full then
+                table.insert(ordered, full_code)
+            end
+        end
+        full_codes = ordered
     end
     local matching_full
     if target_code and target_code ~= "" then
@@ -886,6 +951,15 @@ function M.add_word(word, items, target_code)
             if code_startswith(full_code, target_code) then
                 matching_full = full_code
                 break
+            end
+        end
+        if not matching_full and collect_mode then
+            for _, full_code in ipairs(M.full_codes_for_word(word)) do
+                if code_startswith(full_code, target_code) then
+                    matching_full = full_code
+                    table.insert(full_codes, full_code)
+                    break
+                end
             end
         end
         if not matching_full then
@@ -914,15 +988,38 @@ function M.add_word(word, items, target_code)
     primary = primary or codes[1]
 
     local moved_entries = {}
+    local same_code_words
     if target_code and target_code ~= "" then
-        local available, moved_or_err =
+        local available, moved_or_err, same_code_order =
             make_target_available(target_code, word)
         if not available then
             return nil, moved_or_err
         end
         moved_entries = moved_or_err
+        same_code_words = same_code_order
     end
 
+    local previous_codes = {}
+    for _, record in pairs(store.self_words()) do
+        if record.word == word and record.active then
+            table.insert(previous_codes, record.code)
+        end
+    end
+
+    local plan = {
+        word = word,
+        codes = codes,
+        primary = primary,
+        moved_entries = moved_entries,
+        target_code = target_code,
+        same_code_words = same_code_words,
+        previous_codes = previous_codes,
+    }
+    plan.summary = plan_summary(plan)
+    return plan
+end
+
+local function word_file_with(word, codes)
     local lines = read_lines(M.word_file)
     local start_index, end_index = find_word_region(lines)
     if not start_index or not end_index then
@@ -934,73 +1031,151 @@ function M.add_word(word, items, target_code)
         start_index, end_index = find_word_region(lines)
     end
 
-    local changed = false
     for index = end_index - 1, start_index + 1, -1 do
         local old_word = read_code_fields(lines[index])
         if old_word == word then
             table.remove(lines, index)
             end_index = end_index - 1
-            changed = true
         end
     end
 
     for _, code in ipairs(codes) do
         table.insert(lines, end_index, word .. "\t" .. code)
         end_index = end_index + 1
-        changed = true
     end
-    if changed and not write_lines(M.word_file, lines) then
-        return nil, "write_failed"
+    return lines
+end
+
+function M.apply_plan(plan)
+    if not plan or not plan.word or not plan.primary then
+        return nil, "missing_plan"
+    end
+    if not store.begin("make_word", plan.primary, plan.word) then
+        return nil, "backup_failed"
+    end
+
+    local moved = false
+    for _, entry in ipairs(plan.moved_entries or {}) do
+        if entry.active ~= entry.initial_active
+            or entry.code ~= entry.original_code then
+            moved = true
+            break
+        end
+    end
+    if moved then
+        local moved_ok, moved_err = store.commit(
+            plan.moved_entries, "make_word",
+            plan.primary, plan.word, true)
+        if not moved_ok then
+            store.rollback_pending()
+            return nil, moved_err
+        end
     end
 
     local override_ok, override_changed =
-        store.clear_word_overrides(M.word_file, word)
+        store.clear_word_overrides(M.word_file, plan.word)
     if not override_ok then
+        store.rollback_pending()
         return nil, override_changed
     end
     local journal_ok, journal_changed =
-        store.replace_self_word(word, codes)
+        store.replace_self_word(plan.word, plan.codes)
     if not journal_ok then
+        store.rollback_pending()
         return nil, journal_changed
     end
+    if not write_lines(
+        M.word_file, word_file_with(plan.word, plan.codes)) then
+        store.rollback_pending()
+        M.restore_self_words()
+        return nil, "write_failed"
+    end
+    if plan.same_code_words
+        and not dynamic.set_same_code_order(
+            plan.primary, plan.same_code_words) then
+        store.rollback_pending()
+        M.restore_self_words()
+        dynamic.invalidate()
+        return nil, "same_code_order_write_failed"
+    end
+    local finished, finish_err = store.finish(
+        "make_word", plan.primary, plan.word,
+        tostring(#plan.codes) .. "_codes")
+    if not finished then
+        store.rollback_pending()
+        M.restore_self_words()
+        dynamic.invalidate()
+        return nil, finish_err
+    end
 
-    if changed or override_changed or journal_changed then
+    if moved or override_changed or journal_changed then
         store.invalidate_index()
         M.loaded_words = false
         M.words_by_code = nil
         M.load_words()
-        store.record_order("make_word", primary, word)
     else
-        for _, code in ipairs(codes) do
-            push_word(code, word)
+        for _, code in ipairs(plan.codes) do
+            push_word(code, plan.word)
         end
     end
-    M.last_codes = codes
-    return primary, nil, moved_entries
+    M.last_codes = plan.codes
+    local refresh_seen = {}
+    M.last_refresh_codes = {}
+    for _, code in ipairs(plan.previous_codes or {}) do
+        if not refresh_seen[code] then
+            refresh_seen[code] = true
+            table.insert(M.last_refresh_codes, code)
+        end
+    end
+    for _, code in ipairs(plan.codes) do
+        if not refresh_seen[code] then
+            refresh_seen[code] = true
+            table.insert(M.last_refresh_codes, code)
+        end
+    end
+    return plan.primary, nil, plan.moved_entries
 end
 
-function M.start(target_code)
+function M.add_word(word, items, target_code, collect_mode)
+    local plan, err = M.plan_word(
+        word, items, target_code, collect_mode)
+    if not plan then
+        return nil, err
+    end
+    return M.apply_plan(plan)
+end
+
+function M.start(target_code, collect_mode)
     store.ensure_runtime_files()
     M.restore_self_words()
-    M.mode = true
+    M.mode = collect_mode and "collect" or "manual"
+    M.collect_mode = collect_mode or false
     M.buffer = ""
     M.buffer_items = {}
     M.last_error = nil
     M.target_code = target_code
     M.last_codes = {}
+    M.last_refresh_codes = {}
+    M.pending_plan = nil
+    M.preview_text = nil
 end
 
 function M.cancel()
     M.mode = false
+    M.collect_mode = false
     M.buffer = ""
     M.buffer_items = {}
     M.last_error = nil
     M.target_code = nil
+    M.pending_plan = nil
+    M.preview_text = nil
 end
 
 function M.append(text, code)
     if M.mode and text and text ~= "" then
         M.last_error = nil
+        M.pending_plan = nil
+        M.preview_text = nil
         local chars = utf8_chars(text)
         local selected = nil
         if #chars > 1 and code and code ~= "" then
@@ -1018,15 +1193,34 @@ end
 
 function M.backspace_buffer()
     M.last_error = nil
+    M.pending_plan = nil
+    M.preview_text = nil
     M.buffer = utf8_drop_last(M.buffer)
     table.remove(M.buffer_items)
 end
 
+function M.preview()
+    local plan, err = M.plan_word(
+        M.buffer, M.buffer_items, M.target_code, M.collect_mode)
+    if not plan then
+        M.last_error = err
+        M.pending_plan = nil
+        M.preview_text = nil
+        return nil, err
+    end
+    M.pending_plan = plan
+    M.preview_text = plan.summary
+    M.last_error = nil
+    return plan
+end
+
 function M.confirm()
     local word = M.buffer
-    local items = M.buffer_items
-    local code, err, moved_entries =
-        M.add_word(word, items, M.target_code)
+    if not M.pending_plan then
+        local plan, preview_err = M.preview()
+        return nil, word, preview_err, nil, plan and "preview" or nil
+    end
+    local code, err, moved_entries = M.apply_plan(M.pending_plan)
     if code then
         M.cancel()
     else

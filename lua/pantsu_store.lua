@@ -1,14 +1,14 @@
 local M = {}
 
-M.version = "1"
+M.version = "2"
 M.index_version = "2"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
 M.self_word_file = "pantsu_self_words.tsv"
-M.undo_meta_file = "build/pantsu_undo.meta"
-M.undo_override_file = "build/pantsu_undo.overrides.tsv"
-M.undo_order_file = "build/pantsu_undo.order.tsv"
-M.undo_self_word_file = "build/pantsu_undo.self_words.tsv"
+M.undo_dir = "build/pantsu_undo"
+M.undo_fallback_dir = "build"
+M.undo_runtime_dir = nil
+M.undo_limit = 7
 M.index_file = "build/pantsu_dictionary_index.tsv"
 M.order_file = "pantsu_candidate_order.tsv"
 M.dictionary_files = {
@@ -26,6 +26,8 @@ M.index = nil
 M.signature_cache = nil
 M.self_words_cache = nil
 
+local migrate_undo_files
+
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
         return path
@@ -36,6 +38,62 @@ local function data_path(path)
     return path
 end
 
+local function shell_quote(value)
+    return "'" .. string.gsub(value, "'", "'\\''") .. "'"
+end
+
+local function directory_writable(path)
+    local probe = path .. "/.pantsu-write-test"
+    local file = io.open(data_path(probe), "w")
+    if not file then
+        return false
+    end
+    file:close()
+    os.remove(data_path(probe))
+    return true
+end
+
+local function ensure_undo_directory()
+    if M.undo_runtime_dir
+        and directory_writable(M.undo_runtime_dir) then
+        return M.undo_runtime_dir
+    end
+    if not directory_writable(M.undo_dir)
+        and os.execute then
+        pcall(os.execute,
+            "mkdir -p " .. shell_quote(data_path(M.undo_dir)))
+    end
+    if directory_writable(M.undo_dir) then
+        M.undo_runtime_dir = M.undo_dir
+    elseif directory_writable(M.undo_fallback_dir) then
+        M.undo_runtime_dir = M.undo_fallback_dir
+    end
+    return M.undo_runtime_dir
+end
+
+local function undo_path(name)
+    local directory = ensure_undo_directory()
+    if not directory then
+        return nil
+    end
+    if directory == M.undo_fallback_dir then
+        return directory .. "/pantsu_undo." .. name
+    end
+    return directory .. "/" .. name
+end
+
+local function pending_path(kind)
+    return undo_path("pending." .. kind .. ".tsv")
+end
+
+local function meta_path()
+    return undo_path("pending.meta")
+end
+
+local function history_path()
+    return undo_path("history.tsv")
+end
+
 local function read_code_fields(line)
     return string.match(line, "^([^\t]+)\t([^\t%s]+)")
 end
@@ -43,13 +101,12 @@ end
 local function atomic_lines(path, lines)
     local target = data_path(path)
     local temp = target .. ".tmp"
+    local content = #lines > 0 and table.concat(lines, "\n") .. "\n" or ""
     local file = io.open(temp, "w")
     if not file then
         return false
     end
-    for _, line in ipairs(lines) do
-        file:write(line, "\n")
-    end
+    file:write(content)
     if not file:close() then
         os.remove(temp)
         return false
@@ -58,7 +115,13 @@ local function atomic_lines(path, lines)
         os.remove(temp)
         return false
     end
-    return true
+    local check = io.open(target, "rb")
+    if not check then
+        return false
+    end
+    local saved = check:read("*a")
+    check:close()
+    return saved == content
 end
 
 local function ensure_file(path, initial_lines)
@@ -86,6 +149,13 @@ function M.ensure_runtime_files()
     if not ensure_file(M.self_word_file, { "version\t1" }) then
         ok = false
     end
+    if not migrate_undo_files or not migrate_undo_files() then
+        ok = false
+    end
+    local undo_history = history_path()
+    if not undo_history or not ensure_file(undo_history, {}) then
+        ok = false
+    end
     return ok
 end
 
@@ -104,7 +174,16 @@ local function copy_file(source_path, target_path)
     if not target:close() then
         return false
     end
-    return os.rename(data_path(target_path) .. ".tmp", data_path(target_path))
+    if not os.rename(data_path(target_path) .. ".tmp", data_path(target_path)) then
+        return false
+    end
+    local check = io.open(data_path(target_path), "rb")
+    if not check then
+        return false
+    end
+    local saved = check:read("*a")
+    check:close()
+    return saved == content
 end
 
 local function restore_file(snapshot_path, target_path)
@@ -127,7 +206,16 @@ local function restore_file(snapshot_path, target_path)
     if not target:close() then
         return false
     end
-    return os.rename(temp, data_path(target_path))
+    if not os.rename(temp, data_path(target_path)) then
+        return false
+    end
+    local check = io.open(data_path(target_path), "rb")
+    if not check then
+        return false
+    end
+    local saved = check:read("*a")
+    check:close()
+    return saved == content
 end
 
 local function file_size(path)
@@ -286,7 +374,11 @@ local function write_self_words()
             record.device or "unknown",
         }, "\t"))
     end
-    return atomic_lines(M.self_word_file, lines)
+    local ok = atomic_lines(M.self_word_file, lines)
+    if ok then
+        M.signature_cache = nil
+    end
+    return ok
 end
 
 local function write_overrides()
@@ -442,6 +534,7 @@ end
 function M.entries(input)
     load_overrides()
     local result = {}
+    local found_self = {}
     for _, range in ipairs(load_index()) do
         if range_matches(range.prefix, input) then
             local file = io.open(data_path(range.path), "rb")
@@ -466,6 +559,9 @@ function M.entries(input)
                         local active = not override or override.active
                         if string.sub(base_code, 1, #input) == input
                             or (active and string.sub(code, 1, #input) == input) then
+                            if range.path == "pantsu.user.dict.yaml" and active then
+                                found_self[word .. "\t" .. code] = true
+                            end
                             table.insert(result, {
                                 id = id,
                                 path = range.path,
@@ -485,6 +581,30 @@ function M.entries(input)
             end
         end
     end
+    load_self_words()
+    for key, record in pairs(M.self_words_cache) do
+        if record.active and not found_self[key]
+            and string.sub(record.code, 1, #input) == input then
+            local id = "self:" .. record.word .. ":" .. record.code
+            local override = M.overrides[id]
+            local code = override and override.code or record.code
+            local active = not override or override.active
+            if active and string.sub(code, 1, #input) == input then
+                table.insert(result, {
+                    id = id,
+                    path = "pantsu.user.dict.yaml",
+                    line_number = 0,
+                    word = record.word,
+                    base_code = record.code,
+                    code = code,
+                    original_code = code,
+                    active = true,
+                    initial_active = true,
+                    virtual = true,
+                })
+            end
+        end
+    end
     return result
 end
 
@@ -498,6 +618,20 @@ function M.override_roots()
                 if length > 1 then
                     roots[string.sub(code, 1, length)] = true
                 end
+            end
+        end
+    end
+    return roots
+end
+
+function M.self_word_roots()
+    load_self_words()
+    local roots = {}
+    for _, record in pairs(M.self_words_cache) do
+        if record.active and record.code ~= "" then
+            local length = math.min(4, #record.code)
+            if length > 1 then
+                roots[string.sub(record.code, 1, length)] = true
             end
         end
     end
@@ -559,6 +693,11 @@ function M.self_words()
         }
     end
     return result
+end
+
+function M.has_self_word_records()
+    load_self_words()
+    return next(M.self_words_cache) ~= nil
 end
 
 function M.update_self_words(updates, only_missing)
@@ -639,13 +778,111 @@ local function append_history(action, input, word, details)
     file:close()
 end
 
-function M.begin(action, input, word)
-    if not copy_file(M.override_file, M.undo_override_file)
-        or not copy_file(M.order_file, M.undo_order_file)
-        or not copy_file(M.self_word_file, M.undo_self_word_file) then
+local function snapshot_file(slot, kind)
+    return undo_path(
+        tostring(slot) .. "." .. kind .. ".tsv")
+end
+
+local function file_exists(path)
+    if not path then
         return false
     end
-    return atomic_lines(M.undo_meta_file, {
+    local file = io.open(data_path(path), "rb")
+    if not file then
+        return false
+    end
+    file:close()
+    return true
+end
+
+local function migrate_file(source, destination)
+    if not source or not destination or not file_exists(source) then
+        return true
+    end
+    if file_exists(destination) then
+        os.remove(data_path(source))
+        return true
+    end
+    if os.rename(data_path(source), data_path(destination)) then
+        return true
+    end
+    if not copy_file(source, destination) then
+        return false
+    end
+    os.remove(data_path(source))
+    return true
+end
+
+migrate_undo_files = function()
+    if not ensure_undo_directory() then
+        return false
+    end
+    local ok = migrate_file(
+        "pantsu_undo_history.tsv", history_path())
+    for slot = 1, M.undo_limit do
+        for _, kind in ipairs({ "overrides", "order", "self_words" }) do
+            ok = migrate_file(
+                "pantsu_undo_" .. tostring(slot)
+                    .. "." .. kind .. ".tsv",
+                snapshot_file(slot, kind)) and ok
+        end
+    end
+    for _, item in ipairs({
+        { "build/pantsu_undo.meta", meta_path() },
+        { "build/pantsu_undo.overrides.tsv",
+            pending_path("overrides") },
+        { "build/pantsu_undo.order.tsv",
+            pending_path("order") },
+        { "build/pantsu_undo.self_words.tsv",
+            pending_path("self_words") },
+    }) do
+        ok = migrate_file(item[1], item[2]) and ok
+    end
+    return ok
+end
+
+local function remove_pending()
+    for _, path in ipairs({
+        meta_path(),
+        pending_path("overrides"),
+        pending_path("order"),
+        pending_path("self_words"),
+    }) do
+        if path then
+            os.remove(data_path(path))
+        end
+    end
+end
+
+local function read_undo_lines()
+    local lines = {}
+    migrate_undo_files()
+    local path = history_path()
+    local file = path and io.open(data_path(path), "r")
+    if file then
+        for line in file:lines() do
+            if line ~= "" then
+                table.insert(lines, line)
+            end
+        end
+        file:close()
+    end
+    return lines
+end
+
+function M.begin(action, input, word)
+    if not migrate_undo_files() then
+        return false
+    end
+    remove_pending()
+    if not copy_file(M.override_file, pending_path("overrides"))
+        or not copy_file(M.order_file, pending_path("order"))
+        or not copy_file(
+            M.self_word_file, pending_path("self_words")) then
+        remove_pending()
+        return false
+    end
+    local ok = atomic_lines(meta_path(), {
         table.concat({
             tostring(os.time()),
             action,
@@ -653,9 +890,83 @@ function M.begin(action, input, word)
             word or "-",
         }, "\t"),
     })
+    if not ok then
+        remove_pending()
+    end
+    return ok
 end
 
-function M.commit(entries, action, input, word)
+function M.finish(action, input, word, details)
+    local meta_file = meta_path()
+    local meta = meta_file and io.open(data_path(meta_file), "r")
+    if not meta then
+        return nil, "backup_missing"
+    end
+    local description = meta:read("*l") or table.concat({
+        tostring(os.time()), action, input or "-", word or "-",
+    }, "\t")
+    meta:close()
+
+    for slot = M.undo_limit - 1, 1, -1 do
+        for _, kind in ipairs({ "overrides", "order", "self_words" }) do
+            local source = snapshot_file(slot, kind)
+            local destination = snapshot_file(slot + 1, kind)
+            os.remove(data_path(destination))
+            local source_file = io.open(data_path(source), "rb")
+            if source_file then
+                source_file:close()
+                if not copy_file(source, destination) then
+                    return nil, "backup_rotate_failed"
+                end
+            end
+        end
+    end
+    if not copy_file(
+        pending_path("overrides"), snapshot_file(1, "overrides"))
+        or not copy_file(
+            pending_path("order"), snapshot_file(1, "order"))
+        or not copy_file(
+            pending_path("self_words"),
+            snapshot_file(1, "self_words")) then
+        return nil, "backup_rotate_failed"
+    end
+
+    local history = read_undo_lines()
+    table.insert(history, 1, description)
+    while #history > M.undo_limit do
+        table.remove(history)
+    end
+    if not atomic_lines(history_path(), history) then
+        return nil, "backup_history_failed"
+    end
+    remove_pending()
+    append_history(action, input, word, details or "-")
+    return true
+end
+
+function M.rollback_pending()
+    local meta_file = meta_path()
+    local meta = meta_file and io.open(data_path(meta_file), "r")
+    if not meta then
+        return true
+    end
+    meta:close()
+    local override_ok = restore_file(
+        pending_path("overrides"), M.override_file)
+    local order_ok = restore_file(
+        pending_path("order"), M.order_file)
+    local self_word_ok = restore_file(
+        pending_path("self_words"), M.self_word_file)
+    local ok = override_ok and order_ok and self_word_ok
+    remove_pending()
+    M.overrides = nil
+    M.override_lookup = nil
+    M.self_words_cache = nil
+    M.signature_cache = nil
+    return ok
+end
+
+function M.commit(entries, action, input, word, defer_finish)
     load_overrides()
     local changed = 0
     local now = os.time()
@@ -682,9 +993,11 @@ function M.commit(entries, action, input, word)
         end
     end
     if changed == 0 then
+        M.rollback_pending()
         return nil, "no_change"
     end
     if not write_overrides() then
+        M.rollback_pending()
         return nil, "override_write_failed"
     end
     local self_updates = {}
@@ -709,21 +1022,23 @@ function M.commit(entries, action, input, word)
     if #self_updates > 0 then
         local self_ok, self_err = M.update_self_words(self_updates)
         if not self_ok then
-            restore_file(M.undo_override_file, M.override_file)
-            restore_file(M.undo_self_word_file, M.self_word_file)
-            M.overrides = nil
-            M.override_lookup = nil
-            M.self_words_cache = nil
-            M.signature_cache = nil
+            M.rollback_pending()
             return nil, self_err
         end
     end
-    append_history(action, input, word, tostring(changed))
+    if not defer_finish then
+        local finished, finish_err =
+            M.finish(action, input, word, tostring(changed))
+        if not finished then
+            M.rollback_pending()
+            return nil, finish_err
+        end
+    end
     return true
 end
 
 function M.record_order(action, input, word)
-    append_history(action, input, word, "same_code")
+    return M.finish(action, input, word, "same_code")
 end
 
 function M.signature()
@@ -738,29 +1053,93 @@ function M.signature()
         M.override_file .. ":" .. file_fingerprint(M.override_file))
     table.insert(parts,
         M.order_file .. ":" .. file_fingerprint(M.order_file))
+    table.insert(parts,
+        M.self_word_file .. ":" .. file_fingerprint(M.self_word_file))
     M.signature_cache = table.concat(parts, "|")
     return M.signature_cache
 end
 
-function M.undo()
-    local meta = io.open(data_path(M.undo_meta_file), "r")
-    if not meta then
+function M.undo_items()
+    local labels = {
+        promote = "前移",
+        demote = "后移",
+        delete = "删除",
+        make_word = "造词",
+    }
+    local result = {}
+    for index, line in ipairs(read_undo_lines()) do
+        local timestamp, action, input, word =
+            string.match(line, "^([^\t]+)\t([^\t]+)\t([^\t]+)\t([^\t]+)")
+        table.insert(result, {
+            index = index,
+            timestamp = tonumber(timestamp) or 0,
+            action = action,
+            input = input,
+            word = word,
+            label = table.concat({
+                labels[action] or action or "操作",
+                word or "",
+                input or "",
+            }, " "),
+        })
+    end
+    return result
+end
+
+function M.undo(index)
+    index = tonumber(index) or 1
+    local history = read_undo_lines()
+    if index < 1 or index > #history then
         return nil, "nothing_to_undo"
     end
-    local description = meta:read("*l") or ""
-    meta:close()
-    if not restore_file(M.undo_override_file, M.override_file)
-        or not restore_file(M.undo_order_file, M.order_file)
-        or not restore_file(M.undo_self_word_file, M.self_word_file) then
+    local description = history[index]
+    if not restore_file(snapshot_file(index, "overrides"), M.override_file)
+        or not restore_file(snapshot_file(index, "order"), M.order_file)
+        or not restore_file(snapshot_file(index, "self_words"), M.self_word_file) then
         return nil, "undo_restore_failed"
     end
-    os.remove(data_path(M.undo_meta_file))
+
+    local survivors = {}
+    for old_slot = index + 1, #history do
+        local new_slot = old_slot - index
+        survivors[new_slot] = {}
+        for _, kind in ipairs({ "overrides", "order", "self_words" }) do
+            local temp = undo_path(
+                "shift_" .. tostring(new_slot)
+                    .. "." .. kind .. ".tsv")
+            if not copy_file(snapshot_file(old_slot, kind), temp) then
+                return nil, "undo_history_shift_failed"
+            end
+            survivors[new_slot][kind] = temp
+        end
+    end
+    for slot = 1, M.undo_limit do
+        for _, kind in ipairs({ "overrides", "order", "self_words" }) do
+            os.remove(data_path(snapshot_file(slot, kind)))
+        end
+    end
+    local remaining = {}
+    for old_slot = index + 1, #history do
+        table.insert(remaining, history[old_slot])
+    end
+    for slot, files in pairs(survivors) do
+        for kind, temp in pairs(files) do
+            if not copy_file(temp, snapshot_file(slot, kind)) then
+                return nil, "undo_history_shift_failed"
+            end
+            os.remove(data_path(temp))
+        end
+    end
+    if not atomic_lines(history_path(), remaining) then
+        return nil, "undo_history_write_failed"
+    end
+    remove_pending()
     M.overrides = nil
     M.override_lookup = nil
     M.self_words_cache = nil
     M.signature_cache = nil
     append_history("undo", "-", "-", description)
-    return true
+    return true, description
 end
 
 function M.last_history()

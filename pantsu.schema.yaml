@@ -226,7 +226,7 @@ repeat_history:
 EN2en:
   opencc_config: EN2en.json
   option_name: EN2en
-  
+
 pantsuen:
   tag: pantsuen
   dictionary: pantsu.en
