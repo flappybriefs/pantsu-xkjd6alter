@@ -63,11 +63,16 @@ local function word_min_code_length(word)
     return 1
 end
 
+local function can_compact(entry, target_code)
+    return string.len(target_code) >= word_min_code_length(entry.word)
+end
+
 local function promote(model, entry)
     if string.len(entry.code) <= word_min_code_length(entry.word) then
         return nil, "word_code_too_short"
     end
-    local target_code = string.sub(entry.code, 1, string.len(entry.code) - 1)
+    local source_code = entry.code
+    local target_code = string.sub(source_code, 1, string.len(source_code) - 1)
     chain.detach(model, entry)
 
     local blocked = chain.occupants(model, target_code)
@@ -83,7 +88,8 @@ local function promote(model, entry)
         end
     end
     chain.attach_to_code(model, entry, target_code)
-    return true
+    local compacted = chain.compact_gap(model, source_code, can_compact)
+    return true, nil, #compacted
 end
 
 local function demote(model, entry)
@@ -166,8 +172,10 @@ local function move_same_code(context, model, entry, direction, profile)
 end
 
 local function delete_entry(model, entry)
+    local source_code = entry.code
     chain.detach(model, entry)
-    return true
+    local compacted = chain.compact_gap(model, source_code, can_compact)
+    return true, nil, #compacted
 end
 
 local function adjust(action, context, word, input, candidate_id, profile)
@@ -197,12 +205,13 @@ local function adjust(action, context, word, input, candidate_id, profile)
     end
 
     local ok
+    local compacted
     if action == "promote" then
         if move_same_code(
             context, model, entry, "promote", profile) then
             return true, nil, input
         end
-        ok, err = promote(model, entry)
+        ok, err, compacted = promote(model, entry)
     elseif action == "demote" then
         ok, err = demote(model, entry)
         if not ok and err == "no_longer_code"
@@ -211,12 +220,18 @@ local function adjust(action, context, word, input, candidate_id, profile)
             return true, nil, input
         end
     else
-        ok, err = delete_entry(model, entry)
+        ok, err, compacted = delete_entry(model, entry)
     end
     if not ok then
         return nil, err
     end
     if profile then
+        if compacted and profile.count then
+            profile:count("gap_compaction_moves", compacted)
+        end
+        if action == "promote" or action == "delete" then
+            profile:mark("gap_compaction")
+        end
         profile:mark("chain_mutation")
     end
 

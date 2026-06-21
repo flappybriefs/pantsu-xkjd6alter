@@ -234,4 +234,50 @@ function M.push_down(
     return ok, err
 end
 
+function M.compact_gap(model, initial_gap, can_move)
+    local gap = initial_gap
+    local moved = {}
+    local visited = {}
+    while gap and gap ~= "" and not visited[gap] do
+        visited[gap] = true
+        if #M.occupants(model, gap) > 0 then
+            break
+        end
+
+        local nearest_length
+        local candidates = {}
+        local seen = {}
+        for _, entry in ipairs(model.entries) do
+            local code = entry.code or ""
+            if entry.active and not seen[entry]
+                and string.len(code) > string.len(gap)
+                and code_startswith(code, gap)
+                and (not can_move or can_move(entry, gap)) then
+                seen[entry] = true
+                local length = string.len(code)
+                if not nearest_length or length < nearest_length then
+                    nearest_length = length
+                    candidates = { entry }
+                elseif length == nearest_length then
+                    table.insert(candidates, entry)
+                end
+            end
+        end
+        if #candidates ~= 1 then
+            break
+        end
+
+        local entry = candidates[1]
+        local source_code = entry.code
+        move_entry(model, entry, gap)
+        table.insert(moved, {
+            entry = entry,
+            from = source_code,
+            to = gap,
+        })
+        gap = source_code
+    end
+    return moved
+end
+
 return M
