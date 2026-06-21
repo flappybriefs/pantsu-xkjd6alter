@@ -3,7 +3,6 @@ local M = {}
 
 M.state_version = "9"
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
-M.order_file = "pantsu_candidate_order.tsv"
 M.build_state_file = "user.yaml"
 M.dictionary_files = {
     "pantsu.core.dict.yaml",
@@ -59,7 +58,7 @@ local function load_orders()
     M.orders_loaded = true
     M.orders = {}
     M.order_meta = {}
-    local file = io.open(data_path(M.order_file), "r")
+    local file = io.open(data_path(store.order_file), "r")
     if not file then
         return
     end
@@ -108,7 +107,7 @@ local function load_orders()
 end
 
 local function write_orders()
-    local target = data_path(M.order_file)
+    local target = data_path(store.order_file)
     local temp = target .. ".tmp"
     local lines = { "version\t2" }
     local file = io.open(temp, "w")

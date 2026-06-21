@@ -3,6 +3,7 @@ local dynamic = require("pantsu_dynamic")
 local profiler = require("pantsu_profiler")
 local store = require("pantsu_store")
 local chain = require("pantsu_chain")
+local usage = require("pantsu_usage")
 
 local kAccepted = 1
 local kNoop = 2
@@ -88,11 +89,13 @@ local function promote(model, entry)
         end
     end
     chain.attach_to_code(model, entry, target_code)
-    local compacted = chain.compact_gap(model, source_code, can_compact)
+    local compacted = chain.compact_gap(
+        model, source_code, can_compact, usage.choose_candidate)
     return true, nil, #compacted
 end
 
 local function demote(model, entry)
+    local source_code = entry.code
     local target_code, err = core.next_code_for_word(entry.word, entry.code)
     if not target_code then
         return nil, err
@@ -106,7 +109,12 @@ local function demote(model, entry)
             core.full_codes_for_word, {})
     end
     chain.attach_to_code(model, entry, target_code)
-    return true
+    local function can_fill_demote_gap(candidate, gap)
+        return candidate ~= entry and can_compact(candidate, gap)
+    end
+    local compacted = chain.compact_gap(
+        model, source_code, can_fill_demote_gap, usage.choose_candidate)
+    return true, nil, #compacted
 end
 
 local function same_code_candidate_words(context, model, code)
@@ -174,7 +182,8 @@ end
 local function delete_entry(model, entry)
     local source_code = entry.code
     chain.detach(model, entry)
-    local compacted = chain.compact_gap(model, source_code, can_compact)
+    local compacted = chain.compact_gap(
+        model, source_code, can_compact, usage.choose_candidate)
     return true, nil, #compacted
 end
 
@@ -213,7 +222,7 @@ local function adjust(action, context, word, input, candidate_id, profile)
         end
         ok, err, compacted = promote(model, entry)
     elseif action == "demote" then
-        ok, err = demote(model, entry)
+        ok, err, compacted = demote(model, entry)
         if not ok and err == "no_longer_code"
             and move_same_code(
                 context, model, entry, "demote", profile) then
@@ -229,7 +238,8 @@ local function adjust(action, context, word, input, candidate_id, profile)
         if compacted and profile.count then
             profile:count("gap_compaction_moves", compacted)
         end
-        if action == "promote" or action == "delete" then
+        if action == "promote" or action == "demote"
+            or action == "delete" then
             profile:mark("gap_compaction")
         end
         profile:mark("chain_mutation")
@@ -383,6 +393,8 @@ local function processor(key_event, env)
     end
 
     local context = env.engine.context
+    env.pending_usage = usage.capture_selection(
+        context, key_event, env.usage_page_size)
     if key_event:alt() or core.mode then
         clear_transient_status(context, true)
         cancel_delete_confirmation(context, true)
@@ -539,9 +551,32 @@ local function init(env)
     pending_delete = nil
     history_mode = false
     dynamic.clear_status()
+    local schema = env.engine.schema
+    local schema_id = schema.schema_id
+        or (schema.config
+            and schema.config:get_string("schema/schema_id"))
+        or "pantsu"
+    if store.set_dictionary_profile(schema_id) then
+        dynamic.invalidate()
+    end
+    core.set_dictionary_profile(schema_id)
     store.ensure_runtime_files()
+    usage.init()
+    env.pending_usage = nil
+    env.usage_page_size = 7
+    if schema and schema.config and schema.config.get_int then
+        env.usage_page_size =
+            schema.config:get_int("menu/page_size")
+            or env.usage_page_size
+    end
     env.commit_connection =
-        env.engine.context.commit_notifier:connect(function()
+        env.engine.context.commit_notifier:connect(function(context)
+            if usage.commit_matches(context, env.pending_usage) then
+                usage.record_selection(
+                    env.pending_usage.word,
+                    env.pending_usage.input)
+            end
+            env.pending_usage = nil
             pending_delete = nil
             history_mode = false
             dynamic.clear_status()

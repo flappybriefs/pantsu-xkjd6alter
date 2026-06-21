@@ -234,7 +234,7 @@ function M.push_down(
     return ok, err
 end
 
-function M.compact_gap(model, initial_gap, can_move)
+function M.compact_gap(model, initial_gap, can_move, choose_candidate)
     local gap = initial_gap
     local moved = {}
     local visited = {}
@@ -263,11 +263,16 @@ function M.compact_gap(model, initial_gap, can_move)
                 end
             end
         end
-        if #candidates ~= 1 then
+        local entry
+        if #candidates == 1 then
+            entry = candidates[1]
+        elseif choose_candidate then
+            entry = choose_candidate(candidates, gap)
+        end
+        if not entry then
             break
         end
 
-        local entry = candidates[1]
         local source_code = entry.code
         move_entry(model, entry, gap)
         table.insert(moved, {

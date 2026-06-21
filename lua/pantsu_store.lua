@@ -2,27 +2,47 @@ local M = {}
 
 M.version = "2"
 M.index_version = "2"
-M.runtime_version = "2026-06-21.4"
+M.runtime_version = "2026-06-21.5"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
 M.self_word_file = "pantsu_self_words.tsv"
 M.self_word_dict_file = "pantsu.zzc.dict.yaml"
 M.undo_dir = "build/pantsu_undo"
+M.undo_dirs = {
+    pantsu = "build/pantsu_undo",
+    pantsu_refined = "build/pantsu_refined_undo",
+}
 M.undo_fallback_dir = "build"
 M.undo_runtime_dir = nil
 M.undo_limit = 7
 M.index_file = "build/pantsu_dictionary_index.tsv"
 M.index_dirty_file = "build/pantsu_dictionary_index.dirty"
 M.order_file = "pantsu_candidate_order.tsv"
-M.dictionary_files = {
-    "pantsu.core.dict.yaml",
-    "pantsu.danzi.dict.yaml",
-    "pantsu.cizu.dict.yaml",
-    "pantsu.temp.dict.yaml",
-    "pantsu.user.dict.yaml",
-    "pantsu.zzc.dict.yaml",
-    "pantsu.waigua.dict.yaml",
+M.order_files = {
+    pantsu = "pantsu_candidate_order.tsv",
+    pantsu_refined = "pantsu_refined_candidate_order.tsv",
 }
+M.dictionary_profiles = {
+    pantsu = {
+        "pantsu.core.dict.yaml",
+        "pantsu.danzi.dict.yaml",
+        "pantsu.cizu.dict.yaml",
+        "pantsu.temp.dict.yaml",
+        "pantsu.user.dict.yaml",
+        "pantsu.zzc.dict.yaml",
+        "pantsu.waigua.dict.yaml",
+    },
+    pantsu_refined = {
+        "pantsu.refined.core.dict.yaml",
+        "pantsu.danzi.dict.yaml",
+        "pantsu.refined.dict.yaml",
+        "pantsu.temp.dict.yaml",
+        "pantsu.user.dict.yaml",
+        "pantsu.zzc.dict.yaml",
+    },
+}
+M.dictionary_profile = "pantsu"
+M.dictionary_files = M.dictionary_profiles.pantsu
 
 M.overrides = nil
 M.override_lookup = nil
@@ -30,6 +50,7 @@ M.index = nil
 M.index_by_prefix = nil
 M.signature_cache = nil
 M.self_words_cache = nil
+M.self_words_by_root = nil
 M.effective_roots = {}
 M.effective_root_order = {}
 M.effective_root_length = 4
@@ -40,6 +61,33 @@ M.dirty_index_files = {}
 M.index_dirty_loaded = false
 
 local migrate_undo_files
+
+function M.set_dictionary_profile(name)
+    name = M.dictionary_profiles[name] and name or "pantsu"
+    if M.dictionary_profile == name then
+        return false
+    end
+    M.dictionary_profile = name
+    M.dictionary_files = M.dictionary_profiles[name]
+    M.order_file = M.order_files[name]
+    M.undo_dir = M.undo_dirs[name]
+    M.undo_runtime_dir = nil
+    M.index_file = name == "pantsu_refined"
+        and "build/pantsu_refined_dictionary_index.tsv"
+        or "build/pantsu_dictionary_index.tsv"
+    M.index_dirty_file = name == "pantsu_refined"
+        and "build/pantsu_refined_dictionary_index.dirty"
+        or "build/pantsu_dictionary_index.dirty"
+    M.index = nil
+    M.index_by_prefix = nil
+    M.signature_cache = nil
+    M.dirty_index_files = {}
+    M.index_dirty_loaded = false
+    M.runtime_files_ready = false
+    M.pending_memory = nil
+    M.invalidate_effective_index()
+    return true
+end
 
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
@@ -89,7 +137,9 @@ local function undo_path(name)
         return nil
     end
     if directory == M.undo_fallback_dir then
-        return directory .. "/pantsu_undo." .. name
+        local prefix = M.dictionary_profile == "pantsu_refined"
+            and "pantsu_refined_undo." or "pantsu_undo."
+        return directory .. "/" .. prefix .. name
     end
     return directory .. "/" .. name
 end
@@ -228,6 +278,27 @@ local function ensure_file(path, initial_lines)
     return atomic_lines(path, initial_lines)
 end
 
+local function migrate_profile_order_file()
+    if M.dictionary_profile ~= "pantsu_refined" then
+        return true
+    end
+    local existing = io.open(data_path(M.order_file), "rb")
+    if existing then
+        existing:close()
+        return true
+    end
+    local legacy = io.open(data_path(M.order_files.pantsu), "r")
+    if not legacy then
+        return true
+    end
+    local lines = {}
+    for line in legacy:lines() do
+        table.insert(lines, line)
+    end
+    legacy:close()
+    return atomic_lines(M.order_file, lines)
+end
+
 function M.ensure_runtime_files()
     if M.runtime_files_ready then
         return true
@@ -243,7 +314,8 @@ function M.ensure_runtime_files()
     if not ensure_file(M.history_file, {}) then
         ok = false
     end
-    if not ensure_file(M.order_file, {}) then
+    if not migrate_profile_order_file()
+        or not ensure_file(M.order_file, {}) then
         ok = false
     end
     if not ensure_file(M.self_word_file, { "version\t1" }) then
@@ -407,6 +479,26 @@ local function find_override(id, path, line_number, word, base_code)
     return best
 end
 
+local function rebuild_self_word_buckets()
+    M.self_words_by_root = {}
+    for _, record in pairs(M.self_words_cache or {}) do
+        if record.active and record.code ~= "" then
+            for length = 2, math.min(M.effective_root_length, #record.code) do
+                local root = string.sub(record.code, 1, length)
+                if not M.self_words_by_root[root] then
+                    M.self_words_by_root[root] = {}
+                end
+                table.insert(M.self_words_by_root[root], record)
+            end
+        end
+    end
+end
+
+local function clear_self_word_cache()
+    M.self_words_cache = nil
+    M.self_words_by_root = nil
+end
+
 local function load_self_words()
     if M.self_words_cache then
         return
@@ -415,6 +507,7 @@ local function load_self_words()
     M.self_words_cache = {}
     local file = io.open(data_path(M.self_word_file), "r")
     if not file then
+        rebuild_self_word_buckets()
         return
     end
     for line in file:lines() do
@@ -433,6 +526,17 @@ local function load_self_words()
         end
     end
     file:close()
+    rebuild_self_word_buckets()
+end
+
+function M.self_word_candidates(input)
+    load_self_words()
+    if not input or #input < 2 then
+        return M.self_words_cache
+    end
+    local root = string.sub(
+        input, 1, math.min(M.effective_root_length, #input))
+    return M.self_words_by_root[root] or {}
 end
 
 local function write_self_words()
@@ -847,8 +951,8 @@ local function scan_entries(input, profile)
     if profile then
         profile:mark("dictionary_scan")
     end
-    load_self_words()
-    for key, record in pairs(M.self_words_cache) do
+    for _, record in pairs(M.self_word_candidates(input)) do
+        local key = record.word .. "\t" .. record.code
         if record.active and not found_self[key]
             and string.sub(record.code, 1, #input) == input then
             local id = "self:" .. record.word .. ":" .. record.code
@@ -1065,10 +1169,11 @@ function M.update_self_words(updates, only_missing)
         end
     end
     if changed and not write_self_words() then
-        M.self_words_cache = nil
+        clear_self_word_cache()
         return nil, "self_word_write_failed"
     end
     if changed then
+        rebuild_self_word_buckets()
         M.invalidate_effective_codes(affected_codes)
     end
     return true, changed
@@ -1172,6 +1277,9 @@ end
 migrate_undo_files = function()
     if not ensure_undo_directory() then
         return false
+    end
+    if M.dictionary_profile ~= "pantsu" then
+        return true
     end
     local ok = migrate_file(
         "pantsu_undo_history.tsv", history_path())
@@ -1358,7 +1466,7 @@ function M.rollback_pending()
         remove_pending()
         M.overrides = nil
         M.override_lookup = nil
-        M.self_words_cache = nil
+        clear_self_word_cache()
         M.signature_cache = nil
         M.invalidate_effective_index()
         return override_ok and order_ok and self_word_ok
@@ -1379,7 +1487,7 @@ function M.rollback_pending()
     remove_pending()
     M.overrides = nil
     M.override_lookup = nil
-    M.self_words_cache = nil
+    clear_self_word_cache()
     M.signature_cache = nil
     M.invalidate_effective_index()
     return ok
@@ -1566,7 +1674,7 @@ function M.undo(index)
     remove_pending()
     M.overrides = nil
     M.override_lookup = nil
-    M.self_words_cache = nil
+    clear_self_word_cache()
     M.signature_cache = nil
     M.invalidate_effective_index()
     append_history("undo", "-", "-", description)

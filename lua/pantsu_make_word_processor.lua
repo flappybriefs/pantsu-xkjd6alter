@@ -202,9 +202,18 @@ local function processor(key_event, env)
 end
 
 local function init(env)
+    local schema = env.engine.schema
+    local schema_id = schema.schema_id
+        or (schema.config
+            and schema.config:get_string("schema/schema_id"))
+        or "pantsu"
+    if store.set_dictionary_profile(schema_id) then
+        dynamic.invalidate()
+    end
+    core.set_dictionary_profile(schema_id)
     store.ensure_runtime_files()
     core.restore_self_words()
-    local config = env.engine.schema.config
+    local config = schema.config
     env.topup_set = string_to_set(config:get_string("topup/topup_with"))
     env.alphabet = string_to_set(config:get_string("speller/alphabet"))
     env.topup_min = config:get_int("topup/min_length")

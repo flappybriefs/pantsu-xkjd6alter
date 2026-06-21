@@ -23,6 +23,17 @@ M.dictionary_files = {
     "pantsu.zzc.dict.yaml",
     "pantsu.waigua.dict.yaml",
 }
+local dictionary_profiles = {
+    pantsu = M.dictionary_files,
+    pantsu_refined = {
+        "pantsu.refined.core.dict.yaml",
+        "pantsu.danzi.dict.yaml",
+        "pantsu.refined.dict.yaml",
+        "pantsu.temp.dict.yaml",
+        "pantsu.user.dict.yaml",
+        "pantsu.zzc.dict.yaml",
+    },
+}
 M.word_region_start = "#region <自造词>#"
 M.word_region_end = "#endregion <自造词>#"
 
@@ -40,6 +51,13 @@ M.last_codes = {}
 M.last_refresh_codes = {}
 M.pending_plan = nil
 M.preview_text = nil
+
+function M.set_dictionary_profile(name)
+    M.dictionary_files =
+        dictionary_profiles[name] or dictionary_profiles.pantsu
+    M.loaded_words = false
+    M.words_by_code = nil
+end
 
 local function utf8_chars(text)
     local chars = {}

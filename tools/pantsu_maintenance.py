@@ -3,28 +3,22 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
+import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
+from pantsu_maintenance_profiles import (
+    SCHEME_PROFILES,
+    STATE_FILES,
+    profiles_for_dictionary,
+    selected_profiles,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
-STATE_FILES = [
-    "pantsu_overrides.tsv",
-    "pantsu_candidate_order.tsv",
-    "pantsu_self_words.tsv",
-    "pantsu.user.dict.yaml",
-    "pantsu.zzc.dict.yaml",
-    "pantsu_history.tsv",
-]
-DICTIONARIES = [
-    "pantsu.core.dict.yaml",
-    "pantsu.danzi.dict.yaml",
-    "pantsu.cizu.dict.yaml",
-    "pantsu.temp.dict.yaml",
-    "pantsu.user.dict.yaml",
-    "pantsu.zzc.dict.yaml",
-    "pantsu.waigua.dict.yaml",
-]
+LOCAL_CONFIG = ROOT / ".pantsu_maintenance.json"
 
 
 def atomic_write(path: Path, text: str) -> None:
@@ -33,11 +27,11 @@ def atomic_write(path: Path, text: str) -> None:
     temp.replace(path)
 
 
-def backup() -> Path:
+def backup(extra_files: tuple[str, ...] = ()) -> Path:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     target = ROOT / "backups" / stamp
     target.mkdir(parents=True, exist_ok=True)
-    for name in STATE_FILES:
+    for name in dict.fromkeys((*STATE_FILES, *extra_files)):
         source = ROOT / name
         if source.exists():
             shutil.copy2(source, target / name)
@@ -101,6 +95,48 @@ def write_self_word_records(entries: dict[str, list[str]]) -> None:
     atomic_write(ROOT / "pantsu_self_words.tsv", "\n".join(lines) + "\n")
 
 
+def parse_usage(directory: Path) -> dict[tuple[str, str], tuple[int, int]]:
+    result: dict[tuple[str, str], tuple[int, int]] = {}
+    for name, kind in [
+        ("pantsu_usage.tsv", "word"),
+        ("pantsu_usage_events.tsv", "event"),
+    ]:
+        path = directory / name
+        if not path.exists():
+            continue
+        for raw in path.read_text(encoding="utf-8-sig").splitlines():
+            fields = raw.split("\t")
+            if (
+                len(fields) != 5
+                or fields[0] != kind
+                or not fields[3].isdigit()
+                or not fields[4].isdigit()
+            ):
+                continue
+            key = (fields[1], fields[2])
+            incoming = (int(fields[3]), int(fields[4]))
+            current = result.get(key)
+            if current is None or incoming > current:
+                result[key] = incoming
+    return result
+
+
+def write_usage(entries: dict[tuple[str, str], tuple[int, int]]) -> None:
+    lines = ["version\t1"]
+    for (word, device), (count, updated) in sorted(entries.items()):
+        lines.append(
+            "\t".join([
+                "word",
+                word,
+                device,
+                str(count),
+                str(updated),
+            ])
+        )
+    atomic_write(ROOT / "pantsu_usage.tsv", "\n".join(lines) + "\n")
+    atomic_write(ROOT / "pantsu_usage_events.tsv", "version\t1\n")
+
+
 def parse_candidate_orders(path: Path) -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
     if not path.exists():
@@ -137,7 +173,10 @@ def parse_candidate_orders(path: Path) -> dict[str, dict[str, object]]:
     return result
 
 
-def write_candidate_orders(entries: dict[str, dict[str, object]]) -> None:
+def write_candidate_orders(
+    entries: dict[str, dict[str, object]],
+    path: Path | None = None,
+) -> None:
     lines: list[str] = ["version\t2"]
     for code in sorted(entries):
         state = entries[code]
@@ -154,13 +193,18 @@ def write_candidate_orders(entries: dict[str, dict[str, object]]) -> None:
                 for record in state["items"]
             )
     atomic_write(
-        ROOT / "pantsu_candidate_order.tsv",
+        path or ROOT / "pantsu_candidate_order.tsv",
         "\n".join(lines) + "\n",
     )
 
 
-def merge_sync(directories: list[str]) -> None:
-    backup()
+def merge_sync(
+    directories: list[str],
+    *,
+    create_backup: bool = True,
+) -> None:
+    if create_backup:
+        backup()
     merged = parse_overrides(ROOT / "pantsu_overrides.tsv")
     conflicts: list[str] = []
     for directory in directories:
@@ -173,33 +217,43 @@ def merge_sync(directories: list[str]) -> None:
                 conflicts.append("\t".join(["override", key, *current, *record]))
     write_overrides(merged)
 
-    order_sources = [ROOT / "pantsu_candidate_order.tsv"] + [
-        Path(directory) / "pantsu_candidate_order.tsv"
-        for directory in directories
-    ]
-    order_sources = [path for path in order_sources if path.exists()]
-    merged_orders: dict[str, dict[str, object]] = {}
-    for path in order_sources:
-        for code, state in parse_candidate_orders(path).items():
-            current = merged_orders.get(code)
-            incoming_key = (int(state["updated"]), str(state["device"]))
-            current_key = (
-                int(current["updated"]),
-                str(current["device"]),
-            ) if current else None
-            if current and incoming_key[0] == current_key[0] and current != state:
-                conflicts.append(
-                    "\t".join([
-                        "candidate_order",
-                        code,
-                        str(current["device"]),
-                        str(state["device"]),
-                        str(path),
-                    ])
-                )
-            if current is None or incoming_key > current_key:
-                merged_orders[code] = state
-    write_candidate_orders(merged_orders)
+    for profile in SCHEME_PROFILES.values():
+        order_sources = [ROOT / profile.candidate_order_file] + [
+            Path(directory) / profile.candidate_order_file
+            for directory in directories
+        ]
+        order_sources = [path for path in order_sources if path.exists()]
+        merged_orders: dict[str, dict[str, object]] = {}
+        for path in order_sources:
+            for code, state in parse_candidate_orders(path).items():
+                current = merged_orders.get(code)
+                incoming_key = (int(state["updated"]), str(state["device"]))
+                current_key = (
+                    int(current["updated"]),
+                    str(current["device"]),
+                ) if current else None
+                if (
+                    current
+                    and incoming_key[0] == current_key[0]
+                    and current != state
+                ):
+                    conflicts.append(
+                        "\t".join([
+                            "candidate_order",
+                            profile.key,
+                            code,
+                            str(current["device"]),
+                            str(state["device"]),
+                            str(path),
+                        ])
+                    )
+                if current is None or incoming_key > current_key:
+                    merged_orders[code] = state
+        if order_sources:
+            write_candidate_orders(
+                merged_orders,
+                ROOT / profile.candidate_order_file,
+            )
 
     self_words = parse_self_word_records(ROOT / "pantsu_self_words.tsv")
     for directory in directories:
@@ -215,6 +269,14 @@ def merge_sync(directories: list[str]) -> None:
                     "\t".join(["self_word", key, *current, *record])
                 )
     write_self_word_records(self_words)
+
+    usage = parse_usage(ROOT)
+    for directory in directories:
+        for key, incoming in parse_usage(Path(directory)).items():
+            current = usage.get(key)
+            if current is None or incoming > current:
+                usage[key] = incoming
+    write_usage(usage)
     if conflicts:
         atomic_write(
             ROOT / "pantsu_sync_conflicts.tsv",
@@ -224,7 +286,9 @@ def merge_sync(directories: list[str]) -> None:
         (ROOT / "pantsu_sync_conflicts.tsv").unlink(missing_ok=True)
     print(
         f"合并完成：{len(merged)} 条覆盖，"
-        f"{len(self_words)} 个自造词状态，{len(conflicts)} 条冲突"
+        f"{len(self_words)} 个自造词状态，"
+        f"{len({word for word, _ in usage})} 个词频，"
+        f"{len(conflicts)} 条冲突"
     )
 
 
@@ -232,18 +296,24 @@ def installation_id() -> str:
     path = ROOT / "installation.yaml"
     for raw in path.read_text(encoding="utf-8").splitlines():
         if raw.startswith("installation_id:"):
-            return raw.split(":", 1)[1].strip()
+            return raw.split(":", 1)[1].strip().strip("\"'")
     return "unknown"
 
 
-def sync_export() -> None:
-    target = ROOT / "sync" / installation_id()
+def copy_state(target: Path) -> None:
     target.mkdir(parents=True, exist_ok=True)
     for name in STATE_FILES:
         source = ROOT / name
         if source.exists():
             shutil.copy2(source, target / name)
+
+
+def sync_export(destination: Path | None = None) -> Path:
+    write_usage(parse_usage(ROOT))
+    target = (destination or ROOT / "sync") / installation_id()
+    copy_state(target)
     print(f"已导出同步状态到 {target}")
+    return target
 
 
 def sync_merge() -> None:
@@ -259,16 +329,262 @@ def sync_merge() -> None:
     merge_sync(directories)
 
 
+def load_local_config() -> dict[str, str]:
+    if not LOCAL_CONFIG.exists():
+        return {}
+    try:
+        value = json.loads(LOCAL_CONFIG.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def save_shared_directory(path: Path) -> None:
+    atomic_write(
+        LOCAL_CONFIG,
+        json.dumps(
+            {"shared_directory": str(path.expanduser().resolve())},
+            ensure_ascii=False,
+            indent=2,
+        ) + "\n",
+    )
+
+
+def looks_like_rime_root(path: Path) -> bool:
+    return (
+        path.is_dir()
+        and (path / "installation.yaml").exists()
+        and (
+            (path / "hamster.yaml").exists()
+            or (path / "pantsu.schema.yaml").exists()
+            or (path / "pantsu_self_words.tsv").exists()
+        )
+    )
+
+
+def automatic_shared_directories() -> list[Path]:
+    home = Path.home()
+    candidates = [
+        home
+        / "Library/Mobile Documents/"
+        / "iCloud~dev~fuxiao~app~hamsterapp/Documents/RIME/Rime",
+        home
+        / "Library/Mobile Documents/"
+        / "iCloud~com~ihsiao~apps~Hamster3/Documents/RimeUserData",
+        home / "Library/Mobile Documents/com~apple~CloudDocs/rimesync",
+    ]
+    return [path for path in candidates if path.is_dir()]
+
+
+def shared_directory(explicit: str | None = None) -> Path | None:
+    if explicit:
+        path = Path(explicit).expanduser()
+        return path if path.is_dir() else None
+    environment = os.environ.get("PANTSU_SYNC_DIR")
+    if environment:
+        path = Path(environment).expanduser()
+        if path.is_dir():
+            return path
+    configured = load_local_config().get("shared_directory")
+    if configured:
+        path = Path(configured).expanduser()
+        if path.is_dir():
+            return path
+    candidates = automatic_shared_directories()
+    for path in candidates:
+        if looks_like_rime_root(path):
+            return path
+    return candidates[0] if candidates else None
+
+
+def state_directories(path: Path) -> list[Path]:
+    result: list[Path] = []
+    seen: set[Path] = set()
+
+    def add(candidate: Path) -> None:
+        resolved = candidate.resolve()
+        if resolved == ROOT.resolve() or resolved in seen:
+            return
+        if any((candidate / name).exists() for name in STATE_FILES):
+            seen.add(resolved)
+            result.append(candidate)
+
+    add(path)
+    sync = path / "sync"
+    if sync.is_dir():
+        for child in sorted(sync.iterdir()):
+            if child.is_dir() and child.name != installation_id():
+                add(child)
+    if not looks_like_rime_root(path):
+        for child in sorted(path.iterdir()):
+            if child.is_dir() and child.name != installation_id():
+                add(child)
+    return result
+
+
+def reload_squirrel() -> bool:
+    executable = Path(
+        "/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel"
+    )
+    if not executable.exists():
+        return False
+    result = subprocess.run(
+        [str(executable), "--reload"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def sync_phone(
+    directory: str | None = None,
+    *,
+    reload_desktop: bool = True,
+) -> bool:
+    target = shared_directory(directory)
+    if target is None:
+        print("没有找到仓输入法或 iCloud 同步目录")
+        print("请先在交互菜单中设置同步目录")
+        return False
+    sources = state_directories(target)
+    if not sources:
+        print(f"同步目录中尚无可合并的手机状态：{target}")
+        print("请先在仓输入法中执行一次同步或导出用户数据")
+        return False
+
+    backup()
+    merge_sync([str(path) for path in sources], create_backup=False)
+    sync_export()
+
+    if looks_like_rime_root(target):
+        copy_state(target)
+        copy_state(target / "sync" / installation_id())
+    else:
+        copy_state(target / installation_id())
+
+    reloaded = reload_squirrel() if reload_desktop else False
+    print(f"一键同步完成：已合并 {len(sources)} 个手机状态目录")
+    print(f"共享目录：{target}")
+    if reload_desktop:
+        print("电脑输入法已重新加载" if reloaded else "未检测到鼠须管，已跳过重载")
+    print("请在仓输入法中执行一次“同步/重新部署”，让手机读取合并结果")
+    return True
+
+
+def choose_shared_directory() -> Path | None:
+    current = shared_directory()
+    print(f"当前目录：{current or '未设置'}")
+    print("直接回车使用自动识别结果，或粘贴仓输入法/iCloud目录路径。")
+    value = input("同步目录：").strip()
+    path = Path(value).expanduser() if value else current
+    if path is None or not path.is_dir():
+        print("目录不存在，设置未保存")
+        return None
+    save_shared_directory(path)
+    print(f"已保存：{path.resolve()}")
+    return path
+
+
+def pause() -> None:
+    input("\n按回车键返回菜单……")
+
+
+def restore_interactive() -> None:
+    directory = ROOT / "backups"
+    snapshots = sorted(
+        [path for path in directory.glob("*") if path.is_dir()],
+        reverse=True,
+    )
+    if not snapshots:
+        print("目前没有备份")
+        return
+    for index, path in enumerate(snapshots[:10], 1):
+        print(f"{index}. {path.name}")
+    value = input("输入要恢复的序号，直接回车取消：").strip()
+    if not value.isdigit() or not 1 <= int(value) <= min(10, len(snapshots)):
+        print("已取消")
+        return
+    restore(snapshots[int(value) - 1].name)
+
+
+def advanced_menu() -> None:
+    while True:
+        print("\n—— 高级维护 ——")
+        print("1. 查看操作历史")
+        print("2. 合并本机 sync 目录")
+        print("3. 应用覆盖到基础词库")
+        print("4. 修复失效覆盖记录")
+        print("5. 恢复历史备份")
+        print("0. 返回")
+        choice = input("请选择：").strip()
+        if choice == "1":
+            show_history(30)
+        elif choice == "2":
+            sync_merge()
+        elif choice == "3":
+            apply_overrides()
+        elif choice == "4":
+            repair_overrides()
+        elif choice == "5":
+            restore_interactive()
+        elif choice == "0":
+            return
+        else:
+            print("请输入菜单中的数字")
+        pause()
+
+
+def interactive() -> None:
+    while True:
+        target = shared_directory()
+        print("\n==============================")
+        print("       胖次键道维护工具")
+        print("==============================")
+        print(f"电脑设备：{installation_id()}")
+        print(f"手机同步：{target or '尚未设置'}")
+        print("\n1. 一键同步电脑与手机")
+        print("2. 备份当前状态")
+        print("3. 检查方案健康")
+        print("4. 查看性能记录")
+        print("5. 设置手机同步目录")
+        print("6. 高级维护")
+        print("0. 退出")
+        choice = input("请选择：").strip()
+        if choice == "1":
+            sync_phone()
+        elif choice == "2":
+            backup()
+        elif choice == "3":
+            health()
+        elif choice == "4":
+            show_performance(20)
+        elif choice == "5":
+            choose_shared_directory()
+        elif choice == "6":
+            advanced_menu()
+        elif choice == "0":
+            return
+        else:
+            print("请输入菜单中的数字")
+        pause()
+
+
 def migrate_candidate_orders() -> None:
     backup()
-    path = ROOT / "pantsu_candidate_order.tsv"
-    states = parse_candidate_orders(path)
     local_id = installation_id()
-    for state in states.values():
-        if state["device"] == "legacy":
-            state["device"] = local_id
-    write_candidate_orders(states)
-    print(f"已迁移 {len(states)} 个同码排序状态")
+    total = 0
+    for profile in SCHEME_PROFILES.values():
+        path = ROOT / profile.candidate_order_file
+        if not path.exists():
+            continue
+        states = parse_candidate_orders(path)
+        for state in states.values():
+            if state["device"] == "legacy":
+                state["device"] = local_id
+        write_candidate_orders(states, path)
+        total += len(states)
+    print(f"已迁移 {total} 个同码排序状态")
 
 
 def show_performance(limit: int) -> None:
@@ -335,14 +651,35 @@ def merge_self_words(directories: list[str], conflicts: list[str]) -> None:
     atomic_write(target, "\n".join(output) + "\n")
 
 
-def health() -> None:
-    issues: list[str] = []
+def health(scheme: str = "all") -> list[list[str]]:
+    issues: list[list[str]] = []
     valid_chars = set("abcdefghijklmnopqrstuvwxyz;/`")
-    seen: dict[tuple[str, str], tuple[str, int, str]] = {}
-    active_words: set[tuple[str, str]] = set()
+    profiles = selected_profiles(scheme)
+    entries_by_file: dict[str, list[dict[str, object]]] = {}
     user_lines, user_start, user_end = self_word_lines(
         ROOT / "pantsu.zzc.dict.yaml"
     )
+
+    def add_issue(
+        level: str,
+        kind: str,
+        profile: str,
+        location: str,
+        word: str,
+        code: str,
+        reason: str,
+        suggestion: str,
+    ) -> None:
+        issues.append([
+            level,
+            kind,
+            profile,
+            location,
+            word,
+            code,
+            reason,
+            suggestion,
+        ])
 
     def is_self_word(name: str, number: int) -> bool:
         return (
@@ -350,11 +687,29 @@ def health() -> None:
             and user_start + 2 <= number <= user_end
         )
 
-    for name in DICTIONARIES:
+    dictionary_names = tuple(dict.fromkeys(
+        name for profile in profiles for name in profile.dictionaries
+    ))
+    for name in dictionary_names:
         path = ROOT / name
+        file_profiles = "、".join(
+            profile.label
+            for profile in profiles
+            if name in profile.dictionaries
+        )
         if not path.exists():
-            issues.append(f"missing\t{name}")
+            add_issue(
+                "错误",
+                "词库文件缺失",
+                file_profiles,
+                name,
+                "",
+                "",
+                "方案引用的词库文件不存在",
+                "恢复该文件后重新部署",
+            )
             continue
+        file_entries: list[dict[str, object]] = []
         for number, raw in enumerate(
             path.read_text(encoding="utf-8-sig").splitlines(), 1
         ):
@@ -362,51 +717,220 @@ def health() -> None:
                 continue
             fields = raw.split("\t")
             word, code = fields[0], fields[1].strip()
+            location = f"{name}:{number}"
             if not word or not code:
-                issues.append(f"empty\t{name}:{number}")
+                add_issue(
+                    "错误",
+                    "空词条",
+                    file_profiles,
+                    location,
+                    word,
+                    code,
+                    "词汇或编码为空",
+                    "补全该行或删除无效行",
+                )
                 continue
             if any(char not in valid_chars for char in code):
-                issues.append(f"invalid_code\t{name}:{number}\t{word}\t{code}")
-            key = (word, code)
-            if key in seen:
-                old_name, old_number, old_raw = seen[key]
-                expected_self_override = (
-                    is_self_word(old_name, old_number)
-                    or is_self_word(name, number)
+                add_issue(
+                    "错误",
+                    "非法编码",
+                    file_profiles,
+                    location,
+                    word,
+                    code,
+                    "编码包含方案不支持的字符",
+                    "修改为合法的键道编码",
                 )
-                if raw == old_raw and not expected_self_override:
-                    issues.append(
-                        f"duplicate\t{word}\t{code}\t"
-                        f"{old_name}:{old_number}\t{name}:{number}"
-                    )
-            else:
-                seen[key] = (name, number, raw)
-            active_words.add(key)
+            file_entries.append({
+                "path": name,
+                "line": number,
+                "word": word,
+                "code": code,
+                "raw": raw,
+            })
+        entries_by_file[name] = file_entries
 
-    orders = ROOT / "pantsu_candidate_order.tsv"
-    if orders.exists():
+    for profile in profiles:
+        seen: dict[tuple[str, str], tuple[str, int, str]] = {}
+        for name in profile.dictionaries:
+            for entry in entries_by_file.get(name, []):
+                word = str(entry["word"])
+                code = str(entry["code"])
+                raw = str(entry["raw"])
+                number = int(entry["line"])
+                key = (word, code)
+                if key in seen:
+                    old_name, old_number, old_raw = seen[key]
+                    expected_self_override = (
+                        is_self_word(old_name, old_number)
+                        or is_self_word(name, number)
+                    )
+                    if raw == old_raw and not expected_self_override:
+                        add_issue(
+                            "警告",
+                            "重复词条",
+                            profile.label,
+                            f"{old_name}:{old_number}；{name}:{number}",
+                            word,
+                            code,
+                            "该方案的两个基础词库中存在完全相同的词条",
+                            "确认是否需要保留两份",
+                        )
+                else:
+                    seen[key] = (name, number, raw)
+
+    overrides = parse_overrides(ROOT / "pantsu_overrides.tsv")
+    valid_overrides: dict[tuple[str, int], list[str]] = {}
+    selected_keys = {profile.key for profile in profiles}
+    for record in overrides.values():
+        owners = profiles_for_dictionary(record[2])
+        if not owners:
+            if scheme == "all":
+                add_issue(
+                    "错误",
+                    "覆盖来源未配置",
+                    "公共状态",
+                    record[2],
+                    record[4],
+                    record[6],
+                    "覆盖记录指向的文件不属于任何已配置方案",
+                    "修正方案配置或清理该覆盖记录",
+                )
+            continue
+        owners = tuple(
+            owner for owner in owners if owner.key in selected_keys
+        )
+        if not owners:
+            continue
+        owner_label = "、".join(owner.label for owner in owners)
+        path = ROOT / record[2]
+        location = f"{record[2]}:{record[3]}"
+        try:
+            line_number = int(record[3])
+        except ValueError:
+            add_issue(
+                "错误",
+                "覆盖记录损坏",
+                owner_label,
+                location,
+                record[4],
+                record[6],
+                "覆盖记录中的行号不是数字",
+                "运行高级维护中的“修复失效覆盖记录”",
+            )
+            continue
+        if not path.exists():
+            add_issue(
+                "错误",
+                "覆盖来源缺失",
+                owner_label,
+                location,
+                record[4],
+                record[6],
+                "覆盖记录指向的基础词库不存在",
+                "恢复词库或清理该覆盖记录",
+            )
+            continue
+        source = path.read_text(encoding="utf-8-sig").splitlines()
+        if line_number < 1 or line_number > len(source):
+            add_issue(
+                "错误",
+                "覆盖位置失效",
+                owner_label,
+                location,
+                record[4],
+                record[6],
+                "基础词库行号已经超出文件范围",
+                "运行高级维护中的“修复失效覆盖记录”",
+            )
+            continue
+        fields = source[line_number - 1].rstrip("\r").split("\t")
+        if len(fields) < 2 or fields[0] != record[4] or fields[1] != record[5]:
+            actual = "\t".join(fields[:2])
+            add_issue(
+                "错误",
+                "覆盖来源已变化",
+                owner_label,
+                location,
+                record[4],
+                record[6],
+                f"原记录是“{record[4]} {record[5]}”，"
+                f"当前位置现在是“{actual}”",
+                "运行高级维护中的“修复失效覆盖记录”",
+            )
+            continue
+        valid_overrides[(record[2], line_number)] = record
+
+    active_words_by_profile: dict[str, set[tuple[str, str]]] = {}
+    for profile in profiles:
+        active_words: set[tuple[str, str]] = set()
+        for name in profile.dictionaries:
+            for entry in entries_by_file.get(name, []):
+                word = str(entry["word"])
+                code = str(entry["code"])
+                override = valid_overrides.get(
+                    (name, int(entry["line"]))
+                )
+                if override:
+                    if override[7] != "1":
+                        continue
+                    word = override[4]
+                    code = override[6]
+                active_words.add((word, code))
+        active_words_by_profile[profile.key] = active_words
+
+    for profile in profiles:
+        orders = ROOT / profile.candidate_order_file
+        if not orders.exists():
+            continue
         for code, state in parse_candidate_orders(orders).items():
             if not state["active"]:
                 continue
             for _, word in state["items"]:
-                if (word, code) not in active_words:
-                    issues.append(f"orphan_order\t{code}\t{word}")
-
-    overrides = parse_overrides(ROOT / "pantsu_overrides.tsv")
-    for record in overrides.values():
-        path = ROOT / record[2]
-        line_number = int(record[3])
-        source = path.read_text(encoding="utf-8-sig").splitlines()
-        if line_number > len(source):
-            issues.append(f"orphan_override\t{record[1]}")
-            continue
-        raw = source[line_number - 1].rstrip("\r")
-        if raw != f"{record[4]}\t{record[5]}":
-            issues.append(f"changed_source\t{record[1]}\t{raw}")
+                if (word, code) not in active_words_by_profile[profile.key]:
+                    add_issue(
+                        "警告",
+                        "候选顺序失效",
+                        profile.label,
+                        profile.candidate_order_file,
+                        word,
+                        code,
+                        "该方案的生效词库中找不到这个词与编码的组合",
+                        "确认词条已删除后，可清理该候选顺序记录",
+                    )
 
     report = ROOT / "pantsu_health_report.tsv"
-    atomic_write(report, "\n".join(issues) + ("\n" if issues else "ok\n"))
-    print(f"检查完成：{len(issues)} 个问题，报告位于 {report}")
+    rows = [[
+        "级别", "类型", "方案", "位置", "词汇", "编码", "原因", "建议"
+    ]]
+    if issues:
+        rows.extend(issues)
+    else:
+        rows.append([
+            "正常",
+            "检查通过",
+            "、".join(profile.label for profile in profiles),
+            "",
+            "",
+            "",
+            "所选方案的生效词库、覆盖层和候选顺序一致",
+            "无需处理",
+        ])
+    atomic_write(
+        report,
+        "\n".join("\t".join(row) for row in rows) + "\n",
+    )
+    errors = sum(issue[0] == "错误" for issue in issues)
+    warnings = sum(issue[0] == "警告" for issue in issues)
+    print(
+        f"检查完成：{errors} 个错误，{warnings} 个警告；"
+        f"报告位于 {report}"
+    )
+    if issues:
+        print("报告已列出每项问题的原因和处理建议")
+    else:
+        print("当前方案状态正常，无需处理")
+    return issues
 
 
 def show_history(limit: int) -> None:
@@ -419,14 +943,25 @@ def show_history(limit: int) -> None:
         print(line)
 
 
-def apply_overrides() -> None:
+def apply_overrides(scheme: str = "all") -> None:
     entries = parse_overrides(ROOT / "pantsu_overrides.tsv")
-    if not entries:
+    allowed = {
+        name
+        for profile in selected_profiles(scheme)
+        for name in profile.dictionaries
+    }
+    selected = {
+        key: record
+        for key, record in entries.items()
+        if record[2] in allowed
+    }
+    if not selected:
         print("没有需要合并的覆盖")
         return
-    backup()
+    changed_files = tuple(sorted({record[2] for record in selected.values()}))
+    backup(changed_files)
     grouped: dict[str, dict[int, list[str]]] = {}
-    for record in entries.values():
+    for record in selected.values():
         grouped.setdefault(record[2], {})[int(record[3])] = record
     for name, changes in grouped.items():
         path = ROOT / name
@@ -442,15 +977,34 @@ def apply_overrides() -> None:
             if record[7] == "1":
                 output.append(f"{record[4]}\t{record[6]}")
         atomic_write(path, "\n".join(output) + "\n")
-    write_overrides({})
-    print(f"已将 {len(entries)} 条覆盖合并回基础词库")
+    remaining = {
+        key: record for key, record in entries.items() if key not in selected
+    }
+    write_overrides(remaining)
+    labels = "、".join(profile.label for profile in selected_profiles(scheme))
+    print(f"已将 {len(selected)} 条覆盖合并回{labels}基础词库")
 
 
-def repair_overrides() -> None:
+def repair_overrides(scheme: str = "all") -> None:
+    allowed = {
+        name
+        for profile in selected_profiles(scheme)
+        for name in profile.dictionaries
+    }
     backup()
     entries = parse_overrides(ROOT / "pantsu_overrides.tsv")
+    selected = {
+        key: record
+        for key, record in entries.items()
+        if record[2] in allowed
+    }
+    untouched = {
+        key: record
+        for key, record in entries.items()
+        if record[2] not in allowed
+    }
     by_source: dict[tuple[str, str, str], list[list[str]]] = {}
-    for record in entries.values():
+    for record in selected.values():
         by_source.setdefault(
             (record[2], record[4], record[5]), []
         ).append(record)
@@ -484,7 +1038,7 @@ def repair_overrides() -> None:
                 unresolved.append("\t".join(record))
             repaired[record[1]] = record
 
-    write_overrides(repaired)
+    write_overrides({**untouched, **repaired})
     if unresolved:
         atomic_write(
             ROOT / "pantsu_override_repair_unresolved.tsv",
@@ -510,11 +1064,20 @@ def main() -> None:
     merge_parser.add_argument("directories", nargs="+")
     history_parser = sub.add_parser("history")
     history_parser.add_argument("-n", type=int, default=30)
-    sub.add_parser("health")
-    sub.add_parser("apply-overrides")
-    sub.add_parser("repair-overrides")
+    scheme_choices = ["all", *SCHEME_PROFILES]
+    health_parser = sub.add_parser("health")
+    health_parser.add_argument("--scheme", choices=scheme_choices, default="all")
+    apply_parser = sub.add_parser("apply-overrides")
+    apply_parser.add_argument("--scheme", choices=scheme_choices, default="all")
+    repair_parser = sub.add_parser("repair-overrides")
+    repair_parser.add_argument("--scheme", choices=scheme_choices, default="all")
     sub.add_parser("sync-export")
     sub.add_parser("sync-merge")
+    phone_parser = sub.add_parser("sync-phone")
+    phone_parser.add_argument("directory", nargs="?")
+    configure_parser = sub.add_parser("configure-sync")
+    configure_parser.add_argument("directory", nargs="?")
+    sub.add_parser("interactive")
     sub.add_parser("migrate-orders")
     performance_parser = sub.add_parser("performance")
     performance_parser.add_argument("-n", type=int, default=20)
@@ -528,15 +1091,29 @@ def main() -> None:
     elif args.command == "history":
         show_history(args.n)
     elif args.command == "health":
-        health()
+        health(args.scheme)
     elif args.command == "apply-overrides":
-        apply_overrides()
+        apply_overrides(args.scheme)
     elif args.command == "repair-overrides":
-        repair_overrides()
+        repair_overrides(args.scheme)
     elif args.command == "sync-export":
         sync_export()
     elif args.command == "sync-merge":
         sync_merge()
+    elif args.command == "sync-phone":
+        if not sync_phone(args.directory):
+            raise SystemExit(1)
+    elif args.command == "configure-sync":
+        if args.directory:
+            path = Path(args.directory).expanduser()
+            if not path.is_dir():
+                raise SystemExit(f"目录不存在：{path}")
+            save_shared_directory(path)
+            print(f"已保存：{path.resolve()}")
+        else:
+            choose_shared_directory()
+    elif args.command == "interactive":
+        interactive()
     elif args.command == "migrate-orders":
         migrate_candidate_orders()
     elif args.command == "performance":

@@ -2,9 +2,9 @@
 # encoding: utf-8
 
 schema:
-  schema_id: pantsu
-  name: 胖次键道
-  version: "2026-06-21.4"
+  schema_id: pantsu_refined
+  name: 胖次键道·精炼版
+  version: "1.0-experimental"
   author:
     - 大牛（吅吅大山）
     - 胖次
@@ -207,7 +207,7 @@ speller:
 
 
 translator:
-  dictionary: pantsu.extended
+  dictionary: pantsu.refined.extended
   enable_charset_filter: false
   enable_completion: true #提示码开关，不需要候选词提示请改false
   enable_encoder: false
@@ -268,7 +268,7 @@ danzi_lookup:
 
 #拼音反查，如果想显示简码就注释掉前面两行
 pinyin_reverse_lookup:
-  tags: [ danzi_lookup ] 
+  tags: [ danzi_lookup ]
   overwrite_comment: true
   dictionary: pantsufc
   comment_format:
@@ -307,7 +307,7 @@ embeded_cands:
   first_format: "${Stash}[${候選}${Seq}]${Code}${Comment}" # 首選的渲染格式
   next_format: "${Stash}${候選}${Seq}${Comment}"           # 非首選的渲染格式
   separator: " "                                           # 候選之間的分隔符
-  stash_placeholder: "~"  
+  stash_placeholder: "~"
 
 
 key_binder:
