@@ -44,6 +44,9 @@ GitHub仓库链接：https://github.com/flappybriefs/pantsu-xkjd6alter
 ---
 
 ## 一些大的更改
+
+2026-06-21 新制作了个精简方案，词库删减到20万条左右，之前70多万，包含太多无用词汇。
+
 ### 重大更新
 
 2026-06-19 使用vibe coding增加了**自造词**和**调频**及**删词**功能，ChatGPT救我命！
