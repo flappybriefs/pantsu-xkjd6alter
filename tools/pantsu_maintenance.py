@@ -13,8 +13,15 @@ from pathlib import Path
 from pantsu_maintenance_profiles import (
     SCHEME_PROFILES,
     STATE_FILES,
+    active_profile,
     profiles_for_dictionary,
     selected_profiles,
+)
+from pantsu_dictionary import (
+    full_code_for_word,
+    load_char_codes,
+    minimum_code_length,
+    read_entries,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,7 +42,10 @@ def backup(extra_files: tuple[str, ...] = ()) -> Path:
         source = ROOT / name
         if source.exists():
             shutil.copy2(source, target / name)
-    snapshots = sorted((ROOT / "backups").glob("*"))
+    snapshots = sorted(
+        path for path in (ROOT / "backups").glob("*")
+        if path.is_dir()
+    )
     for old in snapshots[:-10]:
         shutil.rmtree(old)
     print(target)
@@ -76,6 +86,38 @@ def write_overrides(entries: dict[str, list[str]]) -> None:
             lines.append(runtime_lines[-1])
     lines.extend("\t".join(entries[key]) for key in sorted(entries))
     atomic_write(ROOT / "pantsu_overrides.tsv", "\n".join(lines) + "\n")
+
+
+def normalize_overrides(
+    entries: dict[str, list[str]],
+) -> tuple[dict[str, list[str]], int]:
+    allowed = set(active_profile().dictionaries)
+    files: dict[str, list[str]] = {}
+    result = {}
+    dropped = 0
+    for key, record in entries.items():
+        name = record[2]
+        if name not in allowed or not record[3].isdigit():
+            dropped += 1
+            continue
+        lines = files.get(name)
+        if lines is None:
+            path = ROOT / name
+            if not path.exists():
+                dropped += 1
+                continue
+            lines = path.read_text(encoding="utf-8-sig").splitlines()
+            files[name] = lines
+        number = int(record[3])
+        if number < 1 or number > len(lines):
+            dropped += 1
+            continue
+        fields = lines[number - 1].rstrip("\r").split("\t")
+        if len(fields) < 2 or fields[0] != record[4] or fields[1] != record[5]:
+            dropped += 1
+            continue
+        result[key] = record
+    return result, dropped
 
 
 def parse_self_word_records(path: Path) -> dict[str, list[str]]:
@@ -215,6 +257,7 @@ def merge_sync(
                 merged[key] = record
             elif int(record[8]) == int(current[8]) and record != current:
                 conflicts.append("\t".join(["override", key, *current, *record]))
+    merged, dropped_overrides = normalize_overrides(merged)
     write_overrides(merged)
 
     for profile in SCHEME_PROFILES.values():
@@ -288,7 +331,8 @@ def merge_sync(
         f"合并完成：{len(merged)} 条覆盖，"
         f"{len(self_words)} 个自造词状态，"
         f"{len({word for word, _ in usage})} 个词频，"
-        f"{len(conflicts)} 条冲突"
+        f"{len(conflicts)} 条冲突，"
+        f"清理 {dropped_overrides} 条旧方案覆盖"
     )
 
 
@@ -306,6 +350,189 @@ def copy_state(target: Path) -> None:
         source = ROOT / name
         if source.exists():
             shutil.copy2(source, target / name)
+
+
+def copy_phone_scheme(target: Path) -> tuple[int, int]:
+    if not looks_like_rime_root(target):
+        return 0, 0
+    profile = active_profile()
+    obsolete = [
+        target / name
+        for name in profile.obsolete_phone_files
+        if (target / name).exists()
+    ]
+    backup_target = None
+    if obsolete:
+        stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup_target = ROOT / "backups" / f"{stamp}-phone-scheme"
+        backup_target.mkdir(parents=True, exist_ok=True)
+        for path in obsolete:
+            shutil.copy2(path, backup_target / path.name)
+    copied = 0
+    for name in profile.phone_files:
+        source = ROOT / name
+        if source.exists():
+            shutil.copy2(source, target / name)
+            copied += 1
+    source_lua = ROOT / "lua"
+    target_lua = target / "lua"
+    if source_lua.is_dir():
+        shutil.copytree(source_lua, target_lua, dirs_exist_ok=True)
+        copied += sum(path.is_file() for path in source_lua.iterdir())
+    for path in obsolete:
+        path.unlink()
+    for directory in state_directories(target):
+        stale = directory / "pantsu_refined_candidate_order.tsv"
+        stale.unlink(missing_ok=True)
+    return copied, len(obsolete)
+
+
+def reconcile_dictionary_self_codes(
+    path: Path,
+    fixed_names: tuple[str, ...],
+    editable_end: int | None = None,
+) -> tuple[int, int]:
+    journal = ROOT / "pantsu_self_words.tsv"
+    if not path.exists() or not journal.exists():
+        return 0, 0
+    self_by_code: dict[str, set[str]] = {}
+    for raw in journal.read_text(encoding="utf-8-sig").splitlines():
+        fields = raw.split("\t")
+        if len(fields) >= 6 and fields[0] == "word" and fields[3] == "1":
+            self_by_code.setdefault(fields[2], set()).add(fields[1])
+    self_codes = set(self_by_code)
+    if not self_codes:
+        return 0, 0
+
+    lines = path.read_text(encoding="utf-8-sig").splitlines()
+    entries = []
+    for index, raw in enumerate(lines):
+        if (
+            (editable_end is not None and index >= editable_end)
+            or raw.startswith("#")
+            or "\t" not in raw
+        ):
+            continue
+        fields = raw.split("\t")
+        entries.append({
+            "line": index,
+            "word": fields[0],
+            "code": fields[1],
+            "fields": fields,
+        })
+    fixed_codes = set(self_codes)
+    if editable_end is not None:
+        fixed_codes.update(
+            code for number, _, code in read_entries(path)
+            if number > editable_end
+        )
+    for name in fixed_names:
+        fixed_codes.update(
+            code for _, _, code in read_entries(ROOT / name)
+        )
+    by_code: dict[str, list[dict[str, object]]] = {}
+    for entry in entries:
+        by_code.setdefault(str(entry["code"]), []).append(entry)
+    primary, options = load_char_codes(ROOT)
+    moved = 0
+    removed = 0
+
+    def relocate(entry, visiting: set[int]) -> bool:
+        nonlocal moved, removed
+        identity = int(entry["line"])
+        if identity in visiting:
+            return False
+        visiting.add(identity)
+        old_code = str(entry["code"])
+        full = full_code_for_word(
+            str(entry["word"]),
+            {old_code},
+            primary,
+            options,
+        )
+        if full:
+            for length in range(
+                max(minimum_code_length(str(entry["word"])), len(old_code) + 1),
+                len(full) + 1,
+            ):
+                target = full[:length]
+                if target in fixed_codes:
+                    continue
+                blockers = [
+                    item for item in by_code.get(target, [])
+                    if item is not entry
+                ]
+                if len(target) < 6 and blockers:
+                    if not all(relocate(item, visiting.copy()) for item in blockers):
+                        continue
+                    blockers = [
+                        item for item in by_code.get(target, [])
+                        if item is not entry
+                    ]
+                if len(target) < 6 and blockers:
+                    continue
+                by_code[old_code].remove(entry)
+                by_code.setdefault(target, []).append(entry)
+                entry["code"] = target
+                fields = list(entry["fields"])
+                fields[1] = target
+                lines[identity] = "\t".join(fields)
+                moved += 1
+                return True
+        by_code[old_code].remove(entry)
+        lines[identity] = ""
+        removed += 1
+        return True
+
+    conflicts = [
+        entry for entry in entries
+        if str(entry["code"]) in self_codes
+    ]
+    for entry in conflicts:
+        if str(entry["word"]) in self_by_code[str(entry["code"])]:
+            by_code[str(entry["code"])].remove(entry)
+            lines[int(entry["line"])] = ""
+            removed += 1
+        else:
+            relocate(entry, set())
+    if moved or removed:
+        atomic_write(
+            path,
+            "\n".join(line for line in lines if line != "") + "\n",
+        )
+    return moved, removed
+
+
+def reconcile_core_self_codes() -> tuple[int, int]:
+    core = ROOT / "pantsu.core.dict.yaml"
+    lines = core.read_text(encoding="utf-8-sig").splitlines()
+    start = (
+        lines.index("#region <630>#")
+        if "#region <630>#" in lines
+        else None
+    )
+    moved_core, removed_core = reconcile_dictionary_self_codes(
+        core,
+        (
+            "pantsu.danzi.dict.yaml",
+            "pantsu.cizu.dict.yaml",
+            "pantsu.temp.dict.yaml",
+            "pantsu.user.dict.yaml",
+            "pantsu.zzc.dict.yaml",
+        ),
+        start,
+    )
+    moved_cizu, removed_cizu = reconcile_dictionary_self_codes(
+        ROOT / "pantsu.cizu.dict.yaml",
+        (
+            "pantsu.core.dict.yaml",
+            "pantsu.danzi.dict.yaml",
+            "pantsu.temp.dict.yaml",
+            "pantsu.user.dict.yaml",
+            "pantsu.zzc.dict.yaml",
+        ),
+    )
+    return moved_core + moved_cizu, removed_core + removed_cizu
 
 
 def sync_export(destination: Path | None = None) -> Path:
@@ -444,31 +671,42 @@ def sync_phone(
 ) -> bool:
     target = shared_directory(directory)
     if target is None:
-        print("没有找到仓输入法或 iCloud 同步目录")
-        print("请先在交互菜单中设置同步目录")
+        print("没有找到仓输入法的 iCloud 目录")
+        print("请在“更多功能”中设置一次手机目录")
         return False
     sources = state_directories(target)
     if not sources:
-        print(f"同步目录中尚无可合并的手机状态：{target}")
-        print("请先在仓输入法中执行一次同步或导出用户数据")
+        print("手机还没有把状态写入 iCloud。")
+        print("只需在仓输入法中执行一次“同步/重新部署”，然后重试。")
         return False
 
-    backup()
+    print("正在读取手机状态并与电脑合并……")
+    backup(("pantsu.core.dict.yaml", "pantsu.cizu.dict.yaml"))
     merge_sync([str(path) for path in sources], create_backup=False)
+    moved, removed_core = reconcile_core_self_codes()
     sync_export()
 
     if looks_like_rime_root(target):
         copy_state(target)
         copy_state(target / "sync" / installation_id())
+        copied, removed = copy_phone_scheme(target)
     else:
         copy_state(target / installation_id())
+        copied, removed = 0, 0
 
     reloaded = reload_squirrel() if reload_desktop else False
-    print(f"一键同步完成：已合并 {len(sources)} 个手机状态目录")
-    print(f"共享目录：{target}")
+    print(f"同步完成：已合并 {len(sources)} 份手机状态")
+    if moved or removed_core:
+        print(
+            f"自造词避码：后移 {moved} 个基础词，"
+            f"移除 {removed_core} 个无法后移的低优先词。"
+        )
+    print("合并结果已经同时写回电脑和手机的 iCloud 目录。")
+    if copied:
+        print(f"手机方案已更新：复制 {copied} 个文件，清理 {removed} 个旧文件。")
     if reload_desktop:
         print("电脑输入法已重新加载" if reloaded else "未检测到鼠须管，已跳过重载")
-    print("请在仓输入法中执行一次“同步/重新部署”，让手机读取合并结果")
+    print("最后在仓输入法中再执行一次“同步/重新部署”即可。")
     return True
 
 
@@ -510,23 +748,29 @@ def restore_interactive() -> None:
 
 def advanced_menu() -> None:
     while True:
-        print("\n—— 高级维护 ——")
+        print("\n—— 更多功能 ——")
         print("1. 查看操作历史")
-        print("2. 合并本机 sync 目录")
-        print("3. 应用覆盖到基础词库")
-        print("4. 修复失效覆盖记录")
-        print("5. 恢复历史备份")
+        print("2. 查看性能记录")
+        print("3. 运行性能与极端压力测试")
+        print("4. 设置手机目录")
+        print("5. 应用覆盖到基础词库")
+        print("6. 修复失效覆盖记录")
+        print("7. 恢复历史备份")
         print("0. 返回")
         choice = input("请选择：").strip()
         if choice == "1":
             show_history(30)
         elif choice == "2":
-            sync_merge()
+            show_performance(20)
         elif choice == "3":
-            apply_overrides()
+            run_stress_test()
         elif choice == "4":
-            repair_overrides()
+            choose_shared_directory()
         elif choice == "5":
+            apply_overrides()
+        elif choice == "6":
+            repair_overrides()
+        elif choice == "7":
             restore_interactive()
         elif choice == "0":
             return
@@ -542,26 +786,20 @@ def interactive() -> None:
         print("       胖次键道维护工具")
         print("==============================")
         print(f"电脑设备：{installation_id()}")
-        print(f"手机同步：{target or '尚未设置'}")
-        print("\n1. 一键同步电脑与手机")
-        print("2. 备份当前状态")
-        print("3. 检查方案健康")
-        print("4. 查看性能记录")
-        print("5. 设置手机同步目录")
-        print("6. 高级维护")
+        print(f"手机目录：{target or '尚未识别'}")
+        print("\n回车. 合并手机与电脑（推荐）")
+        print("2. 检查方案健康")
+        print("3. 备份当前状态")
+        print("4. 更多功能")
         print("0. 退出")
-        choice = input("请选择：").strip()
-        if choice == "1":
+        choice = input("请选择，直接回车开始同步：").strip()
+        if choice in {"", "1"}:
             sync_phone()
         elif choice == "2":
-            backup()
-        elif choice == "3":
             health()
+        elif choice == "3":
+            backup()
         elif choice == "4":
-            show_performance(20)
-        elif choice == "5":
-            choose_shared_directory()
-        elif choice == "6":
             advanced_menu()
         elif choice == "0":
             return
@@ -614,6 +852,17 @@ def show_performance(limit: int) -> None:
             f"{fields[6]:>9} ms  {fields[5]}"
         )
         print(f"  {fields[7]}")
+
+
+def run_stress_test() -> None:
+    script = ROOT / "tools/pantsu_performance.py"
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=ROOT,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(f"压力测试未完成，退出码：{result.returncode}")
 
 
 def self_word_lines(path: Path) -> tuple[list[str], int, int]:
@@ -1081,6 +1330,7 @@ def main() -> None:
     sub.add_parser("migrate-orders")
     performance_parser = sub.add_parser("performance")
     performance_parser.add_argument("-n", type=int, default=20)
+    sub.add_parser("stress")
     args = parser.parse_args()
     if args.command == "backup":
         backup()
@@ -1118,6 +1368,8 @@ def main() -> None:
         migrate_candidate_orders()
     elif args.command == "performance":
         show_performance(args.n)
+    elif args.command == "stress":
+        run_stress_test()
 
 
 if __name__ == "__main__":

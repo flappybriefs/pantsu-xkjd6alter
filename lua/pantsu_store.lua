@@ -8,41 +8,20 @@ M.history_file = "pantsu_history.tsv"
 M.self_word_file = "pantsu_self_words.tsv"
 M.self_word_dict_file = "pantsu.zzc.dict.yaml"
 M.undo_dir = "build/pantsu_undo"
-M.undo_dirs = {
-    pantsu = "build/pantsu_undo",
-    pantsu_refined = "build/pantsu_refined_undo",
-}
 M.undo_fallback_dir = "build"
 M.undo_runtime_dir = nil
 M.undo_limit = 7
 M.index_file = "build/pantsu_dictionary_index.tsv"
 M.index_dirty_file = "build/pantsu_dictionary_index.dirty"
 M.order_file = "pantsu_candidate_order.tsv"
-M.order_files = {
-    pantsu = "pantsu_candidate_order.tsv",
-    pantsu_refined = "pantsu_refined_candidate_order.tsv",
+M.dictionary_files = {
+    "pantsu.core.dict.yaml",
+    "pantsu.danzi.dict.yaml",
+    "pantsu.cizu.dict.yaml",
+    "pantsu.temp.dict.yaml",
+    "pantsu.user.dict.yaml",
+    "pantsu.zzc.dict.yaml",
 }
-M.dictionary_profiles = {
-    pantsu = {
-        "pantsu.core.dict.yaml",
-        "pantsu.danzi.dict.yaml",
-        "pantsu.cizu.dict.yaml",
-        "pantsu.temp.dict.yaml",
-        "pantsu.user.dict.yaml",
-        "pantsu.zzc.dict.yaml",
-        "pantsu.waigua.dict.yaml",
-    },
-    pantsu_refined = {
-        "pantsu.refined.core.dict.yaml",
-        "pantsu.danzi.dict.yaml",
-        "pantsu.refined.dict.yaml",
-        "pantsu.temp.dict.yaml",
-        "pantsu.user.dict.yaml",
-        "pantsu.zzc.dict.yaml",
-    },
-}
-M.dictionary_profile = "pantsu"
-M.dictionary_files = M.dictionary_profiles.pantsu
 
 M.overrides = nil
 M.override_lookup = nil
@@ -61,33 +40,6 @@ M.dirty_index_files = {}
 M.index_dirty_loaded = false
 
 local migrate_undo_files
-
-function M.set_dictionary_profile(name)
-    name = M.dictionary_profiles[name] and name or "pantsu"
-    if M.dictionary_profile == name then
-        return false
-    end
-    M.dictionary_profile = name
-    M.dictionary_files = M.dictionary_profiles[name]
-    M.order_file = M.order_files[name]
-    M.undo_dir = M.undo_dirs[name]
-    M.undo_runtime_dir = nil
-    M.index_file = name == "pantsu_refined"
-        and "build/pantsu_refined_dictionary_index.tsv"
-        or "build/pantsu_dictionary_index.tsv"
-    M.index_dirty_file = name == "pantsu_refined"
-        and "build/pantsu_refined_dictionary_index.dirty"
-        or "build/pantsu_dictionary_index.dirty"
-    M.index = nil
-    M.index_by_prefix = nil
-    M.signature_cache = nil
-    M.dirty_index_files = {}
-    M.index_dirty_loaded = false
-    M.runtime_files_ready = false
-    M.pending_memory = nil
-    M.invalidate_effective_index()
-    return true
-end
 
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
@@ -137,9 +89,7 @@ local function undo_path(name)
         return nil
     end
     if directory == M.undo_fallback_dir then
-        local prefix = M.dictionary_profile == "pantsu_refined"
-            and "pantsu_refined_undo." or "pantsu_undo."
-        return directory .. "/" .. prefix .. name
+        return directory .. "/pantsu_undo." .. name
     end
     return directory .. "/" .. name
 end
@@ -278,27 +228,6 @@ local function ensure_file(path, initial_lines)
     return atomic_lines(path, initial_lines)
 end
 
-local function migrate_profile_order_file()
-    if M.dictionary_profile ~= "pantsu_refined" then
-        return true
-    end
-    local existing = io.open(data_path(M.order_file), "rb")
-    if existing then
-        existing:close()
-        return true
-    end
-    local legacy = io.open(data_path(M.order_files.pantsu), "r")
-    if not legacy then
-        return true
-    end
-    local lines = {}
-    for line in legacy:lines() do
-        table.insert(lines, line)
-    end
-    legacy:close()
-    return atomic_lines(M.order_file, lines)
-end
-
 function M.ensure_runtime_files()
     if M.runtime_files_ready then
         return true
@@ -314,8 +243,7 @@ function M.ensure_runtime_files()
     if not ensure_file(M.history_file, {}) then
         ok = false
     end
-    if not migrate_profile_order_file()
-        or not ensure_file(M.order_file, {}) then
+    if not ensure_file(M.order_file, {}) then
         ok = false
     end
     if not ensure_file(M.self_word_file, { "version\t1" }) then
@@ -1277,9 +1205,6 @@ end
 migrate_undo_files = function()
     if not ensure_undo_directory() then
         return false
-    end
-    if M.dictionary_profile ~= "pantsu" then
-        return true
     end
     local ok = migrate_file(
         "pantsu_undo_history.tsv", history_path())

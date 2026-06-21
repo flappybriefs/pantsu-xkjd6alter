@@ -4,7 +4,6 @@
 patch:
   schema_list:
     - schema: pantsu
-    - schema: pantsu_refined
   switcher/save_options:
     caption: '「切换方案」'
     hotkeys:

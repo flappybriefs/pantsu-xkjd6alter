@@ -76,27 +76,42 @@ python3 tools/pantsu_maintenance.py restore 20260619-120000
 python3 tools/pantsu_maintenance.py apply-overrides
 ```
 
+当前只有一个胖次键道方案。有效中文词库为 `pantsu.core`、`pantsu.danzi`、
+`pantsu.cizu`、`pantsu.temp`、`pantsu.user` 和 `pantsu.zzc`。
+原 `pantsu.waigua` 已合并进 `pantsu.cizu`，不再单独加载。
+
 ## 设备同步
 
-在每台设备导出自己的状态：
+平时只需双击 `胖次键道维护.command`，直接按回车。
 
-```bash
-python3 tools/pantsu_maintenance.py sync-export
-```
+电脑会自动完成以下操作：
 
-同步目录传到其他设备后执行：
+1. 从仓输入法的 iCloud 目录读取手机状态；
+2. 按每条记录的更新时间合并电脑与手机内容；
+3. 先自动备份，再把合并结果写回电脑；
+4. 同一份结果写回手机的 iCloud 目录；
+5. 重新加载鼠须管。
 
-```bash
-python3 tools/pantsu_maintenance.py sync-merge
-```
+完成后只需在仓输入法中再执行一次“同步/重新部署”，手机就会读取结果。
+第一次使用时，如果提示手机尚无状态，先在仓输入法中执行一次
+“同步/重新部署”，回到电脑再次按回车即可。通常不需要手工导出、选择文件
+或分别执行多条命令。
 
-覆盖记录和自造词状态按操作时间合并。同码排序按编码分别合并，因此一台
-设备调整编码 A、另一台设备调整编码 B 时不会再整文件互相覆盖；同一编码
-发生竞争时采用较新的状态，删除排序也保留墓碑，避免旧设备重新带回。
-无法自动解决的内容写入
-`pantsu_sync_conflicts.tsv`，不会静默覆盖。
+覆盖、自造词、候选顺序和词频均按记录更新时间合并；无法自动解决的竞争
+写入 `pantsu_sync_conflicts.tsv`，不会静默覆盖。
 
 ## 性能观测
+
+电脑上可运行完整性能与极端压力测试：
+
+```bash
+PYTHONPATH=/tmp/audit-rime-jiandao-deps \
+python3 tools/pantsu_performance.py
+```
+
+默认执行 20 万次查询，并用中文直接说明“逐次扫文件、首次建立索引、日常
+缓存查询、编码占用判断”各自花费多少时间。手机数字使用桌面实测的 8 倍作
+保守估计，便于阅读，不代表手机上的精确计时。
 
 自造词、前移、后移和删除会把各步骤耗时写入
 `pantsu_performance.tsv`，最多保留最近 300 次操作。计时单位是

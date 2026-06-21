@@ -551,19 +551,11 @@ local function init(env)
     pending_delete = nil
     history_mode = false
     dynamic.clear_status()
-    local schema = env.engine.schema
-    local schema_id = schema.schema_id
-        or (schema.config
-            and schema.config:get_string("schema/schema_id"))
-        or "pantsu"
-    if store.set_dictionary_profile(schema_id) then
-        dynamic.invalidate()
-    end
-    core.set_dictionary_profile(schema_id)
     store.ensure_runtime_files()
     usage.init()
     env.pending_usage = nil
     env.usage_page_size = 7
+    local schema = env.engine.schema
     if schema and schema.config and schema.config.get_int then
         env.usage_page_size =
             schema.config:get_int("menu/page_size")

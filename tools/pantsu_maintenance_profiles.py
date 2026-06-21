@@ -10,6 +10,8 @@ class SchemeProfile:
     label: str
     dictionaries: tuple[str, ...]
     candidate_order_file: str
+    phone_files: tuple[str, ...]
+    obsolete_phone_files: tuple[str, ...]
 
 
 COMMON_STATE_FILES = (
@@ -27,24 +29,28 @@ SCHEME_PROFILES = {
         key="pantsu",
         label="胖次键道",
         candidate_order_file="pantsu_candidate_order.tsv",
-        dictionaries=(
+        phone_files=(
+            "default.custom.yaml",
+            "hamster.yaml",
+            "pantsu.schema.yaml",
+            "pantsu.extended.dict.yaml",
             "pantsu.core.dict.yaml",
             "pantsu.danzi.dict.yaml",
             "pantsu.cizu.dict.yaml",
             "pantsu.temp.dict.yaml",
-            "pantsu.user.dict.yaml",
-            "pantsu.zzc.dict.yaml",
+        ),
+        obsolete_phone_files=(
+            "pantsu_refined.schema.yaml",
+            "pantsu.refined.core.dict.yaml",
+            "pantsu.refined.dict.yaml",
+            "pantsu.refined.extended.dict.yaml",
+            "pantsu_refined_candidate_order.tsv",
             "pantsu.waigua.dict.yaml",
         ),
-    ),
-    "pantsu_refined": SchemeProfile(
-        key="pantsu_refined",
-        label="胖次键道·精炼版",
-        candidate_order_file="pantsu_refined_candidate_order.tsv",
         dictionaries=(
-            "pantsu.refined.core.dict.yaml",
+            "pantsu.core.dict.yaml",
             "pantsu.danzi.dict.yaml",
-            "pantsu.refined.dict.yaml",
+            "pantsu.cizu.dict.yaml",
             "pantsu.temp.dict.yaml",
             "pantsu.user.dict.yaml",
             "pantsu.zzc.dict.yaml",
@@ -74,3 +80,7 @@ def profiles_for_dictionary(name: str) -> tuple[SchemeProfile, ...]:
         for profile in SCHEME_PROFILES.values()
         if name in profile.dictionaries
     )
+
+
+def active_profile() -> SchemeProfile:
+    return SCHEME_PROFILES["pantsu"]

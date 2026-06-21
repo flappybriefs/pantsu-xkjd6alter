@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from pantsu_refined import SOURCE_LOCK, combined_sha256, sha256
+from pantsu_merge_cizu import SOURCE_LOCK, combined_sha256, sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,12 +37,12 @@ def checkout(url: str, commit: str, target: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="下载并校验胖次键道精炼版固定语料"
+        description="下载并校验胖次键道合并词库固定语料"
     )
     parser.add_argument(
         "--target",
         type=Path,
-        default=ROOT / "build/refined_sources",
+        default=ROOT / "build/cizu_sources",
     )
     args = parser.parse_args()
     target = args.target.resolve()
@@ -87,6 +87,20 @@ def main() -> None:
     ):
         raise SystemExit("THUOCL 下载文件校验失败")
 
+    names = target / "Chinese-Names-Corpus"
+    checkout(
+        SOURCE_LOCK["chinese_names"]["url"],
+        SOURCE_LOCK["chinese_names"]["commit"],
+        names,
+    )
+    names_file = (
+        names
+        / "Chinese_Names_Corpus"
+        / "Chinese_Names_Corpus（120W）.txt"
+    )
+    if sha256(names_file) != SOURCE_LOCK["chinese_names"]["sha256"]:
+        raise SystemExit("中文人名语料下载文件校验失败")
+
     python_dir = target / "python"
     shutil.rmtree(python_dir, ignore_errors=True)
     run(
@@ -105,6 +119,7 @@ def main() -> None:
     print(f"wordfreq wheel: {wheel}")
     print(f"Rime Essay: {rime / 'essay.txt'}")
     print(f"THUOCL: {thuocl / 'data'}")
+    print(f"中文人名语料: {names_file}")
     print(f"Python 依赖: {python_dir}")
 
 

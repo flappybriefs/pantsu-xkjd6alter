@@ -41,12 +41,27 @@ def write_state(root: Path, device: str, count: int) -> None:
         "version\t2\n",
         encoding="utf-8",
     )
-    (root / "pantsu_refined_candidate_order.tsv").write_text(
-        "version\t2\n",
-        encoding="utf-8",
-    )
     (root / "pantsu_self_words.tsv").write_text(
         "version\t1\n",
+        encoding="utf-8",
+    )
+    for name in [
+        "default.custom.yaml",
+        "hamster.yaml",
+        "pantsu.schema.yaml",
+        "pantsu.extended.dict.yaml",
+        "pantsu.core.dict.yaml",
+        "pantsu.danzi.dict.yaml",
+        "pantsu.cizu.dict.yaml",
+        "pantsu.temp.dict.yaml",
+    ]:
+        (root / name).write_text(
+            f"source: {device}\n",
+            encoding="utf-8",
+        )
+    (root / "lua").mkdir(exist_ok=True)
+    (root / "lua/pantsu_test.lua").write_text(
+        f"return '{device}'\n",
         encoding="utf-8",
     )
 
@@ -61,15 +76,12 @@ def write_health_fixture(root: Path) -> None:
     )
     for name in [
         "pantsu.core.dict.yaml",
-        "pantsu.refined.core.dict.yaml",
         "pantsu.danzi.dict.yaml",
         "pantsu.cizu.dict.yaml",
-        "pantsu.refined.dict.yaml",
         "pantsu.temp.dict.yaml",
         "pantsu.user.dict.yaml",
-        "pantsu.waigua.dict.yaml",
     ]:
-        body = "大脚板\tdjbvu\n" if name == "pantsu.cizu.dict.yaml" else ""
+        body = "大脚板\tdjbvu\n" if name == "pantsu.core.dict.yaml" else ""
         (root / name).write_text(
             dictionary_header + body,
             encoding="utf-8",
@@ -83,7 +95,7 @@ def write_health_fixture(root: Path) -> None:
     source_line = len(dictionary_header.splitlines()) + 1
     (root / "pantsu_overrides.tsv").write_text(
         "version\t2\n"
-        f"entry\tfixture\tpantsu.cizu.dict.yaml\t{source_line}\t"
+        f"entry\tfixture\tpantsu.core.dict.yaml\t{source_line}\t"
         "大脚板\tdjbvu\tdjbvuv\t1\t10\tmac\n",
         encoding="utf-8",
     )
@@ -103,7 +115,23 @@ def main() -> None:
         phone = Path(directory) / "phone"
         write_state(root, "mac", 3)
         write_state(phone, "iphone", 7)
+        (root / "backups").mkdir()
+        (root / "backups/.DS_Store").write_text("", encoding="utf-8")
         (phone / "hamster.yaml").write_text("rime: {}\n", encoding="utf-8")
+        (phone / "pantsu_refined.schema.yaml").write_text(
+            "old: true\n",
+            encoding="utf-8",
+        )
+        (phone / "pantsu.waigua.dict.yaml").write_text(
+            "old: true\n",
+            encoding="utf-8",
+        )
+        (phone / "pantsu_overrides.tsv").write_text(
+            "version\t2\n"
+            "entry\told\tpantsu.waigua.dict.yaml\t1\t"
+            "旧词\told\tnew\t1\t10\tiphone\n",
+            encoding="utf-8",
+        )
 
         maintenance.ROOT = root
         maintenance.LOCAL_CONFIG = root / ".pantsu_maintenance.json"
@@ -117,18 +145,23 @@ def main() -> None:
         usage = maintenance.parse_usage(root)
         assert usage[("测试词", "mac")] == (3, 3)
         assert usage[("测试词", "iphone")] == (7, 7)
+        assert maintenance.parse_overrides(
+            root / "pantsu_overrides.tsv"
+        ) == {}
         assert (
             phone
             / "sync"
             / "mac"
             / "pantsu_usage.tsv"
         ).exists()
-        assert (
-            phone
-            / "sync"
-            / "mac"
-            / "pantsu_refined_candidate_order.tsv"
-        ).exists()
+        assert not (phone / "pantsu_refined.schema.yaml").exists()
+        assert not (phone / "pantsu.waigua.dict.yaml").exists()
+        assert (phone / "pantsu.core.dict.yaml").read_text(
+            encoding="utf-8"
+        ) == "source: mac\n"
+        assert (phone / "lua/pantsu_test.lua").read_text(
+            encoding="utf-8"
+        ) == "return 'mac'\n"
         assert list((root / "backups").iterdir())
 
     with tempfile.TemporaryDirectory() as directory:
@@ -141,7 +174,7 @@ def main() -> None:
             encoding="utf-8"
         )
         assert "正常\t检查通过" in report
-        assert "胖次键道、胖次键道·精炼版" in report
+        assert "胖次键道" in report
         assert "orphan_order" not in report
 
         orders = root / "pantsu_candidate_order.tsv"
@@ -161,38 +194,61 @@ def main() -> None:
         assert "该方案的生效词库中找不到" in report
         assert "确认词条已删除后" in report
 
+        write_health_fixture(root)
+        maintenance.ROOT = root
+        maintenance.apply_overrides("pantsu")
+        core = root / "pantsu.core.dict.yaml"
+        assert "大脚板\tdjbvuv" in core.read_text(encoding="utf-8")
+        assert maintenance.parse_overrides(
+            root / "pantsu_overrides.tsv"
+        ) == {}
+        snapshots = sorted((root / "backups").iterdir())
+        assert (snapshots[-1] / "pantsu.core.dict.yaml").exists()
+
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_health_fixture(root)
         maintenance.ROOT = root
-        refined = root / "pantsu.refined.dict.yaml"
-        refined.write_text(
-            refined.read_text(encoding="utf-8")
-            + "精炼测试\tjlce\n",
+        header = (
+            "---\nname: test\nversion: \"1\"\nsort: original\n...\n"
+        )
+        (root / "pantsu.core.dict.yaml").write_text(
+            header
+            + "甲乙\tqajb\n"
+            + "#region <630>#\n"
+            + "#endregion <630>#\n",
             encoding="utf-8",
         )
-        line_number = len(refined.read_text(encoding="utf-8").splitlines())
-        (root / "pantsu_overrides.tsv").write_text(
-            "version\t2\n"
-            f"entry\trefined\tpantsu.refined.dict.yaml\t{line_number}\t"
-            "精炼测试\tjlce\tjlcev\t1\t10\tmac\n"
-            "entry\tclassic\tpantsu.cizu.dict.yaml\t6\t"
-            "大脚板\tdjbvu\tdjbvuv\t1\t10\tmac\n",
+        (root / "pantsu.danzi.dict.yaml").write_text(
+            header + "甲\tqaa\n乙\tjbb\n",
             encoding="utf-8",
         )
-        (root / "pantsu_candidate_order.tsv").write_text(
-            "version\t2\n",
+        (root / "pantsu_self_words.tsv").write_text(
+            "version\t1\n"
+            "word\t自造词\tqajb\t1\t10\tiphone\n",
             encoding="utf-8",
         )
-        assert maintenance.health("pantsu_refined") == []
-        maintenance.apply_overrides("pantsu_refined")
-        assert "精炼测试\tjlcev" in refined.read_text(encoding="utf-8")
-        remaining = maintenance.parse_overrides(
-            root / "pantsu_overrides.tsv"
+        moved, removed = maintenance.reconcile_core_self_codes()
+        assert (moved, removed) == (1, 0)
+        assert "甲乙\tqajba" in (
+            root / "pantsu.core.dict.yaml"
+        ).read_text(encoding="utf-8")
+
+        (root / "pantsu.core.dict.yaml").write_text(
+            header
+            + "#region <630>#\n"
+            + "#endregion <630>#\n",
+            encoding="utf-8",
         )
-        assert set(remaining) == {"classic"}
-        snapshots = sorted((root / "backups").iterdir())
-        assert (snapshots[-1] / "pantsu.refined.dict.yaml").exists()
+        (root / "pantsu.cizu.dict.yaml").write_text(
+            header + "甲乙\tqajb\t0\n",
+            encoding="utf-8",
+        )
+        moved, removed = maintenance.reconcile_core_self_codes()
+        assert (moved, removed) == (1, 0)
+        assert "甲乙\tqajba\t0" in (
+            root / "pantsu.cizu.dict.yaml"
+        ).read_text(encoding="utf-8")
 
     print("PASS maintenance interactive sync workflow")
 
