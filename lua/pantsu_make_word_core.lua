@@ -1,6 +1,7 @@
 local store = require("pantsu_store")
 local dynamic = require("pantsu_dynamic")
 local profiler = require("pantsu_profiler")
+local chain = require("pantsu_chain")
 local M = {}
 local first_fly_keys = {
     q = "f", f = "q",
@@ -557,8 +558,7 @@ local function shortest_empty_prefix(
     end
 
     local occupied = {}
-    local root_length = math.min(2, full_length)
-    local root = string.sub(full_code, 1, root_length)
+    local root = prefixes[minimum]
     if not occupied_by_root[root] then
         occupied_by_root[root] = store.occupied_prefixes(
             root, target_word, minimum, 6, profile)
@@ -870,116 +870,9 @@ function M.next_code_for_word(word, current_code)
     return result
 end
 
-local function load_chain(input)
-    local model = { entries = {}, by_code = {} }
-    for _, entry in ipairs(store.entries(input)) do
-        table.insert(model.entries, entry)
-        if entry.active then
-            if not model.by_code[entry.code] then
-                model.by_code[entry.code] = {}
-            end
-            table.insert(model.by_code[entry.code], entry)
-        end
-    end
-    return model
-end
-
-local function remove_from_code(model, entry)
-    local list = model.by_code[entry.code] or {}
-    for index = #list, 1, -1 do
-        if list[index] == entry then
-            table.remove(list, index)
-            break
-        end
-    end
-end
-
-local function attach_to_code(model, entry, code)
-    entry.code = code
-    entry.active = true
-    if not model.by_code[code] then
-        model.by_code[code] = {}
-    end
-    table.insert(model.by_code[code], entry)
-end
-
-local function occupants(model, code, excluded_word)
-    local result = {}
-    for _, entry in ipairs(model.by_code[code] or {}) do
-        if entry.active and entry.word ~= excluded_word then
-            table.insert(result, entry)
-        end
-    end
-    return result
-end
-
-local function extension_codes(word, current_code)
-    local found = {}
-    for _, full_code in ipairs(M.full_codes_for_word(word)) do
-        if string.len(full_code) > string.len(current_code)
-            and code_startswith(full_code, current_code) then
-            local max_extra = math.min(2,
-                string.len(full_code) - string.len(current_code))
-            for extra = 1, max_extra do
-                found[string.sub(
-                    full_code, 1, string.len(current_code) + extra)] = true
-            end
-        end
-    end
-    local result = {}
-    for code in pairs(found) do
-        table.insert(result, code)
-    end
-    table.sort(result, function(left, right)
-        if string.len(left) == string.len(right) then
-            return left < right
-        end
-        return string.len(left) < string.len(right)
-    end)
-    return result
-end
-
-local function push_down(model, entry, visiting)
-    if visiting[entry] then
-        return nil, "code_cycle"
-    end
-    visiting[entry] = true
-    local choices = extension_codes(entry.word, entry.code)
-    if #choices == 0 then
-        visiting[entry] = nil
-        return nil, "occupied_code_cannot_move:" .. entry.word
-    end
-    for _, next_code in ipairs(choices) do
-        local blocked = occupants(model, next_code, entry.word)
-        local movable = true
-        for _, occupant in ipairs(blocked) do
-            local ok = push_down(model, occupant, visiting)
-            if not ok then
-                movable = false
-                break
-            end
-        end
-        if movable then
-            remove_from_code(model, entry)
-            attach_to_code(model, entry, next_code)
-            visiting[entry] = nil
-            return true
-        end
-    end
-    local fallback = choices[1]
-    if fallback then
-        remove_from_code(model, entry)
-        attach_to_code(model, entry, fallback)
-        visiting[entry] = nil
-        return true
-    end
-    visiting[entry] = nil
-    return nil, "occupied_code_cannot_move:" .. entry.word
-end
-
 local function make_target_available(code, word)
-    local model = load_chain(string.sub(code, 1, 1))
-    local blocked = occupants(model, code, word)
+    local model = chain.load(store, code)
+    local blocked = chain.occupants(model, code, { word = word })
     if #blocked > 0 and string.len(code) >= 6 then
         local words = { word }
         local seen = { [word] = true }
@@ -1000,7 +893,8 @@ local function make_target_available(code, word)
 
     local changed = false
     for _, entry in ipairs(blocked) do
-        local ok, err = push_down(model, entry, {})
+        local ok, err = chain.push_down(
+            model, entry, "make_word", M.full_codes_for_word, {})
         if not ok then
             return nil, err
         end
@@ -1239,7 +1133,14 @@ function M.apply_plan(plan, profile)
     end
 
     if moved or override_changed or journal_changed then
-        store.invalidate_index(M.word_file)
+        local affected_codes = {}
+        for _, code in ipairs(plan.previous_codes or {}) do
+            table.insert(affected_codes, code)
+        end
+        for _, code in ipairs(plan.codes or {}) do
+            table.insert(affected_codes, code)
+        end
+        store.invalidate_index(M.word_file, affected_codes)
         M.loaded_words = false
         M.words_by_code = nil
     else

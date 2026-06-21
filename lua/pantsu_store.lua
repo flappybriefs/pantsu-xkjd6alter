@@ -27,8 +27,13 @@ M.dictionary_files = {
 M.overrides = nil
 M.override_lookup = nil
 M.index = nil
+M.index_by_prefix = nil
 M.signature_cache = nil
 M.self_words_cache = nil
+M.effective_roots = {}
+M.effective_root_order = {}
+M.effective_root_length = 4
+M.effective_root_limit = 32
 M.pending_memory = nil
 M.runtime_files_ready = false
 M.dirty_index_files = {}
@@ -573,6 +578,18 @@ local function write_index(ranges)
     return ranges
 end
 
+local function set_index(ranges)
+    M.index = ranges
+    M.index_by_prefix = {}
+    for _, range in ipairs(ranges or {}) do
+        if not M.index_by_prefix[range.prefix] then
+            M.index_by_prefix[range.prefix] = {}
+        end
+        table.insert(M.index_by_prefix[range.prefix], range)
+    end
+    return ranges
+end
+
 local function load_index()
     if M.index then
         return M.index
@@ -633,13 +650,18 @@ local function load_index()
     if changed then
         ranges = write_index(ranges) or ranges
     end
-    M.index = ranges
+    set_index(ranges)
     M.dirty_index_files = {}
     return ranges
 end
 
-function M.invalidate_index(path)
+function M.invalidate_index(path, codes)
     M.signature_cache = nil
+    if codes then
+        M.invalidate_effective_codes(codes)
+    else
+        M.invalidate_effective_index()
+    end
     if path and M.index then
         local by_file = {}
         for _, range in ipairs(M.index) do
@@ -657,7 +679,7 @@ function M.invalidate_index(path)
                 table.insert(refreshed, range)
             end
         end
-        M.index = refreshed
+        set_index(refreshed)
         load_dirty_index_files()
         M.dirty_index_files[path] = true
         if not write_dirty_index_files() then
@@ -668,6 +690,7 @@ function M.invalidate_index(path)
         return
     end
     M.index = nil
+    M.index_by_prefix = nil
     if path then
         load_dirty_index_files()
         M.dirty_index_files[path] = true
@@ -688,6 +711,51 @@ function M.invalidate_signature()
     M.signature_cache = nil
 end
 
+local function effective_root(code)
+    if not code or code == "" then
+        return nil
+    end
+    return string.sub(code, 1, math.min(M.effective_root_length, #code))
+end
+
+local function remove_effective_root(root)
+    M.effective_roots[root] = nil
+    for index = #M.effective_root_order, 1, -1 do
+        if M.effective_root_order[index] == root then
+            table.remove(M.effective_root_order, index)
+        end
+    end
+end
+
+local function touch_effective_root(root)
+    for index = #M.effective_root_order, 1, -1 do
+        if M.effective_root_order[index] == root then
+            table.remove(M.effective_root_order, index)
+            break
+        end
+    end
+    table.insert(M.effective_root_order, root)
+    while #M.effective_root_order > M.effective_root_limit do
+        local expired = table.remove(M.effective_root_order, 1)
+        M.effective_roots[expired] = nil
+    end
+end
+
+function M.invalidate_effective_codes(codes)
+    for _, code in ipairs(codes or {}) do
+        if code and code ~= "" then
+            for length = 2, math.min(M.effective_root_length, #code) do
+                remove_effective_root(string.sub(code, 1, length))
+            end
+        end
+    end
+end
+
+function M.invalidate_effective_index()
+    M.effective_roots = {}
+    M.effective_root_order = {}
+end
+
 local function range_matches(prefix, input)
     return string.sub(prefix, 1, #input) == input
         or string.sub(input, 1, #prefix) == prefix
@@ -696,7 +764,11 @@ end
 local function matching_ranges(input)
     local result = {}
     local current
-    for _, range in ipairs(load_index()) do
+    local ranges = load_index()
+    if #input >= 2 then
+        ranges = M.index_by_prefix[string.sub(input, 1, 2)] or {}
+    end
+    for _, range in ipairs(ranges) do
         if range_matches(range.prefix, input) then
             if current and current.path == range.path
                 and current.finish == range.start then
@@ -717,7 +789,7 @@ local function matching_ranges(input)
     return result
 end
 
-function M.entries(input, profile)
+local function scan_entries(input, profile)
     load_overrides()
     if profile then
         profile:mark("overrides_load")
@@ -805,57 +877,59 @@ function M.entries(input, profile)
     return result
 end
 
-function M.occupied_prefixes(input, target_word, minimum, maximum, profile)
-    load_overrides()
-    local occupied = {}
-    local ranges = matching_ranges(input)
-    if profile and profile.count then
-        profile:count("occupancy_range_count", #ranges)
+local function copy_entry(entry)
+    return {
+        id = entry.id,
+        path = entry.path,
+        line_number = entry.line_number,
+        word = entry.word,
+        base_code = entry.base_code,
+        code = entry.code,
+        original_code = entry.original_code,
+        active = entry.active,
+        initial_active = entry.initial_active,
+        virtual = entry.virtual,
+    }
+end
+
+local function entry_matches(entry, input)
+    return string.sub(entry.base_code, 1, #input) == input
+        or (entry.active and string.sub(entry.code, 1, #input) == input)
+end
+
+function M.entries(input, profile)
+    if not input or #input < 2 then
+        return scan_entries(input or "", profile)
     end
-    for _, range in ipairs(ranges) do
-        local file = io.open(data_path(range.path), "rb")
-        if file then
-            file:seek("set", range.start)
-            local line_number = range.line_number
-            while (file:seek() or range.finish) < range.finish do
-                local line = file:read("*l")
-                if not line then
-                    break
-                end
-                local word, base_code = read_code_fields(line)
-                if word and base_code then
-                    local override = find_override(
-                        identity(
-                            range.path, line_number, word, base_code),
-                        range.path, line_number, word, base_code)
-                    local code = override and override.code or base_code
-                    local active = not override or override.active
-                    if active and word ~= target_word
-                        and string.sub(code, 1, #input) == input then
-                        local limit = math.min(maximum, #code)
-                        for length = minimum, limit do
-                            occupied[string.sub(code, 1, length)] = true
-                        end
-                    end
-                end
-                line_number = line_number + 1
-            end
-            file:close()
+    local root = effective_root(input)
+    local entries = M.effective_roots[root]
+    if not entries then
+        entries = scan_entries(root, profile)
+        M.effective_roots[root] = entries
+        if profile then
+            profile:mark("effective_index_build")
+        end
+    elseif profile then
+        profile:mark("effective_index_hit")
+    end
+    touch_effective_root(root)
+    local result = {}
+    for _, entry in ipairs(entries) do
+        if entry_matches(entry, input) then
+            table.insert(result, copy_entry(entry))
         end
     end
-    load_self_words()
-    for _, record in pairs(M.self_words_cache) do
-        if record.active and record.word ~= target_word
-            and string.sub(record.code, 1, #input) == input then
-            local id = "self:" .. record.word .. ":" .. record.code
-            local override = M.overrides[id]
-            local code = override and override.code or record.code
-            local active = not override or override.active
-            if active and string.sub(code, 1, #input) == input then
-                local limit = math.min(maximum, #code)
-                for length = minimum, limit do
-                    occupied[string.sub(code, 1, length)] = true
-                end
+    return result
+end
+
+function M.occupied_prefixes(input, target_word, minimum, maximum, profile)
+    local occupied = {}
+    for _, entry in ipairs(M.entries(input, profile)) do
+        if entry.active and entry.word ~= target_word
+            and string.sub(entry.code, 1, #input) == input then
+            local limit = math.min(maximum, #entry.code)
+            for length = minimum, limit do
+                occupied[string.sub(entry.code, 1, length)] = true
             end
         end
     end
@@ -898,14 +972,20 @@ end
 function M.clear_word_overrides(path, word)
     load_overrides()
     local changed = false
+    local affected_codes = {}
     for id, entry in pairs(M.overrides) do
         if entry.path == path and entry.word == word then
+            table.insert(affected_codes, entry.base_code)
+            table.insert(affected_codes, entry.code)
             M.overrides[id] = nil
             changed = true
         end
     end
     if changed and not write_overrides() then
         return nil, "override_write_failed"
+    end
+    if changed then
+        M.invalidate_effective_codes(affected_codes)
     end
     return true, changed
 end
@@ -960,6 +1040,7 @@ end
 function M.update_self_words(updates, only_missing)
     load_self_words()
     local changed = false
+    local affected_codes = {}
     local now = os.time()
     local device = installation_id()
     for _, update in ipairs(updates or {}) do
@@ -978,6 +1059,7 @@ function M.update_self_words(updates, only_missing)
                     updated = update.updated or now,
                     device = update.device or device,
                 }
+                table.insert(affected_codes, update.code)
                 changed = true
             end
         end
@@ -985,6 +1067,9 @@ function M.update_self_words(updates, only_missing)
     if changed and not write_self_words() then
         M.self_words_cache = nil
         return nil, "self_word_write_failed"
+    end
+    if changed then
+        M.invalidate_effective_codes(affected_codes)
     end
     return true, changed
 end
@@ -1275,6 +1360,7 @@ function M.rollback_pending()
         M.override_lookup = nil
         M.self_words_cache = nil
         M.signature_cache = nil
+        M.invalidate_effective_index()
         return override_ok and order_ok and self_word_ok
     end
     local meta_file = meta_path()
@@ -1295,18 +1381,23 @@ function M.rollback_pending()
     M.override_lookup = nil
     M.self_words_cache = nil
     M.signature_cache = nil
+    M.invalidate_effective_index()
     return ok
 end
 
 function M.commit(entries, action, input, word, defer_finish, profile)
     load_overrides()
     local changed = 0
+    local affected_codes = {}
     local now = os.time()
     local device = installation_id()
     for _, entry in ipairs(entries or {}) do
         if entry.active ~= entry.initial_active
             or entry.code ~= entry.original_code then
             changed = changed + 1
+            table.insert(affected_codes, entry.base_code)
+            table.insert(affected_codes, entry.original_code)
+            table.insert(affected_codes, entry.code)
             if entry.active and entry.code == entry.base_code then
                 M.overrides[entry.id] = nil
             else
@@ -1332,6 +1423,7 @@ function M.commit(entries, action, input, word, defer_finish, profile)
         M.rollback_pending()
         return nil, "override_write_failed"
     end
+    M.invalidate_effective_codes(affected_codes)
     if profile then
         profile:mark("overrides_write")
     end
@@ -1476,6 +1568,7 @@ function M.undo(index)
     M.override_lookup = nil
     M.self_words_cache = nil
     M.signature_cache = nil
+    M.invalidate_effective_index()
     append_history("undo", "-", "-", description)
     return true, description
 end

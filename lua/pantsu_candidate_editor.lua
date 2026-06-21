@@ -2,6 +2,7 @@ local core = require("pantsu_make_word_core")
 local dynamic = require("pantsu_dynamic")
 local profiler = require("pantsu_profiler")
 local store = require("pantsu_store")
+local chain = require("pantsu_chain")
 
 local kAccepted = 1
 local kNoop = 2
@@ -62,209 +63,26 @@ local function word_min_code_length(word)
     return 1
 end
 
-local function load_chain(input, profile)
-    local model = {
-        entries = {},
-        by_code = {},
-        by_word = {},
-    }
-    for _, entry in ipairs(store.entries(input, profile)) do
-        table.insert(model.entries, entry)
-        if entry.active then
-            if not model.by_code[entry.code] then
-                model.by_code[entry.code] = {}
-            end
-            table.insert(model.by_code[entry.code], entry)
-            if not model.by_word[entry.word] then
-                model.by_word[entry.word] = {}
-            end
-            table.insert(model.by_word[entry.word], entry)
-        end
-    end
-    if profile then
-        profile:mark("chain_model")
-    end
-    return model
-end
-
-local function remove_from_code(model, entry)
-    local list = model.by_code[entry.code] or {}
-    for index = #list, 1, -1 do
-        if list[index] == entry then
-            table.remove(list, index)
-            break
-        end
-    end
-end
-
-local function attach_to_code(model, entry, code)
-    entry.code = code
-    entry.active = true
-    if not model.by_code[code] then
-        model.by_code[code] = {}
-    end
-    table.insert(model.by_code[code], entry)
-end
-
-local function detach(model, entry)
-    remove_from_code(model, entry)
-    entry.active = false
-end
-
-local function occupants(model, code, excluded)
-    local result = {}
-    for _, entry in ipairs(model.by_code[code] or {}) do
-        if entry.active and entry ~= excluded then
-            table.insert(result, entry)
-        end
-    end
-    return result
-end
-
-local function locate_entry(model, word, input, candidate_id)
-    if candidate_id and candidate_id ~= "" then
-        for _, entry in ipairs(model.entries) do
-            if entry.id == candidate_id and entry.active then
-                return entry
-            end
-        end
-    end
-    local exact
-    local best
-    local ambiguous = false
-    for _, entry in ipairs(model.by_word[word] or {}) do
-        if entry.active and code_startswith(entry.code, input) then
-            if entry.code == input then
-                if exact and exact ~= entry then
-                    return nil, "ambiguous_exact_entry"
-                end
-                exact = entry
-            elseif not best or string.len(entry.code) < string.len(best.code) then
-                best = entry
-                ambiguous = false
-            elseif string.len(entry.code) == string.len(best.code) then
-                ambiguous = true
-            end
-        end
-    end
-    if exact then
-        return exact
-    end
-    if ambiguous then
-        return nil, "ambiguous_completion_entry"
-    end
-    return best, best and nil or "entry_not_found"
-end
-
-local function extension_codes(word, current_code)
-    local found = {}
-    for _, full_code in ipairs(core.full_codes_for_word(word)) do
-        if string.len(full_code) > string.len(current_code)
-            and code_startswith(full_code, current_code) then
-            local max_extra = math.min(2,
-                string.len(full_code) - string.len(current_code))
-            for extra = 1, max_extra do
-                found[string.sub(
-                    full_code, 1, string.len(current_code) + extra)] = true
-            end
-        end
-    end
-
-    local result = {}
-    for code in pairs(found) do
-        table.insert(result, code)
-    end
-    table.sort(result, function(left, right)
-        if string.len(left) == string.len(right) then
-            return left < right
-        end
-        return string.len(left) < string.len(right)
-    end)
-    return result
-end
-
-local function push_down(model, entry, visiting)
-    if visiting[entry] then
-        return nil, "code_cycle"
-    end
-    visiting[entry] = true
-
-    local candidates = extension_codes(entry.word, entry.code)
-    if #candidates == 0 then
-        visiting[entry] = nil
-        return nil, "no_longer_code:" .. entry.word
-    end
-
-    local groups = {}
-    for _, code in ipairs(candidates) do
-        local length = string.len(code)
-        if not groups[length] then
-            groups[length] = {}
-        end
-        table.insert(groups[length], code)
-    end
-
-    local last_error
-    local lengths = {}
-    for length in pairs(groups) do
-        table.insert(lengths, length)
-    end
-    table.sort(lengths)
-    for _, length in ipairs(lengths) do
-        local choices = groups[length]
-        if #choices == 1 then
-            local next_code = choices[1]
-            local blocked = occupants(model, next_code, entry)
-            if #blocked == 0 then
-                remove_from_code(model, entry)
-                attach_to_code(model, entry, next_code)
-                visiting[entry] = nil
-                return true
-            elseif #blocked == 1 then
-                local ok = push_down(model, blocked[1], visiting)
-                if ok then
-                    remove_from_code(model, entry)
-                    attach_to_code(model, entry, next_code)
-                    visiting[entry] = nil
-                    return true
-                end
-                remove_from_code(model, entry)
-                attach_to_code(model, entry, next_code)
-                visiting[entry] = nil
-                return true
-            else
-                remove_from_code(model, entry)
-                attach_to_code(model, entry, next_code)
-                visiting[entry] = nil
-                return true
-            end
-        else
-            last_error = "ambiguous_full_code:" .. entry.word
-        end
-    end
-
-    visiting[entry] = nil
-    return nil, last_error or ("no_available_code:" .. entry.word)
-end
-
 local function promote(model, entry)
     if string.len(entry.code) <= word_min_code_length(entry.word) then
         return nil, "word_code_too_short"
     end
     local target_code = string.sub(entry.code, 1, string.len(entry.code) - 1)
-    detach(model, entry)
+    chain.detach(model, entry)
 
-    local blocked = occupants(model, target_code)
+    local blocked = chain.occupants(model, target_code)
     if #blocked > 0 then
         local visiting = {}
         for _, occupant in ipairs(blocked) do
-            local ok, err = push_down(model, occupant, visiting)
+            local ok, err = chain.push_down(
+                model, occupant, "candidate_edit",
+                core.full_codes_for_word, visiting)
             if not ok then
                 return nil, err
             end
         end
     end
-    attach_to_code(model, entry, target_code)
+    chain.attach_to_code(model, entry, target_code)
     return true
 end
 
@@ -273,13 +91,15 @@ local function demote(model, entry)
     if not target_code then
         return nil, err
     end
-    detach(model, entry)
+    chain.detach(model, entry)
 
-    local blocked = occupants(model, target_code)
+    local blocked = chain.occupants(model, target_code)
     if #blocked == 1 then
-        push_down(model, blocked[1], {})
+        chain.push_down(
+            model, blocked[1], "candidate_edit",
+            core.full_codes_for_word, {})
     end
-    attach_to_code(model, entry, target_code)
+    chain.attach_to_code(model, entry, target_code)
     return true
 end
 
@@ -346,14 +166,15 @@ local function move_same_code(context, model, entry, direction, profile)
 end
 
 local function delete_entry(model, entry)
-    detach(model, entry)
+    chain.detach(model, entry)
     return true
 end
 
 local function adjust(action, context, word, input, candidate_id, profile)
     local root = input
-    local model = load_chain(root, profile)
-    local entry, err = locate_entry(model, word, input, candidate_id)
+    local model = chain.load(store, root, profile)
+    local entry, err = chain.locate_entry(
+        model, word, input, candidate_id)
     if profile then
         profile:mark("entry_locate")
     end
@@ -364,8 +185,9 @@ local function adjust(action, context, word, input, candidate_id, profile)
     if action == "promote" and entry.code == input
         and string.len(input) > 1 then
         root = string.sub(input, 1, string.len(input) - 1)
-        model = load_chain(root, profile)
-        entry, err = locate_entry(model, word, input, candidate_id)
+        model = chain.load(store, root, profile)
+        entry, err = chain.locate_entry(
+            model, word, input, candidate_id)
         if profile then
             profile:mark("parent_entry_locate")
         end
