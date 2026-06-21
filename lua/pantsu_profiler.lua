@@ -118,6 +118,17 @@ function Profile:mark(name)
     self.last = now
 end
 
+function Profile:count(name, value)
+    if not self.enabled then
+        return
+    end
+    table.insert(self.steps, {
+        name = name,
+        elapsed = 0,
+        value = tostring(value or 0),
+    })
+end
+
 function Profile:finish(status, detail)
     if not self.enabled or self.finished then
         return
@@ -129,8 +140,12 @@ function Profile:finish(status, detail)
     for _, step in ipairs(self.steps) do
         if step.name ~= "total" then
             total = total + step.elapsed
-            table.insert(parts,
-                step.name .. "=" .. string.format("%.3f", step.elapsed))
+            if step.value then
+                table.insert(parts, step.name .. "=" .. step.value)
+            else
+                table.insert(parts,
+                    step.name .. "=" .. string.format("%.3f", step.elapsed))
+            end
         end
     end
     local lines = read_lines(M.log_file)

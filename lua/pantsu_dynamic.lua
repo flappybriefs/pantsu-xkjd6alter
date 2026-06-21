@@ -1,7 +1,7 @@
 local store = require("pantsu_store")
 local M = {}
 
-M.state_version = "8"
+M.state_version = "9"
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
 M.order_file = "pantsu_candidate_order.tsv"
 M.build_state_file = "user.yaml"
@@ -297,16 +297,17 @@ local function load_state()
     end
 end
 
-local function write_state()
+local function write_state(profile)
     local target = data_path(M.state_file)
     local temp = target .. ".tmp"
-    local file = io.open(temp, "w")
+    local file = io.open(temp, "wb")
     if not file then
         return false
     end
+    local signature = store.signature()
     file:write("format\t", M.state_version, "\n")
     file:write("build\t", M.build_time or "", "\n")
-    file:write("signature\t", store.signature(), "\n")
+    file:write("signature\t", signature, "\n")
 
     local roots = {}
     for root in pairs(M.roots) do
@@ -365,17 +366,24 @@ local function write_state()
         os.remove(temp)
         return false
     end
+    if profile then
+        profile:mark("dynamic_encode_write")
+    end
     local temp_file = io.open(temp, "rb")
     local expected = temp_file and temp_file:read("*a") or nil
     if temp_file then
         temp_file:close()
     end
+    if not expected then
+        os.remove(temp)
+        return false
+    end
+    if profile then
+        profile:mark("dynamic_temp_verify")
+    end
     local renamed = os.rename and os.rename(temp, target)
     if not renamed then
         os.remove(temp)
-        if not expected then
-            return false
-        end
         file = io.open(target, "wb")
         if not file then
             return false
@@ -385,17 +393,19 @@ local function write_state()
             return false
         end
     end
+    if profile then
+        profile:mark("dynamic_state_replace")
+    end
     local check = io.open(target, "rb")
     if not check then
         return false
     end
     local content = check:read("*a")
     check:close()
-    return content
-        and string.match(content, "^format\t" .. M.state_version .. "\n")
-        and string.find(
-            content, "\nsignature\t" .. store.signature() .. "\n",
-            1, true) ~= nil
+    if profile then
+        profile:mark("dynamic_state_verify")
+    end
+    return content == expected
 end
 
 local function ensure_current_build()
@@ -426,7 +436,7 @@ local function common_prefix(values)
     return prefix
 end
 
-local function snapshot_root(root, extra_suppress, deleted_words)
+local function snapshot_root(root, extra_suppress, deleted_words, profile)
     for old_root in pairs(M.roots) do
         if string.sub(root, 1, string.len(old_root)) == old_root
             and string.len(old_root) < string.len(root) then
@@ -454,6 +464,9 @@ local function snapshot_root(root, extra_suppress, deleted_words)
     local order = 0
     local valid_orders = {}
     local source_entries = store.entries(root)
+    if profile then
+        profile:mark("dynamic_entries_lookup")
+    end
     local has_user_entry = {}
     for _, entry in ipairs(source_entries) do
         if entry.active and entry.path == M.self_word_dict_file then
@@ -555,6 +568,10 @@ local function snapshot_root(root, extra_suppress, deleted_words)
         write_orders()
     end
     M.roots[root] = state
+    if profile then
+        profile:mark("dynamic_snapshot_build")
+    end
+    return root
 end
 
 local function root_for_code(code)
@@ -690,8 +707,7 @@ function M.get_status(input)
     return nil
 end
 
-function M.refresh_codes(codes, suppressed_words, preferred_root, deleted_words)
-    ensure_current_build()
+local function refresh_root(codes, preferred_root)
     local clean_codes = {}
     for _, code in ipairs(codes or {}) do
         if code and code ~= "" and code ~= "<deleted>" then
@@ -700,7 +716,7 @@ function M.refresh_codes(codes, suppressed_words, preferred_root, deleted_words)
     end
     local root = common_prefix(clean_codes)
     if not root then
-        return false
+        return nil
     end
     if type(preferred_root) == "string" and preferred_root ~= "" then
         root = preferred_root
@@ -708,11 +724,109 @@ function M.refresh_codes(codes, suppressed_words, preferred_root, deleted_words)
         and string.len(root) > preferred_root then
         root = string.sub(root, 1, preferred_root)
     end
-    snapshot_root(root, suppressed_words, deleted_words)
-    return write_state()
+    return root
 end
 
-function M.refresh_entries(entries, preferred_root)
+local function merge_list(target, values)
+    local seen = {}
+    for _, value in ipairs(target) do
+        seen[value] = true
+    end
+    for _, value in ipairs(values or {}) do
+        if value and value ~= "" and not seen[value] then
+            seen[value] = true
+            table.insert(target, value)
+        end
+    end
+end
+
+local function roots_overlap(left, right)
+    return string.sub(left, 1, string.len(right)) == right
+        or string.sub(right, 1, string.len(left)) == left
+end
+
+local function existing_root(root)
+    for old_root in pairs(M.roots) do
+        if string.sub(root, 1, string.len(old_root)) == old_root
+            and string.len(old_root) < string.len(root) then
+            root = old_root
+        end
+    end
+    return root
+end
+
+function M.refresh_batch(requests, profile)
+    ensure_current_build()
+    if profile then
+        profile:mark("dynamic_prepare")
+    end
+    local groups = {}
+    for _, request in ipairs(requests or {}) do
+        local root = refresh_root(
+            request.codes, request.preferred_root)
+        if root then
+            root = existing_root(root)
+            local merged = {
+                root = root,
+                suppressed_words = {},
+                deleted_words = {},
+            }
+            merge_list(merged.suppressed_words, request.suppressed_words)
+            merge_list(merged.deleted_words, request.deleted_words)
+            local index = 1
+            while index <= #groups do
+                local old = groups[index]
+                if roots_overlap(merged.root, old.root) then
+                    if string.len(old.root) < string.len(merged.root) then
+                        merged.root = old.root
+                    end
+                    merge_list(
+                        merged.suppressed_words, old.suppressed_words)
+                    merge_list(merged.deleted_words, old.deleted_words)
+                    table.remove(groups, index)
+                else
+                    index = index + 1
+                end
+            end
+            table.insert(groups, merged)
+        end
+    end
+    if #groups == 0 then
+        return false
+    end
+    table.sort(groups, function(left, right)
+        return left.root < right.root
+    end)
+    for _, group in ipairs(groups) do
+        snapshot_root(
+            group.root,
+            group.suppressed_words,
+            group.deleted_words,
+            profile)
+    end
+    if profile and profile.count then
+        profile:count("dynamic_root_count", #groups)
+    end
+    local ok = write_state(profile)
+    if profile then
+        profile:mark(ok and "dynamic_refresh" or "dynamic_refresh_failed")
+    end
+    return ok
+end
+
+function M.refresh_codes(
+    codes, suppressed_words, preferred_root, deleted_words, profile)
+    return M.refresh_batch({
+        {
+            codes = codes,
+            suppressed_words = suppressed_words,
+            preferred_root = preferred_root,
+            deleted_words = deleted_words,
+        },
+    }, profile)
+end
+
+local function entries_request(entries, preferred_root)
     local codes = {}
     local words = {}
     local deleted = {}
@@ -727,7 +841,33 @@ function M.refresh_entries(entries, preferred_root)
             end
         end
     end
-    return M.refresh_codes(codes, words, preferred_root, deleted)
+    return {
+        codes = codes,
+        suppressed_words = words,
+        preferred_root = preferred_root,
+        deleted_words = deleted,
+    }
+end
+
+function M.refresh_entries(entries, preferred_root, profile)
+    return M.refresh_batch({
+        entries_request(entries, preferred_root),
+    }, profile)
+end
+
+function M.refresh_word(entries, added_codes, word, profile)
+    local requests = {}
+    if entries and #entries > 0 then
+        table.insert(requests, entries_request(entries, 4))
+    end
+    for _, code in ipairs(added_codes or {}) do
+        table.insert(requests, {
+            codes = { code },
+            suppressed_words = { word },
+            preferred_root = 4,
+        })
+    end
+    return M.refresh_batch(requests, profile)
 end
 
 function M.match(input)

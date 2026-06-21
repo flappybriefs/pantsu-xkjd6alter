@@ -77,14 +77,11 @@ local function finish_word(context, env, marker)
     local code, word, err, moved_entries =
         core.confirm(performance)
     if code and word and word ~= "" then
-        if moved_entries and #moved_entries > 0 then
-            dynamic.refresh_entries(moved_entries, 4)
-        end
-        for _, added_code in ipairs(
-            core.last_refresh_codes or core.last_codes or { code }) do
-            dynamic.refresh_codes({ added_code }, { word }, 4)
-        end
-        performance:mark("dynamic_refresh")
+        dynamic.refresh_word(
+            moved_entries,
+            core.last_refresh_codes or core.last_codes or { code },
+            word,
+            performance)
         env.engine:commit_text(word)
         context:clear()
         performance:mark("commit_and_clear")

@@ -2,7 +2,7 @@ local M = {}
 
 M.version = "2"
 M.index_version = "2"
-M.runtime_version = "2026-06-21.1"
+M.runtime_version = "2026-06-21.4"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
 M.self_word_file = "pantsu_self_words.tsv"
@@ -639,8 +639,35 @@ local function load_index()
 end
 
 function M.invalidate_index(path)
-    M.index = nil
     M.signature_cache = nil
+    if path and M.index then
+        local by_file = {}
+        for _, range in ipairs(M.index) do
+            if range.path ~= path then
+                if not by_file[range.path] then
+                    by_file[range.path] = {}
+                end
+                table.insert(by_file[range.path], range)
+            end
+        end
+        by_file[path] = scan_file_ranges(path)
+        local refreshed = {}
+        for _, dictionary in ipairs(M.dictionary_files) do
+            for _, range in ipairs(by_file[dictionary] or {}) do
+                table.insert(refreshed, range)
+            end
+        end
+        M.index = refreshed
+        load_dirty_index_files()
+        M.dirty_index_files[path] = true
+        if not write_dirty_index_files() then
+            M.dirty_index_files = {}
+            M.index_dirty_loaded = true
+            os.remove(data_path(M.index_file))
+        end
+        return
+    end
+    M.index = nil
     if path then
         load_dirty_index_files()
         M.dirty_index_files[path] = true
@@ -666,6 +693,30 @@ local function range_matches(prefix, input)
         or string.sub(input, 1, #prefix) == prefix
 end
 
+local function matching_ranges(input)
+    local result = {}
+    local current
+    for _, range in ipairs(load_index()) do
+        if range_matches(range.prefix, input) then
+            if current and current.path == range.path
+                and current.finish == range.start then
+                current.finish = range.finish
+            else
+                current = {
+                    path = range.path,
+                    start = range.start,
+                    finish = range.finish,
+                    line_number = range.line_number,
+                }
+                table.insert(result, current)
+            end
+        else
+            current = nil
+        end
+    end
+    return result
+end
+
 function M.entries(input, profile)
     load_overrides()
     if profile then
@@ -673,50 +724,52 @@ function M.entries(input, profile)
     end
     local result = {}
     local found_self = {}
-    for _, range in ipairs(load_index()) do
-        if range_matches(range.prefix, input) then
-            local file = io.open(data_path(range.path), "rb")
-            if file then
-                file:seek("set", range.start)
-                local line_number = range.line_number
-                while (file:seek() or range.finish) < range.finish do
-                    local line = file:read("*l")
-                    if not line then
-                        break
-                    end
-                    local word, base_code = read_code_fields(line)
-                    if word and base_code then
-                        local id = identity(
-                            range.path, line_number, word, base_code)
-                        local override = find_override(
-                            id, range.path, line_number, word, base_code)
-                        if override then
-                            id = override.id
-                        end
-                        local code = override and override.code or base_code
-                        local active = not override or override.active
-                        if string.sub(base_code, 1, #input) == input
-                            or (active and string.sub(code, 1, #input) == input) then
-                            if range.path == M.self_word_dict_file and active then
-                                found_self[word .. "\t" .. code] = true
-                            end
-                            table.insert(result, {
-                                id = id,
-                                path = range.path,
-                                line_number = line_number,
-                                word = word,
-                                base_code = base_code,
-                                code = code,
-                                original_code = code,
-                                active = active,
-                                initial_active = active,
-                            })
-                        end
-                    end
-                    line_number = line_number + 1
+    local ranges = matching_ranges(input)
+    if profile and profile.count then
+        profile:count("dictionary_range_count", #ranges)
+    end
+    for _, range in ipairs(ranges) do
+        local file = io.open(data_path(range.path), "rb")
+        if file then
+            file:seek("set", range.start)
+            local line_number = range.line_number
+            while (file:seek() or range.finish) < range.finish do
+                local line = file:read("*l")
+                if not line then
+                    break
                 end
-                file:close()
+                local word, base_code = read_code_fields(line)
+                if word and base_code then
+                    local id = identity(
+                        range.path, line_number, word, base_code)
+                    local override = find_override(
+                        id, range.path, line_number, word, base_code)
+                    if override then
+                        id = override.id
+                    end
+                    local code = override and override.code or base_code
+                    local active = not override or override.active
+                    if string.sub(base_code, 1, #input) == input
+                        or (active and string.sub(code, 1, #input) == input) then
+                        if range.path == M.self_word_dict_file and active then
+                            found_self[word .. "\t" .. code] = true
+                        end
+                        table.insert(result, {
+                            id = id,
+                            path = range.path,
+                            line_number = line_number,
+                            word = word,
+                            base_code = base_code,
+                            code = code,
+                            original_code = code,
+                            active = active,
+                            initial_active = active,
+                        })
+                    end
+                end
+                line_number = line_number + 1
             end
+            file:close()
         end
     end
     if profile then
@@ -750,6 +803,66 @@ function M.entries(input, profile)
         profile:mark("self_words_merge")
     end
     return result
+end
+
+function M.occupied_prefixes(input, target_word, minimum, maximum, profile)
+    load_overrides()
+    local occupied = {}
+    local ranges = matching_ranges(input)
+    if profile and profile.count then
+        profile:count("occupancy_range_count", #ranges)
+    end
+    for _, range in ipairs(ranges) do
+        local file = io.open(data_path(range.path), "rb")
+        if file then
+            file:seek("set", range.start)
+            local line_number = range.line_number
+            while (file:seek() or range.finish) < range.finish do
+                local line = file:read("*l")
+                if not line then
+                    break
+                end
+                local word, base_code = read_code_fields(line)
+                if word and base_code then
+                    local override = find_override(
+                        identity(
+                            range.path, line_number, word, base_code),
+                        range.path, line_number, word, base_code)
+                    local code = override and override.code or base_code
+                    local active = not override or override.active
+                    if active and word ~= target_word
+                        and string.sub(code, 1, #input) == input then
+                        local limit = math.min(maximum, #code)
+                        for length = minimum, limit do
+                            occupied[string.sub(code, 1, length)] = true
+                        end
+                    end
+                end
+                line_number = line_number + 1
+            end
+            file:close()
+        end
+    end
+    load_self_words()
+    for _, record in pairs(M.self_words_cache) do
+        if record.active and record.word ~= target_word
+            and string.sub(record.code, 1, #input) == input then
+            local id = "self:" .. record.word .. ":" .. record.code
+            local override = M.overrides[id]
+            local code = override and override.code or record.code
+            local active = not override or override.active
+            if active and string.sub(code, 1, #input) == input then
+                local limit = math.min(maximum, #code)
+                for length = minimum, limit do
+                    occupied[string.sub(code, 1, length)] = true
+                end
+            end
+        end
+    end
+    if profile then
+        profile:mark("occupancy_scan")
+    end
+    return occupied
 end
 
 function M.override_roots()

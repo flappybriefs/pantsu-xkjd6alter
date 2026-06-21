@@ -283,29 +283,6 @@ local function demote(model, entry)
     return true
 end
 
-local function following_candidate_words(context)
-    local composition = context.composition
-    if not composition or composition:empty() then
-        return {}
-    end
-    local segment = composition:back()
-    if not segment or not segment.menu then
-        return {}
-    end
-
-    local start_index = segment.selected_index + 1
-    segment.menu:prepare(start_index + 200)
-    local count = segment.menu:candidate_count()
-    local result = {}
-    for index = start_index, math.min(count - 1, start_index + 199) do
-        local candidate = segment:get_candidate_at(index)
-        if candidate and candidate.text and candidate.text ~= "" then
-            table.insert(result, candidate.text)
-        end
-    end
-    return result
-end
-
 local function same_code_candidate_words(context, model, code)
     local composition = context.composition
     if not composition or composition:empty() then
@@ -368,66 +345,8 @@ local function move_same_code(context, model, entry, direction, profile)
     return false
 end
 
-local function descendant_entry(model, word, prefix)
-    local best
-    local ambiguous = false
-    for _, entry in ipairs(model.by_word[word] or {}) do
-        if entry.active
-            and string.len(entry.code) > string.len(prefix)
-            and code_startswith(entry.code, prefix) then
-            if not best or string.len(entry.code) < string.len(best.code) then
-                best = entry
-                ambiguous = false
-            elseif string.len(entry.code) == string.len(best.code) then
-                ambiguous = true
-            end
-        end
-    end
-    if ambiguous then
-        return nil
-    end
-    return best
-end
-
-local function pull_candidates(model, vacancy, candidate_words)
-    for _, word in ipairs(candidate_words) do
-        if #occupants(model, vacancy) > 0 then
-            break
-        end
-        local next_entry = descendant_entry(model, word, vacancy)
-        if next_entry then
-            local old_code = next_entry.code
-            remove_from_code(model, next_entry)
-            attach_to_code(model, next_entry, vacancy)
-            vacancy = old_code
-        end
-    end
-end
-
-local function promote_and_pull(model, entry, candidate_words)
-    local vacancy = entry.code
-    local ok, err = promote(model, entry)
-    if not ok then
-        return nil, err
-    end
-    pull_candidates(model, vacancy, candidate_words)
-    return true
-end
-
-local function demote_and_pull(model, entry, candidate_words)
-    local vacancy = entry.code
-    local ok, err = demote(model, entry)
-    if not ok then
-        return nil, err
-    end
-    pull_candidates(model, vacancy, candidate_words)
-    return true
-end
-
-local function delete_and_pull(model, entry, candidate_words)
-    local vacancy = entry.code
+local function delete_entry(model, entry)
     detach(model, entry)
-    pull_candidates(model, vacancy, candidate_words)
     return true
 end
 
@@ -456,25 +375,21 @@ local function adjust(action, context, word, input, candidate_id, profile)
     end
 
     local ok
-    local following = following_candidate_words(context)
-    if profile then
-        profile:mark("following_candidates")
-    end
     if action == "promote" then
         if move_same_code(
             context, model, entry, "promote", profile) then
             return true, nil, input
         end
-        ok, err = promote_and_pull(model, entry, following)
+        ok, err = promote(model, entry)
     elseif action == "demote" then
-        ok, err = demote_and_pull(model, entry, following)
+        ok, err = demote(model, entry)
         if not ok and err == "no_longer_code"
             and move_same_code(
                 context, model, entry, "demote", profile) then
             return true, nil, input
         end
     else
-        ok, err = delete_and_pull(model, entry, following)
+        ok, err = delete_entry(model, entry)
     end
     if not ok then
         return nil, err
@@ -498,15 +413,7 @@ local function adjust(action, context, word, input, candidate_id, profile)
     if string.len(dynamic_root) > 4 then
         dynamic_root = string.sub(dynamic_root, 1, 4)
     end
-    if not dynamic.refresh_entries(model.entries, dynamic_root) then
-        if profile then
-            profile:mark("dynamic_refresh_failed")
-        end
-    else
-        if profile then
-            profile:mark("dynamic_refresh")
-        end
-    end
+    dynamic.refresh_entries(model.entries, dynamic_root, profile)
     local focus_input = input
     if action == "promote"
         and string.len(entry.code) < string.len(input) then

@@ -2,6 +2,11 @@ local store = require("pantsu_store")
 local dynamic = require("pantsu_dynamic")
 local profiler = require("pantsu_profiler")
 local M = {}
+local first_fly_keys = {
+    q = "f", f = "q",
+    w = "j", j = "w",
+}
+local second_fly_keys = { x = "m", m = "x" }
 
 M.word_file = "pantsu.zzc.dict.yaml"
 M.legacy_word_file = "pantsu.user.dict.yaml"
@@ -27,6 +32,7 @@ M.char_codes = nil
 M.char_code_list = nil
 M.words_by_code = nil
 M.loaded_words = false
+M.self_words_restored = false
 M.last_error = nil
 M.target_code = nil
 M.last_codes = {}
@@ -417,6 +423,7 @@ function M.restore_self_words()
         M.loaded_words = false
         M.words_by_code = nil
     end
+    M.self_words_restored = true
     return changed
 end
 
@@ -536,7 +543,8 @@ function M.optimize_self_word_codes()
     return changed
 end
 
-local function shortest_empty_prefix(full_code, target_word)
+local function shortest_empty_prefix(
+    full_code, target_word, occupied_by_root, profile)
     local full_length = string.len(full_code)
     local minimum = word_min_code_length(target_word)
     if full_length <= minimum then
@@ -549,15 +557,15 @@ local function shortest_empty_prefix(full_code, target_word)
     end
 
     local occupied = {}
-    local first = string.sub(full_code, 1, 1)
-    for _, entry in ipairs(store.entries(first)) do
-        if entry.active and entry.word ~= target_word then
-            for length = minimum, full_length - 1 do
-                if not occupied[length]
-                    and code_startswith(entry.code, prefixes[length]) then
-                    occupied[length] = true
-                end
-            end
+    local root_length = math.min(2, full_length)
+    local root = string.sub(full_code, 1, root_length)
+    if not occupied_by_root[root] then
+        occupied_by_root[root] = store.occupied_prefixes(
+            root, target_word, minimum, 6, profile)
+    end
+    for length = minimum, full_length - 1 do
+        if occupied_by_root[root][prefixes[length]] then
+            occupied[length] = true
         end
     end
 
@@ -697,18 +705,39 @@ function M.code_for_word(word, items)
 end
 
 local function fly_codes_for_char(ch, selected)
-    local result = {}
-    local seen = {}
-    local suffix = string.sub(selected, 3)
+    local available = {}
     for _, code in ipairs(M.char_code_list[ch] or {}) do
-        if string.len(code) >= 3 and string.sub(code, 3) == suffix
-            and not seen[code] then
-            seen[code] = true
-            table.insert(result, code)
+        if string.len(code) >= 3 then
+            available[code] = true
         end
     end
-    if #result == 0 then
-        table.insert(result, selected)
+
+    local result = {}
+    local seen = { [selected] = true }
+    local pending = { selected }
+    table.insert(result, selected)
+    local index = 1
+    local function enqueue(code)
+        if available[code] and not seen[code] then
+            seen[code] = true
+            table.insert(result, code)
+            table.insert(pending, code)
+        end
+    end
+
+    while index <= #pending do
+        local code = pending[index]
+        index = index + 1
+        local first = string.sub(code, 1, 1)
+        local second = string.sub(code, 2, 2)
+        local first_fly = first_fly_keys[first]
+        if first_fly then
+            enqueue(first_fly .. string.sub(code, 2))
+        end
+        local second_fly = second_fly_keys[second]
+        if second_fly then
+            enqueue(first .. second_fly .. string.sub(code, 3))
+        end
     end
     return result
 end
@@ -1047,12 +1076,14 @@ function M.plan_word(word, items, target_code, profile)
     local codes = {}
     local seen_codes = {}
     local primary
+    local occupied_by_root = {}
     for _, full_code in ipairs(full_codes) do
         local code
         if matching_full == full_code then
             code = target_code
         else
-            code = shortest_empty_prefix(full_code, word)
+            code = shortest_empty_prefix(
+                full_code, word, occupied_by_root, profile)
         end
         if code and code ~= "" and not seen_codes[code] then
             seen_codes[code] = true
@@ -1248,7 +1279,9 @@ end
 
 function M.start(target_code)
     store.ensure_runtime_files()
-    M.restore_self_words()
+    if not M.self_words_restored then
+        M.restore_self_words()
+    end
     M.mode = "manual"
     M.buffer = ""
     M.buffer_items = {}
