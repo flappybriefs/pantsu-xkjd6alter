@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -135,6 +137,25 @@ def main() -> None:
 
         maintenance.ROOT = root
         maintenance.LOCAL_CONFIG = root / ".pantsu_maintenance.json"
+        maintenance.save_shared_directory(phone)
+        (root / "pantsu_candidate_order.tsv").write_text(
+            "version\t2\n"
+            "meta\ttest\t20\tmac\t1\n"
+            "item\ttest\t1\t电脑最新\n"
+            "meta\ttie\t30\tmac\t1\n"
+            "item\ttie\t1\t电脑同秒旧值\n",
+            encoding="utf-8",
+        )
+        (phone / "pantsu_candidate_order.tsv").write_text(
+            "version\t2\n"
+            "meta\ttest\t10\tiphone\t1\n"
+            "item\ttest\t1\t手机旧值\n"
+            "meta\ttie\t30\tiphone\t1\n"
+            "item\ttie\t1\t手机同秒新值\n",
+            encoding="utf-8",
+        )
+        os.utime(root / "pantsu_candidate_order.tsv", ns=(10, 10))
+        os.utime(phone / "pantsu_candidate_order.tsv", ns=(20, 20))
         assert maintenance.looks_like_rime_root(phone)
         assert maintenance.state_directories(phone) == [phone]
         assert maintenance.sync_phone(
@@ -162,6 +183,46 @@ def main() -> None:
         assert (phone / "lua/pantsu_test.lua").read_text(
             encoding="utf-8"
         ) == "return 'mac'\n"
+        for directory in [
+            root,
+            phone,
+            phone / "sync" / "mac",
+            root / "sync" / "mac",
+        ]:
+            orders = maintenance.parse_candidate_orders(
+                directory / "pantsu_candidate_order.tsv"
+            )
+            assert orders["test"]["items"] == [["1", "电脑最新"]]
+            assert orders["tie"]["items"] == [["1", "手机同秒新值"]]
+        logs = maintenance.merge_logs()
+        assert len(logs) == 1
+        manifest = json.loads(
+            (logs[0] / "manifest.json").read_text(encoding="utf-8")
+        )
+        assert manifest["status"] == "success"
+        assert manifest["details"]["write_back_directories"] >= 3
+        operation_log = (logs[0] / "操作日志.txt").read_text(
+            encoding="utf-8"
+        )
+        assert "竞争记录（已按最新操作自动决胜）" in operation_log
+        assert "candidate_order" in operation_log
+        (root / "pantsu_candidate_order.tsv").write_text(
+            "version\t2\n",
+            encoding="utf-8",
+        )
+        maintenance.restore_merge_log(logs[0].name)
+        restored = maintenance.parse_candidate_orders(
+            root / "pantsu_candidate_order.tsv"
+        )
+        assert restored["test"]["items"] == [["1", "电脑最新"]]
+        for index in range(6):
+            log = maintenance.create_merge_log(f"rotation-{index}", [])
+            maintenance.finish_merge_log(
+                log,
+                status="success",
+                details={"index": index},
+            )
+        assert len(maintenance.merge_logs()) == 5
         assert list((root / "backups").iterdir())
 
     with tempfile.TemporaryDirectory() as directory:

@@ -28,9 +28,5 @@ import_tables:
   - pantsu.cizu
  # ---------------------------------------
 # 扩展：自定义
-  - pantsu.temp
   - pantsu.user
   - pantsu.zzc
-  # ---------------------------------------
-# 扩展：外挂
-  - pantsu.waigua

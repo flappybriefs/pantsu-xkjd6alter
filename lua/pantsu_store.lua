@@ -30,6 +30,7 @@ M.index_by_prefix = nil
 M.signature_cache = nil
 M.self_words_cache = nil
 M.self_words_by_root = nil
+M.self_word_keys = nil
 M.effective_roots = {}
 M.effective_root_order = {}
 M.effective_root_length = 4
@@ -425,6 +426,7 @@ end
 local function clear_self_word_cache()
     M.self_words_cache = nil
     M.self_words_by_root = nil
+    M.self_word_keys = nil
 end
 
 local function load_self_words()
@@ -433,6 +435,9 @@ local function load_self_words()
     end
     M.ensure_runtime_files()
     M.self_words_cache = {}
+    M.self_word_keys = {}
+    local keys_are_sorted = true
+    local previous_key
     local file = io.open(data_path(M.self_word_file), "r")
     if not file then
         rebuild_self_word_buckets()
@@ -451,9 +456,17 @@ local function load_self_words()
                 updated = tonumber(updated) or 0,
                 device = device ~= "" and device or "unknown",
             }
+            table.insert(M.self_word_keys, key)
+            if previous_key and key < previous_key then
+                keys_are_sorted = false
+            end
+            previous_key = key
         end
     end
     file:close()
+    if not keys_are_sorted then
+        table.sort(M.self_word_keys)
+    end
     rebuild_self_word_buckets()
 end
 
@@ -469,18 +482,9 @@ end
 
 local function write_self_words()
     load_self_words()
-    local records = {}
-    for _, record in pairs(M.self_words_cache) do
-        table.insert(records, record)
-    end
-    table.sort(records, function(left, right)
-        if left.word == right.word then
-            return left.code < right.code
-        end
-        return left.word < right.word
-    end)
     local lines = { "version\t1" }
-    for _, record in ipairs(records) do
+    for _, key in ipairs(M.self_word_keys) do
+        local record = M.self_words_cache[key]
         table.insert(lines, table.concat({
             "word",
             record.word,
@@ -495,6 +499,21 @@ local function write_self_words()
         M.signature_cache = nil
     end
     return ok
+end
+
+local function insert_self_word_key(key)
+    local low, high = 1, #M.self_word_keys
+    while low <= high do
+        local middle = math.floor((low + high) / 2)
+        if M.self_word_keys[middle] < key then
+            low = middle + 1
+        else
+            high = middle - 1
+        end
+    end
+    if M.self_word_keys[low] ~= key then
+        table.insert(M.self_word_keys, low, key)
+    end
 end
 
 local function write_overrides()
@@ -1084,6 +1103,9 @@ function M.update_self_words(updates, only_missing)
             and (not only_missing or not old) then
             local active = update.active ~= false
             if not old or old.active ~= active then
+                if not old then
+                    insert_self_word_key(key)
+                end
                 M.self_words_cache[key] = {
                     word = update.word,
                     code = update.code,

@@ -26,12 +26,173 @@ from pantsu_dictionary import (
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_CONFIG = ROOT / ".pantsu_maintenance.json"
+MERGE_LOG_LIMIT = 5
+MERGE_LOG_FILES = tuple(dict.fromkeys((
+    *STATE_FILES,
+    "pantsu.core.dict.yaml",
+    "pantsu.cizu.dict.yaml",
+)))
 
 
 def atomic_write(path: Path, text: str) -> None:
     temp = path.with_suffix(path.suffix + ".tmp")
     temp.write_text(text, encoding="utf-8")
     temp.replace(path)
+
+
+def file_modified_ns(path: Path) -> int:
+    try:
+        return path.stat().st_mtime_ns
+    except OSError:
+        return 0
+
+
+def merge_log_directory() -> Path:
+    return ROOT / "pantsu_maintenance_logs"
+
+
+def operation_version(
+    record: list[str] | dict[str, object],
+    path: Path,
+    *,
+    updated_index: int | None = None,
+    device_index: int | None = None,
+) -> tuple[int, int, str]:
+    if isinstance(record, dict):
+        updated = int(record.get("updated", 0))
+        device = str(record.get("device", "unknown"))
+    else:
+        updated = (
+            int(record[updated_index])
+            if updated_index is not None
+            and len(record) > updated_index
+            and record[updated_index].isdigit()
+            else 0
+        )
+        device = (
+            record[device_index]
+            if device_index is not None and len(record) > device_index
+            else "unknown"
+        )
+    return updated, file_modified_ns(path), device
+
+
+def create_merge_log(action: str, directories: list[str]) -> Path:
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    directory = merge_log_directory()
+    target = directory / stamp
+    target.mkdir(parents=True, exist_ok=False)
+    existing: list[str] = []
+    missing: list[str] = []
+    for name in MERGE_LOG_FILES:
+        source = ROOT / name
+        if source.exists():
+            shutil.copy2(source, target / name)
+            existing.append(name)
+        else:
+            missing.append(name)
+    manifest = {
+        "version": 1,
+        "action": action,
+        "created_at": dt.datetime.now().astimezone().isoformat(),
+        "status": "started",
+        "sources": directories,
+        "snapshot_files": existing,
+        "missing_files": missing,
+    }
+    atomic_write(
+        target / "manifest.json",
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    )
+    logs = sorted(
+        (path for path in directory.iterdir() if path.is_dir()),
+        reverse=True,
+    )
+    for old in logs[MERGE_LOG_LIMIT:]:
+        shutil.rmtree(old)
+    return target
+
+
+def finish_merge_log(
+    target: Path,
+    *,
+    status: str,
+    details: dict[str, object],
+) -> None:
+    manifest_path = target / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.update({
+        "status": status,
+        "finished_at": dt.datetime.now().astimezone().isoformat(),
+        "details": details,
+    })
+    atomic_write(
+        manifest_path,
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    )
+    lines = [
+        f"时间：{manifest.get('finished_at', manifest.get('created_at', '-'))}",
+        f"操作：{manifest.get('action', '-')}",
+        f"结果：{status}",
+        "来源：",
+    ]
+    lines.extend(f"- {source}" for source in manifest.get("sources", []))
+    lines.append("统计：")
+    lines.extend(
+        f"- {key}: {value}" for key, value in sorted(details.items())
+    )
+    conflict_path = ROOT / "pantsu_sync_conflicts.tsv"
+    if conflict_path.exists():
+        lines.append("竞争记录（已按最新操作自动决胜）：")
+        lines.extend(
+            f"- {raw}"
+            for raw in conflict_path.read_text(
+                encoding="utf-8-sig"
+            ).splitlines()
+            if raw
+        )
+    atomic_write(target / "操作日志.txt", "\n".join(lines) + "\n")
+
+
+def merge_logs() -> list[Path]:
+    directory = merge_log_directory()
+    if not directory.is_dir():
+        return []
+    return sorted(
+        (path for path in directory.iterdir() if path.is_dir()),
+        reverse=True,
+    )[:MERGE_LOG_LIMIT]
+
+
+def restore_merge_log(name: str) -> None:
+    source = merge_log_directory() / name
+    manifest_path = source / "manifest.json"
+    if not manifest_path.exists():
+        raise SystemExit(f"维护日志不存在：{source}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    backup(tuple(MERGE_LOG_FILES))
+    snapshot_files = set(manifest.get("snapshot_files", []))
+    missing_files = set(manifest.get("missing_files", []))
+    for name in MERGE_LOG_FILES:
+        snapshot = source / name
+        target = ROOT / name
+        if name in snapshot_files and snapshot.exists():
+            shutil.copy2(snapshot, target)
+        elif name in missing_files:
+            target.unlink(missing_ok=True)
+    shared = shared_directory()
+    if shared is not None:
+        destinations = state_directories(shared)
+        if looks_like_rime_root(shared):
+            destinations.extend([
+                shared,
+                shared / "sync" / installation_id(),
+            ])
+            copy_phone_scheme(shared)
+        broadcast_state(destinations)
+    reload_squirrel()
+    print(f"已恢复维护日志：{source.name}")
+    print("电脑和手机共享目录均已回到该次合并前的状态。")
 
 
 def backup(extra_files: tuple[str, ...] = ()) -> Path:
@@ -244,96 +405,153 @@ def merge_sync(
     directories: list[str],
     *,
     create_backup: bool = True,
-) -> None:
+    write_back: bool = True,
+    create_log: bool = True,
+) -> dict[str, object]:
+    directories = list(dict.fromkeys(
+        str(Path(directory).resolve()) for directory in directories
+    ))
+    log = create_merge_log("merge-sync", directories) if create_log else None
     if create_backup:
         backup()
-    merged = parse_overrides(ROOT / "pantsu_overrides.tsv")
-    conflicts: list[str] = []
-    for directory in directories:
-        incoming = parse_overrides(Path(directory) / "pantsu_overrides.tsv")
-        for key, record in incoming.items():
-            current = merged.get(key)
-            if current is None or int(record[8]) > int(current[8]):
-                merged[key] = record
-            elif int(record[8]) == int(current[8]) and record != current:
-                conflicts.append("\t".join(["override", key, *current, *record]))
-    merged, dropped_overrides = normalize_overrides(merged)
-    write_overrides(merged)
+    try:
+        conflicts: list[str] = []
+        state_roots = [ROOT, *(Path(directory) for directory in directories)]
 
-    for profile in SCHEME_PROFILES.values():
-        order_sources = [ROOT / profile.candidate_order_file] + [
-            Path(directory) / profile.candidate_order_file
-            for directory in directories
-        ]
-        order_sources = [path for path in order_sources if path.exists()]
-        merged_orders: dict[str, dict[str, object]] = {}
-        for path in order_sources:
-            for code, state in parse_candidate_orders(path).items():
-                current = merged_orders.get(code)
-                incoming_key = (int(state["updated"]), str(state["device"]))
-                current_key = (
-                    int(current["updated"]),
-                    str(current["device"]),
-                ) if current else None
-                if (
-                    current
-                    and incoming_key[0] == current_key[0]
-                    and current != state
-                ):
-                    conflicts.append(
-                        "\t".join([
+        merged: dict[str, list[str]] = {}
+        override_versions: dict[str, tuple[int, int, str]] = {}
+        for directory in state_roots:
+            path = directory / "pantsu_overrides.tsv"
+            for key, record in parse_overrides(path).items():
+                version = operation_version(
+                    record,
+                    path,
+                    updated_index=8,
+                    device_index=9,
+                )
+                current = merged.get(key)
+                current_version = override_versions.get(key)
+                if current is not None and current != record:
+                    winner = "incoming" if version > current_version else "current"
+                    conflicts.append("\t".join([
+                        "override",
+                        key,
+                        winner,
+                        str(current_version),
+                        str(version),
+                    ]))
+                if current is None or version > current_version:
+                    merged[key] = record
+                    override_versions[key] = version
+        merged, dropped_overrides = normalize_overrides(merged)
+        write_overrides(merged)
+
+        for profile in SCHEME_PROFILES.values():
+            order_sources = [
+                directory / profile.candidate_order_file
+                for directory in state_roots
+            ]
+            order_sources = [path for path in order_sources if path.exists()]
+            merged_orders: dict[str, dict[str, object]] = {}
+            order_versions: dict[str, tuple[int, int, str]] = {}
+            for path in order_sources:
+                for code, state in parse_candidate_orders(path).items():
+                    version = operation_version(state, path)
+                    current = merged_orders.get(code)
+                    current_version = order_versions.get(code)
+                    if current is not None and current != state:
+                        winner = (
+                            "incoming" if version > current_version else "current"
+                        )
+                        conflicts.append("\t".join([
                             "candidate_order",
                             profile.key,
                             code,
-                            str(current["device"]),
-                            str(state["device"]),
-                            str(path),
-                        ])
-                    )
-                if current is None or incoming_key > current_key:
-                    merged_orders[code] = state
-        if order_sources:
-            write_candidate_orders(
-                merged_orders,
-                ROOT / profile.candidate_order_file,
-            )
-
-    self_words = parse_self_word_records(ROOT / "pantsu_self_words.tsv")
-    for directory in directories:
-        incoming = parse_self_word_records(
-            Path(directory) / "pantsu_self_words.tsv"
-        )
-        for key, record in incoming.items():
-            current = self_words.get(key)
-            if current is None or int(record[4]) > int(current[4]):
-                self_words[key] = record
-            elif int(record[4]) == int(current[4]) and record != current:
-                conflicts.append(
-                    "\t".join(["self_word", key, *current, *record])
+                            winner,
+                            str(current_version),
+                            str(version),
+                        ]))
+                    if current is None or version > current_version:
+                        merged_orders[code] = state
+                        order_versions[code] = version
+            if order_sources:
+                write_candidate_orders(
+                    merged_orders,
+                    ROOT / profile.candidate_order_file,
                 )
-    write_self_word_records(self_words)
 
-    usage = parse_usage(ROOT)
-    for directory in directories:
-        for key, incoming in parse_usage(Path(directory)).items():
-            current = usage.get(key)
-            if current is None or incoming > current:
-                usage[key] = incoming
-    write_usage(usage)
-    if conflicts:
-        atomic_write(
-            ROOT / "pantsu_sync_conflicts.tsv",
-            "\n".join(conflicts) + "\n",
+        self_words: dict[str, list[str]] = {}
+        self_versions: dict[str, tuple[int, int, str]] = {}
+        for directory in state_roots:
+            path = directory / "pantsu_self_words.tsv"
+            for key, record in parse_self_word_records(path).items():
+                version = operation_version(
+                    record,
+                    path,
+                    updated_index=4,
+                    device_index=5,
+                )
+                current = self_words.get(key)
+                current_version = self_versions.get(key)
+                if current is not None and current != record:
+                    winner = "incoming" if version > current_version else "current"
+                    conflicts.append("\t".join([
+                        "self_word",
+                        key,
+                        winner,
+                        str(current_version),
+                        str(version),
+                    ]))
+                if current is None or version > current_version:
+                    self_words[key] = record
+                    self_versions[key] = version
+        write_self_word_records(self_words)
+
+        usage = parse_usage(ROOT)
+        for directory in directories:
+            for key, incoming in parse_usage(Path(directory)).items():
+                current = usage.get(key)
+                if current is None or incoming > current:
+                    usage[key] = incoming
+        write_usage(usage)
+        if conflicts:
+            atomic_write(
+                ROOT / "pantsu_sync_conflicts.tsv",
+                "\n".join(conflicts) + "\n",
+            )
+        else:
+            (ROOT / "pantsu_sync_conflicts.tsv").unlink(missing_ok=True)
+        if write_back:
+            broadcast_state([Path(directory) for directory in directories])
+        result: dict[str, object] = {
+            "overrides": len(merged),
+            "self_words": len(self_words),
+            "usage_words": len({word for word, _ in usage}),
+            "conflicts": len(conflicts),
+            "dropped_overrides": dropped_overrides,
+            "write_back_directories": len(directories) if write_back else 0,
+        }
+        print(
+            f"合并完成：{result['overrides']} 条覆盖，"
+            f"{result['self_words']} 个自造词状态，"
+            f"{result['usage_words']} 个词频，"
+            f"{result['conflicts']} 条竞争记录，"
+            f"清理 {result['dropped_overrides']} 条旧方案覆盖"
         )
-    else:
-        (ROOT / "pantsu_sync_conflicts.tsv").unlink(missing_ok=True)
-    print(
-        f"合并完成：{len(merged)} 条覆盖，"
-        f"{len(self_words)} 个自造词状态，"
-        f"{len({word for word, _ in usage})} 个词频，"
-        f"{len(conflicts)} 条冲突，"
-        f"清理 {dropped_overrides} 条旧方案覆盖"
-    )
+        if write_back:
+            print(f"已将合并状态双向写回 {len(directories)} 个设备目录")
+        if log is not None:
+            finish_merge_log(log, status="success", details=result)
+            print(f"维护日志：{log.name}")
+        return result
+    except Exception as exc:
+        if log is not None:
+            finish_merge_log(
+                log,
+                status="failed",
+                details={"error": f"{type(exc).__name__}: {exc}"},
+            )
+        raise
 
 
 def installation_id() -> str:
@@ -350,6 +568,19 @@ def copy_state(target: Path) -> None:
         source = ROOT / name
         if source.exists():
             shutil.copy2(source, target / name)
+
+
+def broadcast_state(directories: list[Path]) -> int:
+    copied = 0
+    seen: set[Path] = set()
+    for directory in directories:
+        resolved = directory.resolve()
+        if resolved == ROOT.resolve() or resolved in seen:
+            continue
+        seen.add(resolved)
+        copy_state(directory)
+        copied += 1
+    return copied
 
 
 def copy_phone_scheme(target: Path) -> tuple[int, int]:
@@ -681,33 +912,72 @@ def sync_phone(
         return False
 
     print("正在读取手机状态并与电脑合并……")
+    log = create_merge_log(
+        "sync-phone",
+        [str(path.resolve()) for path in sources],
+    )
     backup(("pantsu.core.dict.yaml", "pantsu.cizu.dict.yaml"))
-    merge_sync([str(path) for path in sources], create_backup=False)
-    moved, removed_core = reconcile_core_self_codes()
-    sync_export()
-
-    if looks_like_rime_root(target):
-        copy_state(target)
-        copy_state(target / "sync" / installation_id())
-        copied, removed = copy_phone_scheme(target)
-    else:
-        copy_state(target / installation_id())
-        copied, removed = 0, 0
-
-    reloaded = reload_squirrel() if reload_desktop else False
-    print(f"同步完成：已合并 {len(sources)} 份手机状态")
-    if moved or removed_core:
-        print(
-            f"自造词避码：后移 {moved} 个基础词，"
-            f"移除 {removed_core} 个无法后移的低优先词。"
+    try:
+        result = merge_sync(
+            [str(path) for path in sources],
+            create_backup=False,
+            write_back=False,
+            create_log=False,
         )
-    print("合并结果已经同时写回电脑和手机的 iCloud 目录。")
-    if copied:
-        print(f"手机方案已更新：复制 {copied} 个文件，清理 {removed} 个旧文件。")
-    if reload_desktop:
-        print("电脑输入法已重新加载" if reloaded else "未检测到鼠须管，已跳过重载")
-    print("最后在仓输入法中再执行一次“同步/重新部署”即可。")
-    return True
+        moved, removed_core = reconcile_core_self_codes()
+        local_export = sync_export()
+
+        destinations = [*sources, local_export]
+        if looks_like_rime_root(target):
+            destinations.extend([
+                target,
+                target / "sync" / installation_id(),
+            ])
+            copied, removed = copy_phone_scheme(target)
+        else:
+            destinations.append(target / installation_id())
+            copied, removed = 0, 0
+        written = broadcast_state(destinations)
+
+        reloaded = reload_squirrel() if reload_desktop else False
+        details = {
+            **result,
+            "self_code_moves": moved,
+            "self_code_removals": removed_core,
+            "write_back_directories": written,
+            "scheme_files_copied": copied,
+            "obsolete_files_removed": removed,
+        }
+        finish_merge_log(log, status="success", details=details)
+        print(f"同步完成：已合并 {len(sources)} 份手机状态")
+        print(f"双向写回：{written} 个电脑、iCloud 和手机设备目录")
+        if moved or removed_core:
+            print(
+                f"自造词避码：后移 {moved} 个基础词，"
+                f"移除 {removed_core} 个无法后移的低优先词。"
+            )
+        print("电脑和所有参与合并的手机状态目录现在使用同一份结果。")
+        if copied:
+            print(
+                f"手机方案已更新：复制 {copied} 个文件，"
+                f"清理 {removed} 个旧文件。"
+            )
+        if reload_desktop:
+            print(
+                "电脑输入法已重新加载"
+                if reloaded
+                else "未检测到鼠须管，已跳过重载"
+            )
+        print(f"维护日志：{log.name}（仅保留最近 {MERGE_LOG_LIMIT} 次）")
+        print("最后在仓输入法中再执行一次“同步/重新部署”即可。")
+        return True
+    except Exception as exc:
+        finish_merge_log(
+            log,
+            status="failed",
+            details={"error": f"{type(exc).__name__}: {exc}"},
+        )
+        raise
 
 
 def choose_shared_directory() -> Path | None:
@@ -746,6 +1016,51 @@ def restore_interactive() -> None:
     restore(snapshots[int(value) - 1].name)
 
 
+def show_merge_logs() -> list[Path]:
+    logs = merge_logs()
+    if not logs:
+        print("目前没有维护合并日志")
+        return []
+    for index, path in enumerate(logs, 1):
+        try:
+            manifest = json.loads(
+                (path / "manifest.json").read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError):
+            manifest = {}
+        details = manifest.get("details", {})
+        status = "成功" if manifest.get("status") == "success" else "未完成"
+        action = (
+            "手机与电脑合并"
+            if manifest.get("action") == "sync-phone"
+            else "状态合并"
+        )
+        conflicts = details.get("conflicts", 0)
+        print(
+            f"{index}. {path.name}  {action}  {status}  "
+            f"竞争记录 {conflicts}"
+        )
+    return logs
+
+
+def restore_merge_log_interactive() -> None:
+    logs = show_merge_logs()
+    if not logs:
+        return
+    value = input("输入要恢复的日志序号，直接回车取消：").strip()
+    if not value.isdigit() or not 1 <= int(value) <= len(logs):
+        print("已取消")
+        return
+    selected = logs[int(value) - 1]
+    confirm = input(
+        f"将恢复到 {selected.name} 合并前，输入 YES 确认："
+    ).strip()
+    if confirm != "YES":
+        print("已取消")
+        return
+    restore_merge_log(selected.name)
+
+
 def advanced_menu() -> None:
     while True:
         print("\n—— 更多功能 ——")
@@ -756,6 +1071,7 @@ def advanced_menu() -> None:
         print("5. 应用覆盖到基础词库")
         print("6. 修复失效覆盖记录")
         print("7. 恢复历史备份")
+        print("8. 从维护合并日志恢复")
         print("0. 返回")
         choice = input("请选择：").strip()
         if choice == "1":
@@ -772,6 +1088,8 @@ def advanced_menu() -> None:
             repair_overrides()
         elif choice == "7":
             restore_interactive()
+        elif choice == "8":
+            restore_merge_log_interactive()
         elif choice == "0":
             return
         else:
@@ -1309,6 +1627,9 @@ def main() -> None:
     sub.add_parser("backup")
     restore_parser = sub.add_parser("restore")
     restore_parser.add_argument("name")
+    restore_log_parser = sub.add_parser("restore-log")
+    restore_log_parser.add_argument("name", nargs="?")
+    sub.add_parser("logs")
     merge_parser = sub.add_parser("merge-sync")
     merge_parser.add_argument("directories", nargs="+")
     history_parser = sub.add_parser("history")
@@ -1336,6 +1657,13 @@ def main() -> None:
         backup()
     elif args.command == "restore":
         restore(args.name)
+    elif args.command == "restore-log":
+        if args.name:
+            restore_merge_log(args.name)
+        else:
+            restore_merge_log_interactive()
+    elif args.command == "logs":
+        show_merge_logs()
     elif args.command == "merge-sync":
         merge_sync(args.directories)
     elif args.command == "history":
