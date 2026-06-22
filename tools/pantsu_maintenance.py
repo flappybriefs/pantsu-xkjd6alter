@@ -1067,11 +1067,12 @@ def advanced_menu() -> None:
         print("1. 查看操作历史")
         print("2. 查看性能记录")
         print("3. 运行性能与极端压力测试")
-        print("4. 设置手机目录")
-        print("5. 应用覆盖到基础词库")
-        print("6. 修复失效覆盖记录")
-        print("7. 恢复历史备份")
-        print("8. 从维护合并日志恢复")
+        print("4. 对比自造词写入性能")
+        print("5. 设置手机目录")
+        print("6. 应用覆盖到基础词库")
+        print("7. 修复失效覆盖记录")
+        print("8. 恢复历史备份")
+        print("9. 从维护合并日志恢复")
         print("0. 返回")
         choice = input("请选择：").strip()
         if choice == "1":
@@ -1081,14 +1082,16 @@ def advanced_menu() -> None:
         elif choice == "3":
             run_stress_test()
         elif choice == "4":
-            choose_shared_directory()
+            run_self_word_benchmark()
         elif choice == "5":
-            apply_overrides()
+            choose_shared_directory()
         elif choice == "6":
-            repair_overrides()
+            apply_overrides()
         elif choice == "7":
-            restore_interactive()
+            repair_overrides()
         elif choice == "8":
+            restore_interactive()
+        elif choice == "9":
             restore_merge_log_interactive()
         elif choice == "0":
             return
@@ -1181,6 +1184,17 @@ def run_stress_test() -> None:
     )
     if result.returncode != 0:
         print(f"压力测试未完成，退出码：{result.returncode}")
+
+
+def run_self_word_benchmark() -> None:
+    script = ROOT / "tools/pantsu_self_word_benchmark.py"
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=ROOT,
+        check=False,
+    )
+    if result.returncode != 0:
+        print(f"自造词性能测试未完成，退出码：{result.returncode}")
 
 
 def self_word_lines(path: Path) -> tuple[list[str], int, int]:
@@ -1652,6 +1666,7 @@ def main() -> None:
     performance_parser = sub.add_parser("performance")
     performance_parser.add_argument("-n", type=int, default=20)
     sub.add_parser("stress")
+    sub.add_parser("self-benchmark")
     args = parser.parse_args()
     if args.command == "backup":
         backup()
@@ -1698,6 +1713,8 @@ def main() -> None:
         show_performance(args.n)
     elif args.command == "stress":
         run_stress_test()
+    elif args.command == "self-benchmark":
+        run_self_word_benchmark()
 
 
 if __name__ == "__main__":
