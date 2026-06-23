@@ -262,10 +262,10 @@ keyboards:
               landscape:
                 percentage: 0.07
             swipe:
-              - action: shortCommand(sendKeys(Control+z))
+              - action: { shortcutCommand: { sendKeys: { keys: "Control+z" } } }
                 label: 撤销
                 display: true
-                processByRIME: true
+                processByRIME: false
                 direction: down
           - action:
               character:
@@ -311,10 +311,10 @@ keyboards:
               landscape:
                 percentage: 0.07
             swipe:
-              - action: shortCommand(sendKeys(Control+h))
+              - action: { shortcutCommand: { sendKeys: { keys: "Control+h" } } }
                 label: 历史
                 display: true
-                processByRIME: true
+                processByRIME: false
                 direction: down
           - action:
               character:
@@ -511,7 +511,7 @@ keyboards:
                 percentage: 0.46
               landscape:
                 percentage: 0.25
-            label: 飞天小胖次
+            label: 胖次键道
             swipe:
               - action:
                   shortcutCommand: "#次选上屏"
