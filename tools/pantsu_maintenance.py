@@ -27,6 +27,7 @@ from pantsu_dictionary import (
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_CONFIG = ROOT / ".pantsu_maintenance.json"
 MERGE_LOG_LIMIT = 5
+HISTORY_LIMIT_BYTES = 1024 * 1024
 MERGE_LOG_FILES = tuple(dict.fromkeys((
     *STATE_FILES,
     "pantsu.core.dict.yaml",
@@ -340,6 +341,36 @@ def write_usage(entries: dict[tuple[str, str], tuple[int, int]]) -> None:
     atomic_write(ROOT / "pantsu_usage_events.tsv", "version\t1\n")
 
 
+def parse_history(path: Path) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    if not path.exists():
+        return result
+    for raw in path.read_text(encoding="utf-8-sig").splitlines():
+        fields = raw.split("\t")
+        if len(fields) >= 6 and fields[0].isdigit():
+            result[raw] = fields
+    return result
+
+
+def write_history(entries: dict[str, list[str]]) -> None:
+    rows = sorted(
+        entries,
+        key=lambda raw: (
+            int(entries[raw][0]),
+            entries[raw][1],
+            raw,
+        ),
+    )
+    total = sum(len((raw + "\n").encode("utf-8")) for raw in rows)
+    while rows and total > HISTORY_LIMIT_BYTES:
+        total -= len((rows[0] + "\n").encode("utf-8"))
+        rows.pop(0)
+    atomic_write(
+        ROOT / "pantsu_history.tsv",
+        "".join(raw + "\n" for raw in rows),
+    )
+
+
 def parse_candidate_orders(path: Path) -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
     if not path.exists():
@@ -514,6 +545,11 @@ def merge_sync(
                 if current is None or incoming > current:
                     usage[key] = incoming
         write_usage(usage)
+
+        history: dict[str, list[str]] = {}
+        for directory in state_roots:
+            history.update(parse_history(directory / "pantsu_history.tsv"))
+        write_history(history)
         if conflicts:
             atomic_write(
                 ROOT / "pantsu_sync_conflicts.tsv",
@@ -527,6 +563,10 @@ def merge_sync(
             "overrides": len(merged),
             "self_words": len(self_words),
             "usage_words": len({word for word, _ in usage}),
+            "history_rows": len(history),
+            "history_devices": len({
+                fields[1] for fields in history.values()
+            }),
             "conflicts": len(conflicts),
             "dropped_overrides": dropped_overrides,
             "write_back_directories": len(directories) if write_back else 0,
@@ -535,6 +575,7 @@ def merge_sync(
             f"合并完成：{result['overrides']} 条覆盖，"
             f"{result['self_words']} 个自造词状态，"
             f"{result['usage_words']} 个词频，"
+            f"{result['history_rows']} 条操作历史，"
             f"{result['conflicts']} 条竞争记录，"
             f"清理 {result['dropped_overrides']} 条旧方案覆盖"
         )
@@ -969,7 +1010,8 @@ def sync_phone(
                 else "未检测到鼠须管，已跳过重载"
             )
         print(f"维护日志：{log.name}（仅保留最近 {MERGE_LOG_LIMIT} 次）")
-        print("最后在仓输入法中再执行一次“同步/重新部署”即可。")
+        print("手机上传新操作：保持“重新部署时覆盖词库文件”关闭后同步。")
+        print("手机接收合并结果：临时开启该选项并重新部署，完成后再关闭。")
         return True
     except Exception as exc:
         finish_merge_log(

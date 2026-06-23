@@ -47,6 +47,11 @@ def write_state(root: Path, device: str, count: int) -> None:
         "version\t1\n",
         encoding="utf-8",
     )
+    (root / "pantsu_history.tsv").write_text(
+        f"{count}\t{device}\tpromote\tcode-{device}\t"
+        f"历史-{device}\t1\n",
+        encoding="utf-8",
+    )
     for name in [
         "default.custom.yaml",
         "hamster.yaml",
@@ -169,6 +174,11 @@ def main() -> None:
         assert maintenance.parse_overrides(
             root / "pantsu_overrides.tsv"
         ) == {}
+        history = maintenance.parse_history(root / "pantsu_history.tsv")
+        assert {fields[1] for fields in history.values()} == {
+            "mac",
+            "iphone",
+        }
         assert (
             phone
             / "sync"
@@ -194,6 +204,13 @@ def main() -> None:
             )
             assert orders["test"]["items"] == [["1", "电脑最新"]]
             assert orders["tie"]["items"] == [["1", "手机同秒新值"]]
+            history = maintenance.parse_history(
+                directory / "pantsu_history.tsv"
+            )
+            assert {fields[1] for fields in history.values()} == {
+                "mac",
+                "iphone",
+            }
         logs = maintenance.merge_logs()
         assert len(logs) == 1
         manifest = json.loads(
