@@ -1,0 +1,3 @@
+enabled	1
+limit	300
+clock	lua_cpu_ms

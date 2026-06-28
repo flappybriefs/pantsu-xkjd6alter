@@ -41,6 +41,68 @@ def atomic_write(path: Path, text: str) -> None:
     temp.replace(path)
 
 
+def ensure_runtime_directories() -> None:
+    (ROOT / "build").mkdir(exist_ok=True)
+    (ROOT / "build/pantsu_undo").mkdir(parents=True, exist_ok=True)
+
+
+def read_build_time() -> str:
+    path = ROOT / "user.yaml"
+    if not path.exists():
+        return ""
+    for raw in path.read_text(encoding="utf-8-sig").splitlines():
+        stripped = raw.strip()
+        if stripped.startswith("last_build_time:"):
+            return stripped.split(":", 1)[1].strip()
+    return ""
+
+
+def dynamic_root_for_code(code: str, *, order: bool = False) -> str | None:
+    code = "" if code == "-" else code
+    if len(code) < 2:
+        return None
+    if order:
+        return code[:4] if len(code) > 4 else code[:-1]
+    return code[: min(4, len(code))]
+
+
+def regenerate_dynamic_roots() -> int:
+    roots: set[str] = set()
+    state = ROOT / "build/pantsu_dynamic_candidates.tsv"
+    if state.exists():
+        for raw in state.read_text(encoding="utf-8-sig").splitlines():
+            fields = raw.split("\t")
+            if len(fields) >= 2 and fields[0] == "root" and fields[1]:
+                roots.add(fields[1])
+    for record in parse_overrides(ROOT / "pantsu_overrides.tsv").values():
+        if len(record) >= 8:
+            for code in (record[5], record[6]):
+                root = dynamic_root_for_code(code)
+                if root:
+                    roots.add(root)
+    for record in parse_self_word_state(ROOT).values():
+        if len(record) >= 4 and record[3] == "1":
+            root = dynamic_root_for_code(record[2])
+            if root:
+                roots.add(root)
+    for profile in SCHEME_PROFILES.values():
+        for code, state_record in parse_candidate_orders(
+            ROOT / profile.candidate_order_file
+        ).items():
+            if state_record.get("active", True):
+                root = dynamic_root_for_code(code, order=True)
+                if root:
+                    roots.add(root)
+    lines = [
+        "format\t9",
+        f"build\t{read_build_time()}",
+        "signature\t",
+    ]
+    lines.extend(f"root\t{root}" for root in sorted(roots))
+    atomic_write(ROOT / "pantsu_dynamic_roots.tsv", "\n".join(lines) + "\n")
+    return len(roots)
+
+
 def file_modified_ns(path: Path) -> int:
     try:
         return path.stat().st_mtime_ns
@@ -293,10 +355,32 @@ def parse_self_word_records(path: Path) -> dict[str, list[str]]:
     return result
 
 
+def parse_self_word_state(directory: Path) -> dict[str, list[str]]:
+    result = parse_self_word_records(directory / "pantsu_self_words.tsv")
+    for key, record in parse_self_word_records(
+        directory / "pantsu_self_words_ops.tsv"
+    ).items():
+        current = result.get(key)
+        if current is None or operation_version(
+            record,
+            directory / "pantsu_self_words_ops.tsv",
+            updated_index=4,
+            device_index=5,
+        ) >= operation_version(
+            current,
+            directory / "pantsu_self_words.tsv",
+            updated_index=4,
+            device_index=5,
+        ):
+            result[key] = record
+    return result
+
+
 def write_self_word_records(entries: dict[str, list[str]]) -> None:
     lines = ["version\t1"]
     lines.extend("\t".join(entries[key]) for key in sorted(entries))
     atomic_write(ROOT / "pantsu_self_words.tsv", "\n".join(lines) + "\n")
+    atomic_write(ROOT / "pantsu_self_words_ops.tsv", "version\t1\n")
 
 
 def parse_usage(directory: Path) -> dict[tuple[str, str], tuple[int, int]]:
@@ -514,11 +598,18 @@ def merge_sync(
         self_words: dict[str, list[str]] = {}
         self_versions: dict[str, tuple[int, int, str]] = {}
         for directory in state_roots:
-            path = directory / "pantsu_self_words.tsv"
-            for key, record in parse_self_word_records(path).items():
+            snapshot_path = directory / "pantsu_self_words.tsv"
+            ops_path = directory / "pantsu_self_words_ops.tsv"
+            ops_keys = set(parse_self_word_records(ops_path))
+            for key, record in parse_self_word_state(directory).items():
+                source_path = (
+                    ops_path
+                    if key in ops_keys
+                    else snapshot_path
+                )
                 version = operation_version(
                     record,
-                    path,
+                    source_path,
                     updated_index=4,
                     device_index=5,
                 )
@@ -550,6 +641,8 @@ def merge_sync(
         for directory in state_roots:
             history.update(parse_history(directory / "pantsu_history.tsv"))
         write_history(history)
+        ensure_runtime_directories()
+        dynamic_roots = regenerate_dynamic_roots()
         if conflicts:
             atomic_write(
                 ROOT / "pantsu_sync_conflicts.tsv",
@@ -569,6 +662,7 @@ def merge_sync(
             }),
             "conflicts": len(conflicts),
             "dropped_overrides": dropped_overrides,
+            "dynamic_roots": dynamic_roots,
             "write_back_directories": len(directories) if write_back else 0,
         }
         print(
@@ -788,7 +882,6 @@ def reconcile_core_self_codes() -> tuple[int, int]:
         (
             "pantsu.danzi.dict.yaml",
             "pantsu.cizu.dict.yaml",
-            "pantsu.temp.dict.yaml",
             "pantsu.user.dict.yaml",
             "pantsu.zzc.dict.yaml",
         ),
@@ -799,7 +892,6 @@ def reconcile_core_self_codes() -> tuple[int, int]:
         (
             "pantsu.core.dict.yaml",
             "pantsu.danzi.dict.yaml",
-            "pantsu.temp.dict.yaml",
             "pantsu.user.dict.yaml",
             "pantsu.zzc.dict.yaml",
         ),
@@ -1709,6 +1801,7 @@ def main() -> None:
     performance_parser.add_argument("-n", type=int, default=20)
     sub.add_parser("stress")
     sub.add_parser("self-benchmark")
+    sub.add_parser("rebuild-runtime")
     args = parser.parse_args()
     if args.command == "backup":
         backup()
@@ -1757,6 +1850,10 @@ def main() -> None:
         run_stress_test()
     elif args.command == "self-benchmark":
         run_self_word_benchmark()
+    elif args.command == "rebuild-runtime":
+        ensure_runtime_directories()
+        roots = regenerate_dynamic_roots()
+        print(f"已刷新运行缓存：{roots} 个动态前缀")
 
 
 if __name__ == "__main__":

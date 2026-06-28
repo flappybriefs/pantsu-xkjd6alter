@@ -551,8 +551,6 @@ local function init(env)
     pending_delete = nil
     history_mode = false
     dynamic.clear_status()
-    store.ensure_runtime_files()
-    usage.init()
     env.pending_usage = nil
     env.usage_page_size = 7
     local schema = env.engine.schema

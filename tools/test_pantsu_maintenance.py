@@ -60,7 +60,6 @@ def write_state(root: Path, device: str, count: int) -> None:
         "pantsu.core.dict.yaml",
         "pantsu.danzi.dict.yaml",
         "pantsu.cizu.dict.yaml",
-        "pantsu.temp.dict.yaml",
     ]:
         (root / name).write_text(
             f"source: {device}\n",
@@ -85,7 +84,6 @@ def write_health_fixture(root: Path) -> None:
         "pantsu.core.dict.yaml",
         "pantsu.danzi.dict.yaml",
         "pantsu.cizu.dict.yaml",
-        "pantsu.temp.dict.yaml",
         "pantsu.user.dict.yaml",
     ]:
         body = "大脚板\tdjbvu\n" if name == "pantsu.core.dict.yaml" else ""

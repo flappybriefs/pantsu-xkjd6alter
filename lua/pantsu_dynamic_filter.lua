@@ -4,6 +4,18 @@ local function filter(input, env)
     local context = env.engine.context
     local typed = context.input
     local status = dynamic.get_status(typed)
+    if not typed or string.len(typed) < 2 then
+        for candidate in input:iter() do
+            if status then
+                yield(ShadowCandidate(
+                    candidate, candidate.type, candidate.text, status))
+                status = nil
+            else
+                yield(candidate)
+            end
+        end
+        return
+    end
     local state = dynamic.match(typed)
     if not state then
         for candidate in input:iter() do

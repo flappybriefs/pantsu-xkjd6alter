@@ -1,7 +1,6 @@
 local core = require("pantsu_make_word_core")
 local dynamic = require("pantsu_dynamic")
 local profiler = require("pantsu_profiler")
-local store = require("pantsu_store")
 
 local kAccepted = 1
 local kNoop = 2
@@ -202,8 +201,6 @@ local function processor(key_event, env)
 end
 
 local function init(env)
-    store.ensure_runtime_files()
-    core.restore_self_words()
     local config = env.engine.schema.config
     env.topup_set = string_to_set(config:get_string("topup/topup_with"))
     env.alphabet = string_to_set(config:get_string("speller/alphabet"))

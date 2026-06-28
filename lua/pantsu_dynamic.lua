@@ -3,13 +3,13 @@ local M = {}
 
 M.state_version = "9"
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
+M.roots_file = "pantsu_dynamic_roots.tsv"
 M.order_file = "pantsu_candidate_order.tsv"
 M.build_state_file = "user.yaml"
 M.dictionary_files = {
     "pantsu.core.dict.yaml",
     "pantsu.danzi.dict.yaml",
     "pantsu.cizu.dict.yaml",
-    "pantsu.temp.dict.yaml",
     "pantsu.user.dict.yaml",
     "pantsu.zzc.dict.yaml",
 }
@@ -18,6 +18,8 @@ M.self_word_dict_file = "pantsu.zzc.dict.yaml"
 M.loaded = false
 M.build_time = nil
 M.roots = {}
+M.root_filter_loaded = false
+M.root_filter = nil
 M.orders = {}
 M.order_meta = {}
 M.orders_loaded = false
@@ -208,6 +210,78 @@ end
 
 local function remove_state_file()
     os.remove(data_path(M.state_file))
+    os.remove(data_path(M.roots_file))
+    M.root_filter_loaded = false
+    M.root_filter = nil
+end
+
+local function write_roots_file(roots, signature)
+    local target = data_path(M.roots_file)
+    local temp = target .. ".tmp"
+    local file = io.open(temp, "wb")
+    if not file then
+        os.remove(target)
+        return false
+    end
+    file:write("format\t", M.state_version, "\n")
+    file:write("build\t", M.build_time or "", "\n")
+    file:write("signature\t", signature or "", "\n")
+    for _, root in ipairs(roots or {}) do
+        file:write("root\t", root, "\n")
+    end
+    if not file:close() then
+        os.remove(temp)
+        os.remove(target)
+        return false
+    end
+    local renamed = os.rename and os.rename(temp, target)
+    if not renamed then
+        os.remove(temp)
+        os.remove(target)
+        return false
+    end
+    M.root_filter_loaded = true
+    M.root_filter = {}
+    for _, root in ipairs(roots or {}) do
+        M.root_filter[root] = true
+    end
+    return true
+end
+
+local function load_root_filter()
+    if M.root_filter_loaded then
+        return M.root_filter
+    end
+    M.root_filter_loaded = true
+    M.root_filter = nil
+    local file = io.open(data_path(M.roots_file), "r")
+    if not file then
+        return nil
+    end
+    local state_version
+    local state_build
+    local state_signature
+    local roots = {}
+    for line in file:lines() do
+        local kind, value = string.match(line, "^([^\t]+)\t?([^\t]*)")
+        if kind == "format" then
+            state_version = value
+        elseif kind == "build" then
+            state_build = value
+        elseif kind == "signature" then
+            state_signature = value
+        elseif kind == "root" and value ~= "" then
+            roots[value] = true
+        end
+    end
+    file:close()
+    if state_version ~= M.state_version
+        or state_build ~= (read_build_time() or "")
+        or (state_signature ~= "" and state_signature ~= store.signature()) then
+        return nil
+    end
+    M.root_filter = roots
+    return M.root_filter
 end
 
 local function load_state()
@@ -404,7 +478,11 @@ local function write_state(profile)
     if profile then
         profile:mark("dynamic_state_verify")
     end
-    return content == expected
+    local ok = content == expected
+    if ok then
+        write_roots_file(roots, signature)
+    end
+    return ok
 end
 
 local function ensure_current_build()
@@ -870,6 +948,19 @@ function M.refresh_word(entries, added_codes, word, profile)
 end
 
 function M.match(input)
+    local root_filter = load_root_filter()
+    if root_filter then
+        local possible = false
+        for root in pairs(root_filter) do
+            if string.sub(input, 1, string.len(root)) == root then
+                possible = true
+                break
+            end
+        end
+        if not possible then
+            return nil
+        end
+    end
     ensure_current_build()
     ensure_order_roots()
     ensure_override_roots()

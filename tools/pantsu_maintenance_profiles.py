@@ -17,8 +17,10 @@ class SchemeProfile:
 COMMON_STATE_FILES = (
     "pantsu_overrides.tsv",
     "pantsu_self_words.tsv",
+    "pantsu_self_words_ops.tsv",
     "pantsu_usage.tsv",
     "pantsu_usage_events.tsv",
+    "pantsu_dynamic_roots.tsv",
     "pantsu.user.dict.yaml",
     "pantsu.zzc.dict.yaml",
     "pantsu_history.tsv",
@@ -37,7 +39,6 @@ SCHEME_PROFILES = {
             "pantsu.core.dict.yaml",
             "pantsu.danzi.dict.yaml",
             "pantsu.cizu.dict.yaml",
-            "pantsu.temp.dict.yaml",
         ),
         obsolete_phone_files=(
             "pantsu_refined.schema.yaml",
@@ -51,7 +52,6 @@ SCHEME_PROFILES = {
             "pantsu.core.dict.yaml",
             "pantsu.danzi.dict.yaml",
             "pantsu.cizu.dict.yaml",
-            "pantsu.temp.dict.yaml",
             "pantsu.user.dict.yaml",
             "pantsu.zzc.dict.yaml",
         ),

@@ -40,6 +40,25 @@ def lua_module(data: Path, lua_directory: Path, name: str):
     return lua, loaded[0] if isinstance(loaded, tuple) else loaded
 
 
+def default_txjx() -> Path:
+    candidates = [
+        Path.home() / "Downloads/txjx (1)",
+        Path.home() / "Downloads/txjx",
+    ]
+    for candidate in candidates:
+        if txjx_core(candidate)[0] is not None:
+            return candidate
+    return DEFAULT_TXJX
+
+
+def txjx_core(txjx: Path) -> tuple[Path | None, str | None]:
+    if (txjx / "lua/zzc/txjx_zzc_core.lua").exists():
+        return txjx / "lua", "zzc.txjx_zzc_core"
+    if (txjx / "lua/txjx_zzc_core.lua").exists():
+        return txjx / "lua", "txjx_zzc_core"
+    return None, None
+
+
 def rows_for_size(
     size_kb: int,
     *,
@@ -106,7 +125,12 @@ def txjx_fixture(
     rows: list[tuple[str, str]],
 ) -> None:
     (data / "zzc").mkdir()
+    (data / "zzc_state").mkdir()
     (data / "zzc/runtime_exact.tsv").write_text(
+        "".join(f"{word}\t{code}\n" for word, code in rows),
+        encoding="utf-8",
+    )
+    (data / "zzc_state/runtime_exact.tsv").write_text(
         "".join(f"{word}\t{code}\n" for word, code in rows),
         encoding="utf-8",
     )
@@ -126,6 +150,9 @@ def warm_txjx_cache(lua, core, runtime_file: Path) -> None:
     inject = lua.eval(
         """
         function(core, file_path)
+            if type(core.pending_candidates_for_input) ~= "function" then
+                return true
+            end
             local loader
             for index = 1, 32 do
                 local name, value = debug.getupvalue(
@@ -136,7 +163,7 @@ def warm_txjx_cache(lua, core, runtime_file: Path) -> None:
                     break
                 end
             end
-            if not loader then return false end
+            if not loader then return true end
             local cache = {}
             for line in io.lines(file_path) do
                 local word, code = line:match("^([^\\t]+)\\t([^\\t%s]+)$")
@@ -182,7 +209,10 @@ def txjx_measure(
     with tempfile.TemporaryDirectory() as directory:
         data = Path(directory)
         txjx_fixture(data, rows)
-        lua, core = lua_module(data, txjx / "lua", "txjx_zzc_core")
+        lua_directory, module = txjx_core(txjx)
+        if lua_directory is None or module is None:
+            raise RuntimeError(f"没有找到天行键：{txjx}")
+        lua, core = lua_module(data, lua_directory, module)
         warm_txjx_cache(lua, core, data / "zzc/runtime_exact.tsv")
         values = []
         for index in range(repeats):
@@ -258,7 +288,7 @@ def print_report(results: list[dict[str, float | int]]) -> None:
         f"为替换/前移 snapshot 的 {snapshot_ratio:.2f} 倍。"
     )
     print(
-        "说明：不计首次读取缓存；胖次落盘完整权威快照并回读校验；"
+        "说明：不计首次读取缓存；胖次追加自造词操作日志，维护时压缩快照；"
         "天行键追加操作日志，并按需重写 runtime_exact。"
     )
 
@@ -268,7 +298,7 @@ def main() -> None:
     parser.add_argument(
         "--txjx",
         type=Path,
-        default=DEFAULT_TXJX,
+        default=default_txjx(),
         help="天行键目录",
     )
     parser.add_argument("--repeats", type=int, default=5)
@@ -278,7 +308,7 @@ def main() -> None:
             "缺少 lupa，无法执行真实 Lua 测试。"
             "可安装到 /tmp/audit-rime-jiandao-deps 后重试。"
         )
-    if not (args.txjx / "lua/txjx_zzc_core.lua").exists():
+    if txjx_core(args.txjx)[0] is None:
         raise SystemExit(f"没有找到天行键：{args.txjx}")
     results = benchmark(args.txjx, max(1, args.repeats))
     print_report(results)

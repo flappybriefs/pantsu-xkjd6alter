@@ -373,7 +373,6 @@ def generate(args) -> None:
     for name in (
         "pantsu.core.dict.yaml",
         "pantsu.danzi.dict.yaml",
-        "pantsu.temp.dict.yaml",
         "pantsu.user.dict.yaml",
         "pantsu.zzc.dict.yaml",
     ):

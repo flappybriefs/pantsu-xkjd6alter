@@ -18,7 +18,6 @@ M.dictionary_files = {
     "pantsu.core.dict.yaml",
     "pantsu.danzi.dict.yaml",
     "pantsu.cizu.dict.yaml",
-    "pantsu.temp.dict.yaml",
     "pantsu.user.dict.yaml",
     "pantsu.zzc.dict.yaml",
 }

@@ -6,11 +6,13 @@ M.runtime_version = "2026-06-21.5"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
 M.self_word_file = "pantsu_self_words.tsv"
+M.self_word_ops_file = "pantsu_self_words_ops.tsv"
 M.self_word_dict_file = "pantsu.zzc.dict.yaml"
 M.undo_dir = "build/pantsu_undo"
 M.undo_fallback_dir = "build"
 M.undo_runtime_dir = nil
 M.undo_limit = 7
+M.undo_kinds = { "overrides", "order", "self_words", "self_word_ops" }
 M.index_file = "build/pantsu_dictionary_index.tsv"
 M.index_dirty_file = "build/pantsu_dictionary_index.dirty"
 M.order_file = "pantsu_candidate_order.tsv"
@@ -18,7 +20,6 @@ M.dictionary_files = {
     "pantsu.core.dict.yaml",
     "pantsu.danzi.dict.yaml",
     "pantsu.cizu.dict.yaml",
-    "pantsu.temp.dict.yaml",
     "pantsu.user.dict.yaml",
     "pantsu.zzc.dict.yaml",
 }
@@ -35,6 +36,7 @@ M.effective_roots = {}
 M.effective_root_order = {}
 M.effective_root_length = 4
 M.effective_root_limit = 32
+M.self_word_ops_compact_bytes = 524288
 M.pending_memory = nil
 M.runtime_files_ready = false
 M.dirty_index_files = {}
@@ -56,6 +58,11 @@ local function shell_quote(value)
     return "'" .. string.gsub(value, "'", "'\\''") .. "'"
 end
 
+local function is_windows()
+    return package and package.config
+        and string.sub(package.config, 1, 1) == "\\"
+end
+
 local function directory_writable(path)
     local probe = path .. "/.pantsu-write-test"
     local file = io.open(data_path(probe), "w")
@@ -72,7 +79,8 @@ local function ensure_undo_directory()
         return M.undo_runtime_dir
     end
     if not directory_writable(M.undo_dir)
-        and os.execute then
+        and os.execute
+        and not is_windows() then
         pcall(os.execute,
             "mkdir -p " .. shell_quote(data_path(M.undo_dir)))
     end
@@ -248,6 +256,9 @@ function M.ensure_runtime_files()
         ok = false
     end
     if not ensure_file(M.self_word_file, { "version\t1" }) then
+        ok = false
+    end
+    if not ensure_file(M.self_word_ops_file, { "version\t1" }) then
         ok = false
     end
     if migrate_undo_files and migrate_undo_files() then
@@ -436,69 +447,41 @@ local function load_self_words()
     M.ensure_runtime_files()
     M.self_words_cache = {}
     M.self_word_keys = {}
-    local keys_are_sorted = true
-    local previous_key
-    local file = io.open(data_path(M.self_word_file), "r")
-    if not file then
-        rebuild_self_word_buckets()
-        return
-    end
-    for line in file:lines() do
-        local kind, word, code, active, updated, device =
-            string.match(line,
-                "^([^\t]+)\t([^\t]+)\t([^\t]+)\t([01])\t([^\t]+)\t(.*)$")
-        if kind == "word" and word and code then
-            local key = word .. "\t" .. code
-            M.self_words_cache[key] = {
-                word = word,
-                code = code,
-                active = active == "1",
-                updated = tonumber(updated) or 0,
-                device = device ~= "" and device or "unknown",
-            }
-            table.insert(M.self_word_keys, key)
-            if previous_key and key < previous_key then
-                keys_are_sorted = false
-            end
-            previous_key = key
+    local seen_keys = {}
+    local function load_file(path)
+        local file = io.open(data_path(path), "r")
+        if not file then
+            return
         end
+        for line in file:lines() do
+            local kind, word, code, active, updated, device =
+                string.match(line,
+                    "^([^\t]+)\t([^\t]+)\t([^\t]+)\t([01])\t([^\t]+)\t(.*)$")
+            if kind == "word" and word and code then
+                updated = tonumber(updated) or 0
+                local key = word .. "\t" .. code
+                local old = M.self_words_cache[key]
+                if not old or updated >= (old.updated or 0) then
+                    M.self_words_cache[key] = {
+                        word = word,
+                        code = code,
+                        active = active == "1",
+                        updated = updated,
+                        device = device ~= "" and device or "unknown",
+                    }
+                end
+                seen_keys[key] = true
+            end
+        end
+        file:close()
     end
-    file:close()
-    if not keys_are_sorted then
-        table.sort(M.self_word_keys)
+    load_file(M.self_word_file)
+    load_file(M.self_word_ops_file)
+    for key in pairs(seen_keys) do
+        table.insert(M.self_word_keys, key)
     end
+    table.sort(M.self_word_keys)
     rebuild_self_word_buckets()
-end
-
-function M.self_word_candidates(input)
-    load_self_words()
-    if not input or #input < 2 then
-        return M.self_words_cache
-    end
-    local root = string.sub(
-        input, 1, math.min(M.effective_root_length, #input))
-    return M.self_words_by_root[root] or {}
-end
-
-local function write_self_words()
-    load_self_words()
-    local lines = { "version\t1" }
-    for _, key in ipairs(M.self_word_keys) do
-        local record = M.self_words_cache[key]
-        table.insert(lines, table.concat({
-            "word",
-            record.word,
-            record.code,
-            record.active and "1" or "0",
-            tostring(record.updated or 0),
-            record.device or "unknown",
-        }, "\t"))
-    end
-    local ok = atomic_lines(M.self_word_file, lines)
-    if ok then
-        M.signature_cache = nil
-    end
-    return ok
 end
 
 local function insert_self_word_key(key)
@@ -514,6 +497,67 @@ local function insert_self_word_key(key)
     if M.self_word_keys[low] ~= key then
         table.insert(M.self_word_keys, low, key)
     end
+end
+
+local function write_self_words()
+    load_self_words()
+    local lines = { "version\t1" }
+    for _, key in ipairs(M.self_word_keys) do
+        local record = M.self_words_cache[key]
+        if record then
+            table.insert(lines, table.concat({
+                "word",
+                record.word,
+                record.code,
+                record.active and "1" or "0",
+                tostring(record.updated or 0),
+                record.device or "unknown",
+            }, "\t"))
+        end
+    end
+    local ok = atomic_lines(M.self_word_file, lines)
+    if ok then
+        M.signature_cache = nil
+    end
+    return ok
+end
+
+local function append_self_word_ops(records)
+    local file = io.open(data_path(M.self_word_ops_file), "a")
+    if not file then
+        return false
+    end
+    for _, record in ipairs(records or {}) do
+        file:write(table.concat({
+            "word",
+            record.word,
+            record.code,
+            record.active and "1" or "0",
+            tostring(record.updated or 0),
+            record.device or "unknown",
+        }, "\t"), "\n")
+    end
+    return file:close()
+end
+
+local function compact_self_word_ops_if_needed()
+    if file_size(M.self_word_ops_file) < M.self_word_ops_compact_bytes then
+        return true
+    end
+    if not write_self_words() then
+        return false
+    end
+    return atomic_lines(M.self_word_ops_file, { "version\t1" })
+end
+
+function M.self_word_candidates(input)
+    load_self_words()
+    if not input or #input < 2 then
+        return M.self_words_cache
+    end
+    local root = string.sub(
+        input, 1, math.min(M.effective_root_length, #input))
+    return M.self_words_by_root[root] or {}
 end
 
 local function write_overrides()
@@ -1091,6 +1135,7 @@ end
 function M.update_self_words(updates, only_missing)
     load_self_words()
     local changed = false
+    local changed_records = {}
     local affected_codes = {}
     local now = os.time()
     local device = installation_id()
@@ -1106,25 +1151,29 @@ function M.update_self_words(updates, only_missing)
                 if not old then
                     insert_self_word_key(key)
                 end
-                M.self_words_cache[key] = {
+                local record = {
                     word = update.word,
                     code = update.code,
                     active = active,
                     updated = update.updated or now,
                     device = update.device or device,
                 }
+                M.self_words_cache[key] = record
+                table.insert(changed_records, record)
                 table.insert(affected_codes, update.code)
                 changed = true
             end
         end
     end
-    if changed and not write_self_words() then
+    if changed and not append_self_word_ops(changed_records) then
         clear_self_word_cache()
         return nil, "self_word_write_failed"
     end
     if changed then
+        M.signature_cache = nil
         rebuild_self_word_buckets()
         M.invalidate_effective_codes(affected_codes)
+        compact_self_word_ops_if_needed()
     end
     return true, changed
 end
@@ -1231,7 +1280,7 @@ migrate_undo_files = function()
     local ok = migrate_file(
         "pantsu_undo_history.tsv", history_path())
     for slot = 1, M.undo_limit do
-        for _, kind in ipairs({ "overrides", "order", "self_words" }) do
+        for _, kind in ipairs(M.undo_kinds) do
             ok = migrate_file(
                 "pantsu_undo_" .. tostring(slot)
                     .. "." .. kind .. ".tsv",
@@ -1246,6 +1295,8 @@ migrate_undo_files = function()
             pending_path("order") },
         { "build/pantsu_undo.self_words.tsv",
             pending_path("self_words") },
+        { "build/pantsu_undo.self_word_ops.tsv",
+            pending_path("self_word_ops") },
     }) do
         ok = migrate_file(item[1], item[2]) and ok
     end
@@ -1258,6 +1309,7 @@ local function remove_pending()
         pending_path("overrides"),
         pending_path("order"),
         pending_path("self_words"),
+        pending_path("self_word_ops"),
     }) do
         if path then
             os.remove(data_path(path))
@@ -1296,6 +1348,7 @@ function M.begin(action, input, word, profile)
         overrides = capture_file(M.override_file),
         order = capture_file(M.order_file),
         self_words = capture_file(M.self_word_file),
+        self_word_ops = capture_file(M.self_word_ops_file),
     }
     if profile then
         profile:mark("memory_snapshot")
@@ -1310,7 +1363,9 @@ function M.begin(action, input, word, profile)
     if not copy_file(M.override_file, pending_path("overrides"))
         or not copy_file(M.order_file, pending_path("order"))
         or not copy_file(
-            M.self_word_file, pending_path("self_words")) then
+            M.self_word_file, pending_path("self_words"))
+        or not copy_file(
+            M.self_word_ops_file, pending_path("self_word_ops")) then
         remove_pending()
         return true
     end
@@ -1358,7 +1413,7 @@ function M.finish(action, input, word, details, profile)
     meta:close()
 
     for slot = M.undo_limit - 1, 1, -1 do
-        for _, kind in ipairs({ "overrides", "order", "self_words" }) do
+        for _, kind in ipairs(M.undo_kinds) do
             local source = snapshot_file(slot, kind)
             local destination = snapshot_file(slot + 1, kind)
             os.remove(data_path(destination))
@@ -1377,7 +1432,10 @@ function M.finish(action, input, word, details, profile)
             pending_path("order"), snapshot_file(1, "order"))
         or not copy_file(
             pending_path("self_words"),
-            snapshot_file(1, "self_words")) then
+            snapshot_file(1, "self_words"))
+        or not copy_file(
+            pending_path("self_word_ops"),
+            snapshot_file(1, "self_word_ops")) then
         return nil, "backup_rotate_failed"
     end
 
@@ -1409,6 +1467,8 @@ function M.rollback_pending()
             M.pending_memory.order, M.order_file)
         local self_word_ok = restore_capture(
             M.pending_memory.self_words, M.self_word_file)
+        local self_word_ops_ok = restore_capture(
+            M.pending_memory.self_word_ops, M.self_word_ops_file)
         M.pending_memory = nil
         remove_pending()
         M.overrides = nil
@@ -1416,7 +1476,7 @@ function M.rollback_pending()
         clear_self_word_cache()
         M.signature_cache = nil
         M.invalidate_effective_index()
-        return override_ok and order_ok and self_word_ok
+        return override_ok and order_ok and self_word_ok and self_word_ops_ok
     end
     local meta_file = meta_path()
     local meta = meta_file and io.open(data_path(meta_file), "r")
@@ -1430,7 +1490,9 @@ function M.rollback_pending()
         pending_path("order"), M.order_file)
     local self_word_ok = restore_file(
         pending_path("self_words"), M.self_word_file)
-    local ok = override_ok and order_ok and self_word_ok
+    local self_word_ops_ok = restore_file(
+        pending_path("self_word_ops"), M.self_word_ops_file)
+    local ok = override_ok and order_ok and self_word_ok and self_word_ops_ok
     remove_pending()
     M.overrides = nil
     M.override_lookup = nil
@@ -1540,6 +1602,8 @@ function M.signature()
         M.order_file .. ":" .. file_fingerprint(M.order_file))
     table.insert(parts,
         M.self_word_file .. ":" .. file_fingerprint(M.self_word_file))
+    table.insert(parts,
+        M.self_word_ops_file .. ":" .. file_fingerprint(M.self_word_ops_file))
     M.signature_cache = table.concat(parts, "|")
     return M.signature_cache
 end
@@ -1580,7 +1644,10 @@ function M.undo(index)
     local description = history[index]
     if not restore_file(snapshot_file(index, "overrides"), M.override_file)
         or not restore_file(snapshot_file(index, "order"), M.order_file)
-        or not restore_file(snapshot_file(index, "self_words"), M.self_word_file) then
+        or not restore_file(snapshot_file(index, "self_words"), M.self_word_file)
+        or not restore_file(
+            snapshot_file(index, "self_word_ops"),
+            M.self_word_ops_file) then
         return nil, "undo_restore_failed"
     end
 
@@ -1588,7 +1655,7 @@ function M.undo(index)
     for old_slot = index + 1, #history do
         local new_slot = old_slot - index
         survivors[new_slot] = {}
-        for _, kind in ipairs({ "overrides", "order", "self_words" }) do
+        for _, kind in ipairs(M.undo_kinds) do
             local temp = undo_path(
                 "shift_" .. tostring(new_slot)
                     .. "." .. kind .. ".tsv")
@@ -1599,7 +1666,7 @@ function M.undo(index)
         end
     end
     for slot = 1, M.undo_limit do
-        for _, kind in ipairs({ "overrides", "order", "self_words" }) do
+        for _, kind in ipairs(M.undo_kinds) do
             os.remove(data_path(snapshot_file(slot, kind)))
         end
     end
@@ -1657,6 +1724,16 @@ function M.last_history()
     }, " ")
 end
 
-M.ensure_runtime_files()
+local function bootstrap_undo_storage()
+    if not ensure_undo_directory() then
+        return
+    end
+    local undo_history = history_path()
+    if undo_history then
+        ensure_file(undo_history, {})
+    end
+end
+
+bootstrap_undo_storage()
 
 return M

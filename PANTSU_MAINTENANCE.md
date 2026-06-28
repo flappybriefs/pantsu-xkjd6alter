@@ -79,7 +79,7 @@ python3 tools/pantsu_maintenance.py apply-overrides
 ```
 
 当前只有一个胖次键道方案。有效中文词库为 `pantsu.core`、`pantsu.danzi`、
-`pantsu.cizu`、`pantsu.temp`、`pantsu.user` 和 `pantsu.zzc`。
+`pantsu.cizu`、`pantsu.user` 和 `pantsu.zzc`。
 原 `pantsu.waigua` 已合并进 `pantsu.cizu`，不再单独加载。
 
 ## 设备同步
