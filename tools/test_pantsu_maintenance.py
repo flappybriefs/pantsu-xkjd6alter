@@ -272,9 +272,22 @@ def main() -> None:
 
         write_health_fixture(root)
         maintenance.ROOT = root
+        cizu = root / "pantsu.cizu.dict.yaml"
+        cizu_lines = cizu.read_text(encoding="utf-8").splitlines()
+        cizu_lines.append("多发区\tdfqua\t0")
+        cizu.write_text("\n".join(cizu_lines) + "\n", encoding="utf-8")
+        cizu_line = len(cizu_lines)
+        overrides = root / "pantsu_overrides.tsv"
+        overrides.write_text(
+            overrides.read_text(encoding="utf-8")
+            + f"entry\tweighted\tpantsu.cizu.dict.yaml\t{cizu_line}\t"
+            "多发区\tdfqua\tdfquav\t1\t11\tmac\n",
+            encoding="utf-8",
+        )
         maintenance.apply_overrides("pantsu")
         core = root / "pantsu.core.dict.yaml"
         assert "大脚板\tdjbvuv" in core.read_text(encoding="utf-8")
+        assert "多发区\tdfquav\t0" in cizu.read_text(encoding="utf-8")
         assert maintenance.parse_overrides(
             root / "pantsu_overrides.tsv"
         ) == {}

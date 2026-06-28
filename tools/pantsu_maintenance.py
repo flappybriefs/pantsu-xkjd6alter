@@ -1675,29 +1675,60 @@ def apply_overrides(scheme: str = "all") -> None:
         return
     changed_files = tuple(sorted({record[2] for record in selected.values()}))
     backup(changed_files)
-    grouped: dict[str, dict[int, list[str]]] = {}
-    for record in selected.values():
-        grouped.setdefault(record[2], {})[int(record[3])] = record
+    grouped: dict[str, dict[int, tuple[str, list[str]]]] = {}
+    unresolved: list[list[str]] = []
+    for key, record in selected.items():
+        if not record[3].isdigit():
+            unresolved.append([key, record[2], record[3], "行号不是数字"])
+            continue
+        grouped.setdefault(record[2], {})[int(record[3])] = (key, record)
+    applied: set[str] = set()
     for name, changes in grouped.items():
         path = ROOT / name
         lines = path.read_text(encoding="utf-8-sig").splitlines()
         output: list[str] = []
         for number, raw in enumerate(lines, 1):
-            record = changes.get(number)
-            if not record:
+            item = changes.get(number)
+            if not item:
                 output.append(raw)
                 continue
-            if raw.rstrip("\r") != f"{record[4]}\t{record[5]}":
-                raise SystemExit(f"源词条已变化，停止合并：{name}:{number}")
+            key, record = item
+            fields = raw.rstrip("\r").split("\t")
+            if len(fields) < 2 or fields[0] != record[4] or fields[1] != record[5]:
+                output.append(raw)
+                unresolved.append([
+                    key,
+                    name,
+                    str(number),
+                    record[4],
+                    record[5],
+                    raw.rstrip("\r"),
+                ])
+                continue
+            applied.add(key)
             if record[7] == "1":
-                output.append(f"{record[4]}\t{record[6]}")
+                output.append("\t".join([record[4], record[6], *fields[2:]]))
         atomic_write(path, "\n".join(output) + "\n")
     remaining = {
-        key: record for key, record in entries.items() if key not in selected
+        key: record for key, record in entries.items() if key not in applied
     }
     write_overrides(remaining)
+    unresolved_path = ROOT / "pantsu_apply_overrides_unresolved.tsv"
+    if unresolved:
+        atomic_write(
+            unresolved_path,
+            "\n".join("\t".join(row) for row in unresolved) + "\n",
+        )
+    else:
+        unresolved_path.unlink(missing_ok=True)
     labels = "、".join(profile.label for profile in selected_profiles(scheme))
-    print(f"已将 {len(selected)} 条覆盖合并回{labels}基础词库")
+    print(f"已将 {len(applied)} 条覆盖合并回{labels}基础词库")
+    if unresolved:
+        print(
+            f"{len(unresolved)} 条覆盖因源词条变化暂未合并；"
+            f"已写入 {unresolved_path.name}"
+        )
+        print("可先运行“修复失效覆盖记录”，再重新应用覆盖。")
 
 
 def repair_overrides(scheme: str = "all") -> None:
