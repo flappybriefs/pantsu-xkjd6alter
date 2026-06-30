@@ -396,7 +396,8 @@ def parse_usage(directory: Path) -> dict[tuple[str, str], tuple[int, int]]:
             fields = raw.split("\t")
             if (
                 len(fields) != 5
-                or fields[0] != kind
+                or fields[0] not in {kind, "delta"}
+                or (fields[0] == "delta" and kind != "event")
                 or not fields[3].isdigit()
                 or not fields[4].isdigit()
             ):
@@ -404,7 +405,13 @@ def parse_usage(directory: Path) -> dict[tuple[str, str], tuple[int, int]]:
             key = (fields[1], fields[2])
             incoming = (int(fields[3]), int(fields[4]))
             current = result.get(key)
-            if current is None or incoming > current:
+            if fields[0] == "delta":
+                old_count, old_updated = current or (0, 0)
+                result[key] = (
+                    old_count + incoming[0],
+                    max(old_updated, incoming[1]),
+                )
+            elif current is None or incoming > current:
                 result[key] = incoming
     return result
 

@@ -6,11 +6,13 @@ local M = {
     minimum_count = 5,
     minimum_share = 0.65,
     minimum_lead = 2,
+    compact_event_bytes = 262144,
 }
 
 local records = {}
 local loaded = false
 local event_count = 0
+local session_event_count = 0
 local local_device = "unknown"
 
 local function data_path(path)
@@ -97,6 +99,30 @@ local function apply_record(word, device, count, updated)
     end
 end
 
+local function apply_delta(word, device, count, updated)
+    if not safe_field(word) or not safe_field(device) then
+        return
+    end
+    count = tonumber(count) or 0
+    updated = tonumber(updated) or 0
+    if count <= 0 then
+        return
+    end
+    local devices = records[word]
+    if not devices then
+        devices = {}
+        records[word] = devices
+    end
+    local current = devices[device] or {
+        count = 0,
+        updated = 0,
+    }
+    devices[device] = {
+        count = current.count + count,
+        updated = math.max(current.updated or 0, updated),
+    }
+end
+
 local function load_file(path, row_kind)
     local content = read_content(path)
     if not content then
@@ -110,6 +136,9 @@ local function load_file(path, row_kind)
             if row_kind == "event" then
                 event_count = event_count + 1
             end
+        elseif row_kind == "event" and kind == "delta" then
+            apply_delta(word, device, count, updated)
+            event_count = event_count + 1
         end
     end
     return true
@@ -122,12 +151,23 @@ local function ensure_file(path)
     return verified_write(path, "version\t1\n")
 end
 
+local function file_size(path)
+    local file = io.open(data_path(path), "rb")
+    if not file then
+        return 0
+    end
+    local size = file:seek("end") or 0
+    file:close()
+    return size
+end
+
 function M.init()
     if loaded then
         return true
     end
     records = {}
     event_count = 0
+    session_event_count = 0
     local_device = installation_id()
     ensure_file(M.summary_file)
     ensure_file(M.event_file)
@@ -135,6 +175,14 @@ function M.init()
     load_file(M.event_file, "event")
     loaded = true
     return true
+end
+
+local function ensure_runtime_light()
+    if local_device == "unknown" then
+        local_device = installation_id()
+    end
+    ensure_file(M.summary_file)
+    ensure_file(M.event_file)
 end
 
 local function word_total(word)
@@ -229,32 +277,31 @@ local function append_event(line)
 end
 
 function M.record_selection(word, input)
-    M.init()
+    ensure_runtime_light()
     local length = utf8.len(word or "") or 0
     if length < 2 or string.len(input or "") < 3
         or not safe_field(word) then
         return false
     end
     local now = os.time()
-    local devices = records[word] or {}
-    local current = devices[local_device] or {
-        count = 0,
-        updated = 0,
-    }
-    local next_count = current.count + 1
     local line = table.concat({
-        "event",
+        "delta",
         word,
         local_device,
-        tostring(next_count),
+        "1",
         tostring(now),
     }, "\t") .. "\n"
     if not append_event(line) then
         return false
     end
-    apply_record(word, local_device, next_count, now)
-    event_count = event_count + 1
-    if event_count >= M.compact_threshold then
+    if loaded then
+        apply_delta(word, local_device, 1, now)
+        event_count = event_count + 1
+    end
+    session_event_count = session_event_count + 1
+    if (loaded and event_count >= M.compact_threshold)
+        or session_event_count >= M.compact_threshold
+        or file_size(M.event_file) >= M.compact_event_bytes then
         M.compact()
     end
     return true
@@ -344,6 +391,7 @@ function M.reset_for_test()
     records = {}
     loaded = false
     event_count = 0
+    session_event_count = 0
     local_device = "unknown"
 end
 

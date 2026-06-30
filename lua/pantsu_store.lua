@@ -1,7 +1,7 @@
 local M = {}
 
 M.version = "2"
-M.index_version = "2"
+M.index_version = "3"
 M.runtime_version = "2026-06-21.5"
 M.override_file = "pantsu_overrides.tsv"
 M.history_file = "pantsu_history.tsv"
@@ -651,7 +651,10 @@ local function write_index(ranges)
     }
     for _, path in ipairs(M.dictionary_files) do
         table.insert(lines, table.concat({
-            "file", path, tostring(file_size(path)),
+            "file",
+            path,
+            tostring(file_size(path)),
+            file_fingerprint(path),
         }, "\t"))
     end
     for _, range in ipairs(ranges) do
@@ -692,6 +695,7 @@ local function load_index()
     local ranges = {}
     local by_file = {}
     local stored_sizes = {}
+    local stored_fingerprints = {}
     local stored_build
     local version_valid = false
     local build_seen = false
@@ -708,6 +712,7 @@ local function load_index()
                 stored_build = a ~= "" and a or nil
             elseif kind == "file" then
                 stored_sizes[a] = tonumber(b)
+                stored_fingerprints[a] = c
             elseif kind == "range" then
                 if not by_file[a] then
                     by_file[a] = {}
@@ -726,13 +731,13 @@ local function load_index()
         version_valid = false
     end
     local changed = false
-    local current_build = read_last_build_time()
     for _, path in ipairs(M.dictionary_files) do
         local reusable = version_valid
             and build_seen
-            and stored_build == current_build
             and not M.dirty_index_files[path]
             and stored_sizes[path] == file_size(path)
+            and stored_fingerprints[path] == file_fingerprint(path)
+            and by_file[path] ~= nil
         local file_ranges = reusable and by_file[path]
             or scan_file_ranges(path)
         if not reusable then

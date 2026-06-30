@@ -284,6 +284,19 @@ local function load_root_filter()
     return M.root_filter
 end
 
+local function root_filter_may_match(input)
+    local root_filter = load_root_filter()
+    if not root_filter then
+        return true
+    end
+    for length = 2, math.min(4, string.len(input or "")) do
+        if root_filter[string.sub(input, 1, length)] then
+            return true
+        end
+    end
+    return false
+end
+
 local function load_state()
     if M.loaded then
         return
@@ -948,18 +961,8 @@ function M.refresh_word(entries, added_codes, word, profile)
 end
 
 function M.match(input)
-    local root_filter = load_root_filter()
-    if root_filter then
-        local possible = false
-        for root in pairs(root_filter) do
-            if string.sub(input, 1, string.len(root)) == root then
-                possible = true
-                break
-            end
-        end
-        if not possible then
-            return nil
-        end
+    if not root_filter_may_match(input) then
+        return nil
     end
     ensure_current_build()
     ensure_order_roots()
