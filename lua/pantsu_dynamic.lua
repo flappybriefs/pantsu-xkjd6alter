@@ -20,6 +20,7 @@ M.build_time = nil
 M.roots = {}
 M.root_filter_loaded = false
 M.root_filter = nil
+M.root_filter_signature = nil
 M.orders = {}
 M.order_meta = {}
 M.orders_loaded = false
@@ -213,6 +214,7 @@ local function remove_state_file()
     os.remove(data_path(M.roots_file))
     M.root_filter_loaded = false
     M.root_filter = nil
+    M.root_filter_signature = nil
 end
 
 local function write_roots_file(roots, signature)
@@ -245,6 +247,7 @@ local function write_roots_file(roots, signature)
     for _, root in ipairs(roots or {}) do
         M.root_filter[root] = true
     end
+    M.root_filter_signature = signature
     return true
 end
 
@@ -281,20 +284,83 @@ local function load_root_filter()
         return nil
     end
     M.root_filter = roots
+    M.root_filter_signature = state_signature
     return M.root_filter
 end
 
-local function root_filter_may_match(input)
+local function best_filter_root(input)
     local root_filter = load_root_filter()
     if not root_filter then
-        return true
+        return nil
     end
+    local best_root
     for length = 2, math.min(4, string.len(input or "")) do
-        if root_filter[string.sub(input, 1, length)] then
-            return true
+        local root = string.sub(input, 1, length)
+        if root_filter[root] then
+            best_root = root
         end
     end
-    return false
+    return best_root
+end
+
+local function empty_state()
+    return {
+        entries = {},
+        suppress = {},
+        deleted = {},
+        redirects = {},
+    }
+end
+
+local function apply_state_row(state, kind, first, second)
+    if kind == "suppress" and first ~= "" then
+        state.suppress[first] = true
+        return true
+    elseif kind == "deleted" and first ~= "" then
+        if not state.deleted[first] then
+            state.deleted[first] = {}
+        end
+        table.insert(
+            state.deleted[first],
+            second ~= "" and second or "*")
+        state.suppress[first] = true
+        return true
+    elseif kind == "redirect" and first ~= "" and second ~= "" then
+        local old_code, new_code =
+            string.match(second, "^([^\t]+)\t([^\t]+)$")
+        if not old_code or not new_code then
+            return false
+        end
+        if not state.redirects[first] then
+            state.redirects[first] = {}
+        end
+        table.insert(state.redirects[first], {
+            old_code = old_code,
+            new_code = new_code,
+        })
+        state.suppress[first] = true
+        return true
+    elseif kind == "entry" and first ~= "" and second ~= "" then
+        local word, code, id =
+            string.match(second, "^([^\t]+)\t([^\t]+)\t?(.*)$")
+        if not word or not code then
+            return false
+        end
+        table.insert(state.entries, {
+            word = word,
+            code = code,
+            id = id ~= "" and id or nil,
+        })
+        state.suppress[word] = true
+        return true
+    end
+    return true
+end
+
+local function state_header_valid(state_version, state_build, state_signature)
+    return state_version == M.state_version
+        and state_build == (M.build_time or read_build_time())
+        and state_signature == (M.root_filter_signature or store.signature())
 end
 
 local function load_state()
@@ -324,63 +390,70 @@ local function load_state()
         elseif kind == "build" then
             state_build = root
         elseif kind == "root" and root ~= "" then
-            M.roots[root] = {
-                entries = {},
-                suppress = {},
-                deleted = {},
-                redirects = {},
-            }
-        elseif kind == "suppress" and M.roots[root] and first ~= "" then
-            M.roots[root].suppress[first] = true
-        elseif kind == "deleted" and M.roots[root] and first ~= "" then
-            if not M.roots[root].deleted[first] then
-                M.roots[root].deleted[first] = {}
-            end
-            table.insert(
-                M.roots[root].deleted[first],
-                second ~= "" and second or "*")
-            M.roots[root].suppress[first] = true
-        elseif kind == "redirect" and M.roots[root]
-            and first ~= "" and second ~= "" then
-            local old_code, new_code =
-                string.match(second, "^([^\t]+)\t([^\t]+)$")
-            if old_code and new_code then
-                if not M.roots[root].redirects[first] then
-                    M.roots[root].redirects[first] = {}
-                end
-                table.insert(M.roots[root].redirects[first], {
-                    old_code = old_code,
-                    new_code = new_code,
-                })
-                M.roots[root].suppress[first] = true
-            else
-                valid = false
-            end
-        elseif kind == "entry" and M.roots[root]
-            and first ~= "" and second ~= "" then
-            local word, code, id =
-                string.match(second, "^([^\t]+)\t([^\t]+)\t?(.*)$")
-            if word and code then
-                table.insert(M.roots[root].entries, {
-                    word = word,
-                    code = code,
-                    id = id ~= "" and id or nil,
-                })
-                M.roots[root].suppress[word] = true
-            else
+            M.roots[root] = empty_state()
+        elseif M.roots[root] then
+            if not apply_state_row(M.roots[root], kind, first, second) then
                 valid = false
             end
         end
     end
     file:close()
 
-    if state_version ~= M.state_version
-        or state_build ~= M.build_time
-        or state_signature ~= store.signature()
+    if not state_header_valid(state_version, state_build, state_signature)
         or not valid then
         clear_memory()
         remove_state_file()
     end
+end
+
+local function load_state_root(root)
+    if M.roots[root] then
+        return M.roots[root]
+    end
+    M.build_time = M.build_time or read_build_time()
+    local file = io.open(data_path(M.state_file), "r")
+    if not file then
+        return nil
+    end
+    local state_version
+    local state_build
+    local state_signature
+    local state
+    local in_target = false
+    local valid = true
+    for line in file:lines() do
+        local kind, line_root, first, second =
+            string.match(line, "^([^\t]+)\t([^\t]*)\t?([^\t]*)\t?(.*)$")
+        if kind == "format" then
+            state_version = line_root
+        elseif kind == "signature" then
+            state_signature = line_root
+        elseif kind == "build" then
+            state_build = line_root
+        elseif kind == "root" then
+            if in_target then
+                break
+            end
+            if line_root == root then
+                state = empty_state()
+                in_target = true
+            end
+        elseif in_target then
+            if not apply_state_row(state, kind, first, second) then
+                valid = false
+                break
+            end
+        end
+    end
+    file:close()
+    if not state_header_valid(state_version, state_build, state_signature)
+        or not valid then
+        return nil
+    end
+    if state then
+        M.roots[root] = state
+    end
+    return state
 end
 
 local function write_state(profile)
@@ -961,23 +1034,15 @@ function M.refresh_word(entries, added_codes, word, profile)
 end
 
 function M.match(input)
-    if not root_filter_may_match(input) then
-        return nil
-    end
-    ensure_current_build()
-    ensure_order_roots()
-    ensure_override_roots()
-    local best_root
-    for root in pairs(M.roots) do
-        if string.sub(input, 1, string.len(root)) == root
-            and (not best_root or string.len(root) > string.len(best_root)) then
-            best_root = root
-        end
-    end
+    local best_root = best_filter_root(input)
     if not best_root then
         return nil
     end
-    return M.roots[best_root], best_root
+    local state = load_state_root(best_root)
+    if not state then
+        return nil
+    end
+    return state, best_root
 end
 
 local function deleted_codes(value)
