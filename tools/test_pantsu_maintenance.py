@@ -137,6 +137,12 @@ def main() -> None:
             "旧词\told\tnew\t1\t10\tiphone\n",
             encoding="utf-8",
         )
+        (phone / "pantsu_history.tsv").write_text(
+            (phone / "pantsu_history.tsv").read_text(encoding="utf-8")
+            + "8\tiphone\tmake_word\tszf\t苏姿丰\t1_codes\n"
+            + "9\tiphone\tmake_word\tmnea\t马尿水\t1_codes\n",
+            encoding="utf-8",
+        )
 
         maintenance.ROOT = root
         maintenance.LOCAL_CONFIG = root / ".pantsu_maintenance.json"
@@ -177,11 +183,23 @@ def main() -> None:
             "mac",
             "iphone",
         }
+        self_words = maintenance.parse_self_word_state(root)
+        assert self_words["苏姿丰\tszf"][3] == "1"
+        assert self_words["马尿水\tmnea"][3] == "1"
+        zzc = (root / "pantsu.zzc.dict.yaml").read_text(encoding="utf-8")
+        assert "苏姿丰\tszf" in zzc
+        assert "马尿水\tmnea" in zzc
         assert (
             phone
             / "sync"
             / "mac"
             / "pantsu_usage.tsv"
+        ).exists()
+        assert (
+            phone
+            / "sync"
+            / "mac"
+            / "pantsu_self_words_ops.tsv"
         ).exists()
         assert not (phone / "pantsu_refined.schema.yaml").exists()
         assert not (phone / "pantsu.waigua.dict.yaml").exists()
@@ -216,6 +234,7 @@ def main() -> None:
         )
         assert manifest["status"] == "success"
         assert manifest["details"]["write_back_directories"] >= 3
+        assert manifest["details"]["recovered_self_words"] == 2
         operation_log = (logs[0] / "操作日志.txt").read_text(
             encoding="utf-8"
         )
@@ -338,6 +357,44 @@ def main() -> None:
         assert "甲乙\tqajba\t0" in (
             root / "pantsu.cizu.dict.yaml"
         ).read_text(encoding="utf-8")
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write_state(root, "mac", 3)
+        maintenance.ROOT = root
+        for relative in [".DS_Store", "build/.DS_Store", "lua/.DS_Store"]:
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("", encoding="utf-8")
+        for name in [
+            "pantsu_health_report.tsv",
+            "pantsu_sync_conflicts.tsv",
+            "pantsu_override_repair_unresolved.tsv",
+        ]:
+            (root / name).write_text("report\n", encoding="utf-8")
+        for index in range(7):
+            backup = root / "backups" / f"20260702-00000{index}"
+            backup.mkdir(parents=True)
+            os.utime(backup, (index, index))
+            log = root / "pantsu_maintenance_logs" / f"log-{index}"
+            log.mkdir(parents=True)
+            os.utime(log, (index, index))
+        result = maintenance.cleanup_runtime(clean_shared=False)
+        assert result["ds_store_removed"] == 3
+        assert result["reports_archived"] == 3
+        assert not list(root.rglob(".DS_Store"))
+        assert not (root / "pantsu_health_report.tsv").exists()
+        assert len([
+            path for path in (root / "backups").iterdir()
+            if path.is_dir()
+        ]) == maintenance.BACKUP_LIMIT
+        assert len([
+            path for path in (root / "pantsu_maintenance_logs").iterdir()
+            if path.is_dir() and path.name != "reports"
+        ]) == maintenance.MERGE_LOG_LIMIT
+        assert (root / "pantsu_self_words_ops.tsv").read_text(
+            encoding="utf-8"
+        ) == "version\t1\n"
 
     print("PASS maintenance interactive sync workflow")
 

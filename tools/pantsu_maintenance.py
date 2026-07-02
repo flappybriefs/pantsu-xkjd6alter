@@ -26,6 +26,7 @@ from pantsu_dictionary import (
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_CONFIG = ROOT / ".pantsu_maintenance.json"
+BACKUP_LIMIT = 5
 MERGE_LOG_LIMIT = 5
 HISTORY_LIMIT_BYTES = 1024 * 1024
 MERGE_LOG_FILES = tuple(dict.fromkeys((
@@ -33,6 +34,13 @@ MERGE_LOG_FILES = tuple(dict.fromkeys((
     "pantsu.core.dict.yaml",
     "pantsu.cizu.dict.yaml",
 )))
+CLEANUP_REPORT_FILES = (
+    "pantsu_health_report.tsv",
+    "pantsu_sync_conflicts.tsv",
+    "pantsu_override_repair_unresolved.tsv",
+    "pantsu_apply_overrides_unresolved.tsv",
+    "pantsu_performance.tsv",
+)
 
 
 def atomic_write(path: Path, text: str) -> None:
@@ -112,6 +120,10 @@ def file_modified_ns(path: Path) -> int:
 
 def merge_log_directory() -> Path:
     return ROOT / "pantsu_maintenance_logs"
+
+
+def reports_directory() -> Path:
+    return merge_log_directory() / "reports"
 
 
 def operation_version(
@@ -270,10 +282,128 @@ def backup(extra_files: tuple[str, ...] = ()) -> Path:
         path for path in (ROOT / "backups").glob("*")
         if path.is_dir()
     )
-    for old in snapshots[:-10]:
+    for old in snapshots[:-BACKUP_LIMIT]:
         shutil.rmtree(old)
     print(target)
     return target
+
+
+def remove_ds_store_files(root: Path | None = None) -> int:
+    root = root or ROOT
+    removed = 0
+    for path in root.rglob(".DS_Store"):
+        try:
+            path.unlink()
+            removed += 1
+        except OSError:
+            pass
+    return removed
+
+
+def remove_shared_cleanup_files() -> tuple[int, int]:
+    shared = shared_directory()
+    if shared is None or shared.resolve() == ROOT.resolve():
+        return 0, 0
+    ds_removed = remove_ds_store_files(shared)
+    report_removed = 0
+    candidates = [shared, *state_directories(shared)]
+    seen: set[Path] = set()
+    for directory in candidates:
+        resolved = directory.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        for name in CLEANUP_REPORT_FILES:
+            path = directory / name
+            if path.exists():
+                path.unlink()
+                report_removed += 1
+    return ds_removed, report_removed
+
+
+def prune_child_directories(directory: Path, keep: int) -> int:
+    if not directory.is_dir():
+        return 0
+    children = [
+        path for path in directory.iterdir()
+        if path.is_dir() and path.name != "reports"
+    ]
+    children.sort(key=lambda path: (file_modified_ns(path), path.name))
+    removed = 0
+    for old in children[:-keep]:
+        shutil.rmtree(old)
+        removed += 1
+    return removed
+
+
+def archive_cleanup_reports() -> tuple[int, Path | None]:
+    files = [
+        ROOT / name
+        for name in CLEANUP_REPORT_FILES
+        if (ROOT / name).exists()
+    ]
+    if not files:
+        return 0, None
+    target = reports_directory() / dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    target.mkdir(parents=True, exist_ok=True)
+    moved = 0
+    for source in files:
+        destination = target / source.name
+        if destination.exists():
+            destination.unlink()
+        shutil.move(str(source), str(destination))
+        moved += 1
+    return moved, target
+
+
+def compact_runtime_state() -> dict[str, int]:
+    self_words = parse_self_word_state(ROOT)
+    write_self_word_records(self_words)
+    usage = parse_usage(ROOT)
+    write_usage(usage)
+    dynamic_roots = regenerate_dynamic_roots()
+    ensure_runtime_directories()
+    return {
+        "self_words": len(self_words),
+        "usage_words": len({word for word, _ in usage}),
+        "dynamic_roots": dynamic_roots,
+    }
+
+
+def cleanup_runtime(*, clean_shared: bool = True) -> dict[str, object]:
+    ds_store_removed = remove_ds_store_files()
+    shared_ds_removed, shared_reports_removed = (
+        remove_shared_cleanup_files() if clean_shared else (0, 0)
+    )
+    reports_archived, reports_path = archive_cleanup_reports()
+    backups_removed = prune_child_directories(ROOT / "backups", BACKUP_LIMIT)
+    logs_removed = prune_child_directories(merge_log_directory(), MERGE_LOG_LIMIT)
+    compacted = compact_runtime_state()
+    result: dict[str, object] = {
+        "ds_store_removed": ds_store_removed,
+        "shared_ds_store_removed": shared_ds_removed,
+        "reports_archived": reports_archived,
+        "shared_reports_removed": shared_reports_removed,
+        "reports_path": str(reports_path) if reports_path else "",
+        "backups_removed": backups_removed,
+        "logs_removed": logs_removed,
+        **compacted,
+    }
+    print(
+        "清理完成："
+        f"删除 .DS_Store {ds_store_removed} 个；"
+        f"删除手机目录 .DS_Store {shared_ds_removed} 个；"
+        f"归档报告 {reports_archived} 个；"
+        f"删除手机目录旧报告 {shared_reports_removed} 个；"
+        f"删除旧备份 {backups_removed} 个；"
+        f"删除旧维护日志 {logs_removed} 个；"
+        f"自造词 {compacted['self_words']} 条；"
+        f"词频 {compacted['usage_words']} 个；"
+        f"动态前缀 {compacted['dynamic_roots']} 个。"
+    )
+    if reports_path:
+        print(f"报告已归档到：{reports_path}")
+    return result
 
 
 def restore(name: str) -> None:
@@ -381,6 +511,45 @@ def write_self_word_records(entries: dict[str, list[str]]) -> None:
     lines.extend("\t".join(entries[key]) for key in sorted(entries))
     atomic_write(ROOT / "pantsu_self_words.tsv", "\n".join(lines) + "\n")
     atomic_write(ROOT / "pantsu_self_words_ops.tsv", "version\t1\n")
+    sync_self_words_to_zzc(entries)
+
+
+def sync_self_words_to_zzc(
+    entries: dict[str, list[str]] | None = None,
+) -> int:
+    target = ROOT / "pantsu.zzc.dict.yaml"
+    if entries is None:
+        entries = parse_self_word_state(ROOT)
+    if target.exists():
+        lines = target.read_text(encoding="utf-8-sig").splitlines()
+    else:
+        lines = [
+            "# Rime dictionary",
+            "# encoding: utf-8",
+            "---",
+            "name: pantsu.zzc",
+            'version: "1"',
+            "sort: original",
+            "...",
+        ]
+    try:
+        start = lines.index("#region <自造词>#")
+        end = lines.index("#endregion <自造词>#")
+    except ValueError:
+        if lines and lines[-1] != "":
+            lines.append("")
+        lines.extend(["#region <自造词>#", "#endregion <自造词>#"])
+        start = len(lines) - 2
+        end = len(lines) - 1
+    active_rows = []
+    for record in entries.values():
+        if len(record) >= 4 and record[0] == "word" and record[3] == "1":
+            active_rows.append((record[1], record[2]))
+    active_rows = sorted(set(active_rows))
+    region = [f"{word}\t{code}" for word, code in active_rows]
+    output = lines[: start + 1] + region + lines[end:]
+    atomic_write(target, "\n".join(output) + "\n")
+    return len(region)
 
 
 def parse_usage(directory: Path) -> dict[tuple[str, str], tuple[int, int]]:
@@ -460,6 +629,41 @@ def write_history(entries: dict[str, list[str]]) -> None:
         ROOT / "pantsu_history.tsv",
         "".join(raw + "\n" for raw in rows),
     )
+
+
+def recover_self_words_from_history(
+    self_words: dict[str, list[str]],
+    self_versions: dict[str, tuple[int, int, str]],
+    history: dict[str, list[str]],
+) -> int:
+    recovered = 0
+    for fields in history.values():
+        if (
+            len(fields) < 6
+            or fields[2] != "make_word"
+            or fields[3] in {"", "-"}
+            or fields[4] in {"", "-"}
+            or not fields[0].isdigit()
+        ):
+            continue
+        updated = int(fields[0])
+        device = fields[1] or "history"
+        code = fields[3]
+        word = fields[4]
+        key = f"{word}\t{code}"
+        if key in self_words:
+            continue
+        self_words[key] = [
+            "word",
+            word,
+            code,
+            "1",
+            str(updated),
+            device,
+        ]
+        self_versions[key] = (updated, 0, device)
+        recovered += 1
+    return recovered
 
 
 def parse_candidate_orders(path: Path) -> dict[str, dict[str, object]]:
@@ -602,6 +806,10 @@ def merge_sync(
                     ROOT / profile.candidate_order_file,
                 )
 
+        history: dict[str, list[str]] = {}
+        for directory in state_roots:
+            history.update(parse_history(directory / "pantsu_history.tsv"))
+
         self_words: dict[str, list[str]] = {}
         self_versions: dict[str, tuple[int, int, str]] = {}
         for directory in state_roots:
@@ -634,6 +842,11 @@ def merge_sync(
                 if current is None or version > current_version:
                     self_words[key] = record
                     self_versions[key] = version
+        recovered_self_words = recover_self_words_from_history(
+            self_words,
+            self_versions,
+            history,
+        )
         write_self_word_records(self_words)
 
         usage = parse_usage(ROOT)
@@ -644,9 +857,6 @@ def merge_sync(
                     usage[key] = incoming
         write_usage(usage)
 
-        history: dict[str, list[str]] = {}
-        for directory in state_roots:
-            history.update(parse_history(directory / "pantsu_history.tsv"))
         write_history(history)
         ensure_runtime_directories()
         dynamic_roots = regenerate_dynamic_roots()
@@ -668,6 +878,7 @@ def merge_sync(
                 fields[1] for fields in history.values()
             }),
             "conflicts": len(conflicts),
+            "recovered_self_words": recovered_self_words,
             "dropped_overrides": dropped_overrides,
             "dynamic_roots": dynamic_roots,
             "write_back_directories": len(directories) if write_back else 0,
@@ -678,6 +889,7 @@ def merge_sync(
             f"{result['usage_words']} 个词频，"
             f"{result['history_rows']} 条操作历史，"
             f"{result['conflicts']} 条竞争记录，"
+            f"从历史恢复 {result['recovered_self_words']} 个自造词，"
             f"清理 {result['dropped_overrides']} 条旧方案覆盖"
         )
         if write_back:
@@ -1214,6 +1426,7 @@ def advanced_menu() -> None:
         print("7. 修复失效覆盖记录")
         print("8. 恢复历史备份")
         print("9. 从维护合并日志恢复")
+        print("10. 清理临时报告、旧备份和增量日志")
         print("0. 返回")
         choice = input("请选择：").strip()
         if choice == "1":
@@ -1234,6 +1447,8 @@ def advanced_menu() -> None:
             restore_interactive()
         elif choice == "9":
             restore_merge_log_interactive()
+        elif choice == "10":
+            cleanup_runtime()
         elif choice == "0":
             return
         else:
@@ -1840,6 +2055,7 @@ def main() -> None:
     sub.add_parser("stress")
     sub.add_parser("self-benchmark")
     sub.add_parser("rebuild-runtime")
+    sub.add_parser("cleanup")
     args = parser.parse_args()
     if args.command == "backup":
         backup()
@@ -1892,6 +2108,8 @@ def main() -> None:
         ensure_runtime_directories()
         roots = regenerate_dynamic_roots()
         print(f"已刷新运行缓存：{roots} 个动态前缀")
+    elif args.command == "cleanup":
+        cleanup_runtime()
 
 
 if __name__ == "__main__":
