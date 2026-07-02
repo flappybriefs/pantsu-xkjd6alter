@@ -279,8 +279,8 @@ local function load_root_filter()
     end
     file:close()
     if state_version ~= M.state_version
-        or state_build ~= (read_build_time() or "")
-        or (state_signature ~= "" and state_signature ~= store.signature()) then
+        or (state_signature ~= "" and state_signature ~= store.signature())
+        or (state_signature == "" and state_build ~= (read_build_time() or "")) then
         return nil
     end
     M.root_filter = roots
@@ -359,8 +359,11 @@ end
 
 local function state_header_valid(state_version, state_build, state_signature)
     return state_version == M.state_version
-        and state_build == (M.build_time or read_build_time())
-        and state_signature == (M.root_filter_signature or store.signature())
+        and (
+            state_signature == (M.root_filter_signature or store.signature())
+            or (state_signature == ""
+                and state_build == (M.build_time or read_build_time()))
+        )
 end
 
 local function load_state()

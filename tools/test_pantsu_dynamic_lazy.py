@@ -12,7 +12,7 @@ except ImportError as exc:
 
 
 def write_runtime(root: Path) -> None:
-    (root / "build").mkdir()
+    (root / "build").mkdir(exist_ok=True)
     (root / "user.yaml").write_text("last_build_time: 1\n", encoding="utf-8")
     (root / "pantsu_dynamic_roots.tsv").write_text(
         "\n".join(
@@ -96,6 +96,20 @@ def main() -> None:
         assert state["entries"][1]["word"] == "甲词"
         assert dynamic.roots["aaa"] is not None
         assert dynamic.roots["bbb"] is None
+
+        (root / "user.yaml").write_text(
+            "last_build_time: 2\n",
+            encoding="utf-8",
+        )
+        dynamic.invalidate()
+        write_runtime(root)
+        (root / "user.yaml").write_text(
+            "last_build_time: 2\n",
+            encoding="utf-8",
+        )
+        state, matched_root = dynamic.match("aaav")
+        assert matched_root == "aaa"
+        assert state["entries"][1]["word"] == "甲词"
 
         missing = dynamic.match("ccc")
         assert missing is None

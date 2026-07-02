@@ -128,6 +128,17 @@ def main():
     assert ok is None and error == "ambiguous_full_code:多码词"
     assert ambiguous["code"] == "abcd"
 
+    moved_from_old_code = entry(lua, "旧码候选", "abcde")
+    moved_from_old_code["base_code"] = "abcdef"
+    moved_from_old_code["original_code"] = "abcdef"
+    stale_model = model(lua, chain, [moved_from_old_code])
+    stale_entry, stale_error = result(
+        chain.locate_entry(stale_model, "旧码候选", "abcdef", "")
+    )
+    assert stale_entry["word"] == "旧码候选"
+    assert stale_entry["code"] == "abcde"
+    assert stale_error is None
+
     moving = entry(lua, "编辑词", "abcd")
     immovable = entry(lua, "无后码词", "abcde")
     edit_model = model(lua, chain, [moving, immovable])
