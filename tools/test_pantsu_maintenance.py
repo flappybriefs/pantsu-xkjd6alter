@@ -65,6 +65,21 @@ def write_state(root: Path, device: str, count: int) -> None:
             f"source: {device}\n",
             encoding="utf-8",
         )
+    (root / "pantsu.user.dict.yaml").write_text(
+        "source: {device}\n"
+        "#region <自定义>#\n邮箱\t/test\n#endregion <自定义>#\n"
+        "#region <自造词>#\n旧词\told\n#endregion <自造词>#\n".format(
+            device=device
+        ),
+        encoding="utf-8",
+    )
+    (root / "pantsu.zzc.dict.yaml").write_text(
+        "source: {device}\n"
+        "#region <自造词>#\n#endregion <自造词>#\n".format(
+            device=device
+        ),
+        encoding="utf-8",
+    )
     (root / "lua").mkdir(exist_ok=True)
     (root / "lua/pantsu_test.lua").write_text(
         f"return '{device}'\n",
@@ -147,6 +162,9 @@ def main() -> None:
         maintenance.ROOT = root
         maintenance.LOCAL_CONFIG = root / ".pantsu_maintenance.json"
         maintenance.save_shared_directory(phone)
+        first_backup = maintenance.backup()
+        second_backup = maintenance.backup()
+        assert first_backup != second_backup
         (root / "pantsu_candidate_order.tsv").write_text(
             "version\t2\n"
             "meta\ttest\t20\tmac\t1\n"
@@ -189,6 +207,9 @@ def main() -> None:
         zzc = (root / "pantsu.zzc.dict.yaml").read_text(encoding="utf-8")
         assert "苏姿丰\tszf" in zzc
         assert "马尿水\tmnea" in zzc
+        user = (root / "pantsu.user.dict.yaml").read_text(encoding="utf-8")
+        assert "邮箱\t/test" in user
+        assert "旧词\told" not in user
         assert (
             phone
             / "sync"
@@ -312,6 +333,61 @@ def main() -> None:
         ) == {}
         snapshots = sorted((root / "backups").iterdir())
         assert (snapshots[-1] / "pantsu.core.dict.yaml").exists()
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write_health_fixture(root)
+        (root / "build").mkdir()
+        (root / "build/pantsu_dynamic_candidates.tsv").write_text(
+            "format\t9\nbuild\t1\nsignature\told\nroot\tstale\n",
+            encoding="utf-8",
+        )
+        (root / "pantsu.cizu.dict.yaml").write_text(
+            "---\nname: test\nversion: \"1\"\nsort: original\n...\n"
+            "已应用\tabcdv\n"
+            "带权重\twxyzv\t0\n"
+            "待删除\tlmnov\n",
+            encoding="utf-8",
+        )
+        (root / "pantsu_overrides.tsv").write_text(
+            "version\t2\n"
+            "entry\told-applied\tpantsu.cizu.dict.yaml\t6\t"
+            "已应用\tabcd\tabcdv\t1\t10\tmac\n"
+            "entry\told-weighted\tpantsu.cizu.dict.yaml\t7\t"
+            "带权重\twxyzv\twxyz\t1\t11\tmac\n"
+            "entry\told-delete\tpantsu.cizu.dict.yaml\t8\t"
+            "待删除\tlmno\t-\t0\t12\tmac\n",
+            encoding="utf-8",
+        )
+        (root / "backups").mkdir()
+        maintenance.ROOT = root
+        maintenance.repair_overrides()
+        repaired = maintenance.parse_overrides(root / "pantsu_overrides.tsv")
+        assert "old-applied" not in repaired
+        weighted = next(
+            record for record in repaired.values()
+            if record[4] == "带权重"
+        )
+        assert weighted[3] == "7"
+        assert weighted[5] == "wxyzv"
+        deleted = next(
+            record for record in repaired.values()
+            if record[4] == "待删除"
+        )
+        assert deleted[3] == "8"
+        assert deleted[5] == "lmnov"
+        assert deleted[7] == "0"
+        assert not (root / "pantsu_override_repair_unresolved.tsv").exists()
+
+        roots = maintenance.regenerate_dynamic_roots()
+        dynamic_roots = (root / "pantsu_dynamic_roots.tsv").read_text(
+            encoding="utf-8"
+        )
+        assert roots == 3
+        assert "root\tstale" not in dynamic_roots
+        assert "root\tdjbv" in dynamic_roots
+        assert "root\twxyz" in dynamic_roots
+        assert "root\tlmno" in dynamic_roots
 
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)

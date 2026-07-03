@@ -41,6 +41,7 @@ M.pending_memory = nil
 M.runtime_files_ready = false
 M.dirty_index_files = {}
 M.index_dirty_loaded = false
+M.runtime_state_signature = nil
 
 local migrate_undo_files
 
@@ -438,6 +439,34 @@ local function clear_self_word_cache()
     M.self_words_cache = nil
     M.self_words_by_root = nil
     M.self_word_keys = nil
+end
+
+local function runtime_state_signature()
+    return table.concat({
+        M.override_file .. ":" .. file_fingerprint(M.override_file),
+        M.order_file .. ":" .. file_fingerprint(M.order_file),
+        M.self_word_file .. ":" .. file_fingerprint(M.self_word_file),
+        M.self_word_ops_file .. ":" .. file_fingerprint(M.self_word_ops_file),
+    }, "|")
+end
+
+function M.refresh_external_state()
+    local signature = runtime_state_signature()
+    if M.runtime_state_signature == nil then
+        M.runtime_state_signature = signature
+        return false
+    end
+    if signature == M.runtime_state_signature then
+        return false
+    end
+    M.runtime_state_signature = signature
+    M.overrides = nil
+    M.override_lookup = nil
+    clear_self_word_cache()
+    M.signature_cache = nil
+    M.invalidate_effective_index()
+    M.runtime_files_ready = false
+    return true
 end
 
 local function load_self_words()
@@ -998,6 +1027,7 @@ local function entry_matches(entry, input)
 end
 
 function M.entries(input, profile)
+    M.refresh_external_state()
     if not input or #input < 2 then
         return scan_entries(input or "", profile)
     end
@@ -1594,7 +1624,8 @@ function M.record_order(action, input, word, profile)
 end
 
 function M.signature()
-    if M.signature_cache then
+    local state_changed = M.refresh_external_state()
+    if M.signature_cache and not state_changed then
         return M.signature_cache
     end
     local parts = { M.version }

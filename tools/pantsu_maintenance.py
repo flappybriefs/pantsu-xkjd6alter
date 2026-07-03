@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from pantsu_maintenance_profiles import (
+    CACHE_STATE_FILES,
     SCHEME_PROFILES,
     STATE_FILES,
     active_profile,
@@ -76,12 +77,6 @@ def dynamic_root_for_code(code: str, *, order: bool = False) -> str | None:
 
 def regenerate_dynamic_roots() -> int:
     roots: set[str] = set()
-    state = ROOT / "build/pantsu_dynamic_candidates.tsv"
-    if state.exists():
-        for raw in state.read_text(encoding="utf-8-sig").splitlines():
-            fields = raw.split("\t")
-            if len(fields) >= 2 and fields[0] == "root" and fields[1]:
-                roots.add(fields[1])
     for record in parse_overrides(ROOT / "pantsu_overrides.tsv").values():
         if len(record) >= 8:
             for code in (record[5], record[6]):
@@ -271,9 +266,9 @@ def restore_merge_log(name: str) -> None:
 
 
 def backup(extra_files: tuple[str, ...] = ()) -> Path:
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     target = ROOT / "backups" / stamp
-    target.mkdir(parents=True, exist_ok=True)
+    target.mkdir(parents=True, exist_ok=False)
     for name in dict.fromkeys((*STATE_FILES, *extra_files)):
         source = ROOT / name
         if source.exists():
@@ -470,7 +465,9 @@ def normalize_overrides(
         if len(fields) < 2 or fields[0] != record[4] or fields[1] != record[5]:
             dropped += 1
             continue
-        result[key] = record
+        normalized = list(record)
+        normalized[1] = f"{name}:{number}:{record[4]}:{record[5]}"
+        result[normalized[1]] = normalized
     return result, dropped
 
 
@@ -514,6 +511,23 @@ def write_self_word_records(entries: dict[str, list[str]]) -> None:
     sync_self_words_to_zzc(entries)
 
 
+def clear_legacy_self_word_region() -> bool:
+    target = ROOT / "pantsu.user.dict.yaml"
+    if not target.exists():
+        return False
+    lines = target.read_text(encoding="utf-8-sig").splitlines()
+    try:
+        start = lines.index("#region <自造词>#")
+        end = lines.index("#endregion <自造词>#")
+    except ValueError:
+        return False
+    if end == start + 1:
+        return False
+    output = lines[: start + 1] + lines[end:]
+    atomic_write(target, "\n".join(output) + "\n")
+    return True
+
+
 def sync_self_words_to_zzc(
     entries: dict[str, list[str]] | None = None,
 ) -> int:
@@ -549,6 +563,7 @@ def sync_self_words_to_zzc(
     region = [f"{word}\t{code}" for word, code in active_rows]
     output = lines[: start + 1] + region + lines[end:]
     atomic_write(target, "\n".join(output) + "\n")
+    clear_legacy_self_word_region()
     return len(region)
 
 
@@ -924,6 +939,16 @@ def copy_state(target: Path) -> None:
             shutil.copy2(source, target / name)
 
 
+def clear_cache_state(directory: Path) -> int:
+    removed = 0
+    for name in CACHE_STATE_FILES:
+        path = directory / name
+        if path.exists():
+            path.unlink()
+            removed += 1
+    return removed
+
+
 def broadcast_state(directories: list[Path]) -> int:
     copied = 0
     seen: set[Path] = set()
@@ -969,6 +994,8 @@ def copy_phone_scheme(target: Path) -> tuple[int, int]:
     for directory in state_directories(target):
         stale = directory / "pantsu_refined_candidate_order.tsv"
         stale.unlink(missing_ok=True)
+        clear_cache_state(directory)
+    clear_cache_state(target)
     return copied, len(obsolete)
 
 
@@ -1980,30 +2007,65 @@ def repair_overrides(scheme: str = "all") -> None:
     repaired: dict[str, list[str]] = {}
     unresolved: list[str] = []
     file_lines: dict[str, list[str]] = {}
+
+    def line_word_code(raw: str) -> tuple[str, str] | None:
+        fields = raw.rstrip("\r").split("\t")
+        if len(fields) < 2:
+            return None
+        return fields[0], fields[1].strip()
+
+    def matching_lines(
+        lines: list[str],
+        word: str,
+        code: str | None = None,
+    ) -> list[int]:
+        result = []
+        for number, raw in enumerate(lines, 1):
+            fields = line_word_code(raw)
+            if not fields:
+                continue
+            current_word, current_code = fields
+            if current_word == word and (code is None or current_code == code):
+                result.append(number)
+        return result
+
+    def nearest_line(candidates: list[int], old_line: int) -> int:
+        return min(candidates, key=lambda number: (abs(number - old_line), number))
+
     for (name, word, code), records in by_source.items():
         lines = file_lines.setdefault(
             name,
             (ROOT / name).read_text(encoding="utf-8-sig").splitlines(),
         )
-        candidates = [
-            number
-            for number, raw in enumerate(lines, 1)
-            if raw.rstrip("\r") == f"{word}\t{code}"
-        ]
+        candidates = matching_lines(lines, word, code)
         unused = set(candidates)
         records.sort(key=lambda item: int(item[3]))
         for record in records:
             old_line = int(record[3])
             if unused:
-                line_number = min(
-                    unused,
-                    key=lambda number: (abs(number - old_line), number),
-                )
+                line_number = nearest_line(list(unused), old_line)
                 unused.remove(line_number)
                 record[3] = str(line_number)
                 record[1] = f"{name}:{line_number}:{word}:{code}"
-            else:
+            elif record[7] == "1":
+                applied = matching_lines(lines, word, record[6])
+                if applied:
+                    continue
                 unresolved.append("\t".join(record))
+            else:
+                current = matching_lines(lines, word)
+                if current:
+                    line_number = nearest_line(current, old_line)
+                    fields = line_word_code(lines[line_number - 1])
+                    if fields:
+                        _, current_code = fields
+                        record[3] = str(line_number)
+                        record[5] = current_code
+                        record[1] = f"{name}:{line_number}:{word}:{current_code}"
+                    else:
+                        unresolved.append("\t".join(record))
+                else:
+                    unresolved.append("\t".join(record))
             repaired[record[1]] = record
 
     write_overrides({**untouched, **repaired})

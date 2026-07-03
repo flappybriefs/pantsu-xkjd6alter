@@ -249,7 +249,7 @@ local function adjust(action, context, word, input, candidate_id, profile)
         return nil, "backup_failed"
     end
     ok, err = store.commit(
-        model.entries, action, input, word, false, profile)
+        model.entries, action, input, word, true, profile)
     if not ok then
         return nil, err
     end
@@ -260,7 +260,18 @@ local function adjust(action, context, word, input, candidate_id, profile)
     if string.len(dynamic_root) > 4 then
         dynamic_root = string.sub(dynamic_root, 1, 4)
     end
-    dynamic.refresh_entries(model.entries, dynamic_root, profile)
+    if not dynamic.refresh_entries(model.entries, dynamic_root, profile) then
+        store.rollback_pending()
+        dynamic.invalidate()
+        return nil, "dynamic_refresh_failed"
+    end
+    local finished, finish_err =
+        store.finish(action, input, word, "1", profile)
+    if not finished then
+        store.rollback_pending()
+        dynamic.invalidate()
+        return nil, finish_err
+    end
     local focus_input = input
     if action == "promote"
         and string.len(entry.code) < string.len(input) then
@@ -339,6 +350,7 @@ local error_messages = {
     undo_restore_failed = "〔撤销失败：快照读取失败〕",
     override_write_failed = "〔调频失败：覆盖层写入失败〕",
     self_word_write_failed = "〔调频失败：自造词记录写入失败〕",
+    dynamic_refresh_failed = "〔调频失败：候选缓存刷新失败〕",
 }
 
 local function show_error(context, err)

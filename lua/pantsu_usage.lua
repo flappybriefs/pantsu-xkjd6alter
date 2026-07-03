@@ -259,6 +259,7 @@ function M.compact()
         return false
     end
     event_count = 0
+    session_event_count = 0
     return true
 end
 

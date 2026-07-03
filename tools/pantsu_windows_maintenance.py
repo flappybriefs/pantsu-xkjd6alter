@@ -20,7 +20,6 @@ STATE_FILES = (
     "pantsu_self_words_ops.tsv",
     "pantsu_usage.tsv",
     "pantsu_usage_events.tsv",
-    "pantsu_dynamic_roots.tsv",
     "pantsu_history.tsv",
     "pantsu.user.dict.yaml",
     "pantsu.zzc.dict.yaml",

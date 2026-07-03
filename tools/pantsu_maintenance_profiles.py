@@ -20,10 +20,14 @@ COMMON_STATE_FILES = (
     "pantsu_self_words_ops.tsv",
     "pantsu_usage.tsv",
     "pantsu_usage_events.tsv",
-    "pantsu_dynamic_roots.tsv",
     "pantsu.user.dict.yaml",
     "pantsu.zzc.dict.yaml",
     "pantsu_history.tsv",
+)
+
+CACHE_STATE_FILES = (
+    "pantsu_dynamic_roots.tsv",
+    "build/pantsu_dynamic_candidates.tsv",
 )
 
 SCHEME_PROFILES = {

@@ -131,9 +131,15 @@ def main():
     moved_from_old_code = entry(lua, "旧码候选", "abcde")
     moved_from_old_code["base_code"] = "abcdef"
     moved_from_old_code["original_code"] = "abcdef"
+    moved_from_old_code["id"] = "stale-id"
     stale_model = model(lua, chain, [moved_from_old_code])
     stale_entry, stale_error = result(
         chain.locate_entry(stale_model, "旧码候选", "abcdef", "")
+    )
+    assert stale_entry is None
+    assert stale_error == "entry_not_found"
+    stale_entry, stale_error = result(
+        chain.locate_entry(stale_model, "旧码候选", "abcdef", "stale-id")
     )
     assert stale_entry["word"] == "旧码候选"
     assert stale_entry["code"] == "abcde"

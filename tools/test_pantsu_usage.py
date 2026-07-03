@@ -59,6 +59,14 @@ def main() -> None:
 
         for _ in range(4):
             assert usage.record_selection("高频词", "abcd")
+        event_rows = (root / "pantsu_usage_events.tsv").read_text(
+            encoding="utf-8"
+        ).splitlines()
+        assert len(event_rows) == 2
+        assert event_rows == [
+            "version\t1",
+            "delta\t高频词\ttest-device\t1\t" + event_rows[1].rsplit("\t", 1)[1],
+        ]
         assert usage.choose_candidate(candidates) is None
         assert usage.record_selection("高频词", "abcd")
         assert usage.choose_candidate(candidates)["word"] == "高频词"

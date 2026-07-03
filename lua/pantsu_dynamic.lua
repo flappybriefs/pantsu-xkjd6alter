@@ -26,6 +26,8 @@ M.order_meta = {}
 M.orders_loaded = false
 M.order_roots_loaded = false
 M.override_roots_loaded = false
+M.runtime_root_filter = nil
+M.runtime_root_filter_signature = nil
 M.status = nil
 
 local function data_path(path)
@@ -209,6 +211,27 @@ local function clear_memory()
     M.roots = {}
 end
 
+local function clear_runtime_memory()
+    M.loaded = false
+    M.roots = {}
+    M.root_filter_loaded = false
+    M.root_filter = nil
+    M.root_filter_signature = nil
+    M.orders = {}
+    M.order_meta = {}
+    M.orders_loaded = false
+    M.order_roots_loaded = false
+    M.override_roots_loaded = false
+    M.runtime_root_filter = nil
+    M.runtime_root_filter_signature = nil
+end
+
+local function refresh_runtime_state()
+    if store.refresh_external_state and store.refresh_external_state() then
+        clear_runtime_memory()
+    end
+end
+
 local function remove_state_file()
     os.remove(data_path(M.state_file))
     os.remove(data_path(M.roots_file))
@@ -288,15 +311,54 @@ local function load_root_filter()
     return M.root_filter
 end
 
+local function order_root_for_code(code)
+    if string.len(code) > 4 then
+        return string.sub(code, 1, 4)
+    end
+    if string.len(code) > 1 then
+        return string.sub(code, 1, string.len(code) - 1)
+    end
+    return code
+end
+
 local function best_filter_root(input)
     local root_filter = load_root_filter()
-    if not root_filter then
-        return nil
-    end
     local best_root
+    if root_filter then
+        for length = 2, math.min(4, string.len(input or "")) do
+            local root = string.sub(input, 1, length)
+            if root_filter[root] then
+                best_root = root
+            end
+        end
+        if best_root then
+            return best_root
+        end
+    end
+
+    local signature = M.root_filter_signature
+    if not signature or signature == "" then
+        signature = store.signature()
+    end
+    if M.runtime_root_filter_signature ~= signature then
+        local roots = {}
+        load_orders()
+        for code in pairs(M.orders) do
+            roots[order_root_for_code(code)] = true
+        end
+        for root in pairs(store.override_roots()) do
+            roots[root] = true
+        end
+        for root in pairs(store.self_word_roots()) do
+            roots[root] = true
+        end
+        M.runtime_root_filter = roots
+        M.runtime_root_filter_signature = signature
+    end
+
     for length = 2, math.min(4, string.len(input or "")) do
         local root = string.sub(input, 1, length)
-        if root_filter[root] then
+        if M.runtime_root_filter and M.runtime_root_filter[root] then
             best_root = root
         end
     end
@@ -358,9 +420,13 @@ local function apply_state_row(state, kind, first, second)
 end
 
 local function state_header_valid(state_version, state_build, state_signature)
+    local expected_signature = M.root_filter_signature
+    if not expected_signature or expected_signature == "" then
+        expected_signature = store.signature()
+    end
     return state_version == M.state_version
         and (
-            state_signature == (M.root_filter_signature or store.signature())
+            state_signature == expected_signature
             or (state_signature == ""
                 and state_build == (M.build_time or read_build_time()))
         )
@@ -751,6 +817,7 @@ local function root_for_code(code)
 end
 
 function M.set_same_code_order(code, words)
+    refresh_runtime_state()
     ensure_current_build()
     load_orders()
     local ranks = {}
@@ -782,6 +849,7 @@ function M.set_same_code_order(code, words)
 end
 
 function M.get_same_code_order(code)
+    refresh_runtime_state()
     load_orders()
     local ranks = M.orders[code] or {}
     local result = {}
@@ -847,6 +915,8 @@ function M.invalidate()
     M.orders_loaded = false
     M.order_roots_loaded = false
     M.override_roots_loaded = false
+    M.runtime_root_filter = nil
+    M.runtime_root_filter_signature = nil
     remove_state_file()
 end
 
@@ -922,6 +992,7 @@ local function existing_root(root)
 end
 
 function M.refresh_batch(requests, profile)
+    refresh_runtime_state()
     ensure_current_build()
     if profile then
         profile:mark("dynamic_prepare")
@@ -1037,11 +1108,24 @@ function M.refresh_word(entries, added_codes, word, profile)
 end
 
 function M.match(input)
+    refresh_runtime_state()
     local best_root = best_filter_root(input)
     if not best_root then
         return nil
     end
     local state = load_state_root(best_root)
+    if not state then
+        ensure_current_build()
+        state = M.roots[best_root]
+    end
+    if not state then
+        snapshot_root(best_root)
+        if not write_state() then
+            M.roots[best_root] = nil
+            return nil
+        end
+        state = M.roots[best_root]
+    end
     if not state then
         return nil
     end

@@ -4,12 +4,6 @@ local function code_startswith(code, prefix)
     return string.sub(code or "", 1, string.len(prefix or "")) == prefix
 end
 
-local function entry_startswith(entry, input)
-    return code_startswith(entry.code, input)
-        or code_startswith(entry.base_code, input)
-        or code_startswith(entry.original_code, input)
-end
-
 function M.load(store, input, profile)
     local model = {
         entries = {},
@@ -84,7 +78,7 @@ function M.locate_entry(model, word, input, candidate_id)
     local best
     local ambiguous = false
     for _, entry in ipairs(model.by_word[word] or {}) do
-        if entry.active and entry_startswith(entry, input) then
+        if entry.active and code_startswith(entry.code, input) then
             if entry.code == input then
                 if exact and exact ~= entry then
                     return nil, "ambiguous_exact_entry"
