@@ -152,6 +152,7 @@ engine:
     - lua_processor@*pantsu_candidate_editor
     - lua_processor@*pantsu_for_topup
     - lua_processor@*pantsu_smart_2
+    - lua_processor@*pantsu_auto_fallback
     - speller
     - punctuator
     - selector
@@ -178,6 +179,7 @@ engine:
   filters:
     - lua_filter@*pantsu_make_word_filter
     - lua_filter@*pantsu_dynamic_filter
+    - lua_filter@*pantsu_topup_preview
     - simplifier
     - simplifier@jffh
     - simplifier@bmms
@@ -211,7 +213,7 @@ translator:
   enable_charset_filter: false
   enable_completion: true #提示码开关，不需要候选词提示请改false
   enable_encoder: false
-  enable_sentence: true #如果用avuio开头打字的话需要开启这个为true才能正常打字，顶功会受到一点点影响但不多，打完敲个空格即可
+  enable_sentence: false #关闭 translator 组句以提升常规输入性能；avuio 顶功由 pantsu_for_topup.lua 控制，不依赖此项
   enable_user_dict: false
   encode_commit_history: false
   max_phrase_length: 6

@@ -406,6 +406,60 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         (root / "build").mkdir(exist_ok=True)
+        (root / "installation.yaml").write_text(
+            "installation_id: test-device\n",
+            encoding="utf-8",
+        )
+        for name in [
+            "pantsu.core.dict.yaml",
+            "pantsu.danzi.dict.yaml",
+            "pantsu.cizu.dict.yaml",
+            "pantsu.user.dict.yaml",
+            "pantsu.zzc.dict.yaml",
+        ]:
+            (root / name).write_text(
+                "---\nname: test\nversion: \"1\"\nsort: original\n...\n",
+                encoding="utf-8",
+            )
+        (root / "pantsu_overrides.tsv").write_text(
+            "version\t3\n",
+            encoding="utf-8",
+        )
+        (root / "pantsu_candidate_order.tsv").write_text(
+            "version\t2\n",
+            encoding="utf-8",
+        )
+        (root / "pantsu_self_words.tsv").write_text(
+            "version\t1\n",
+            encoding="utf-8",
+        )
+        (root / "pantsu_self_words_ops.tsv").write_text(
+            "version\t1\n",
+            encoding="utf-8",
+        )
+
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.globals().test_root = str(root)
+        lua.execute(
+            "rime_api = { get_user_data_dir = function() return test_root end }"
+        )
+        lua.execute(
+            f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
+        )
+        store = lua.eval("require('pantsu_store')")[0]
+        assert store.refresh_external_state() is False
+        (root / "pantsu_overrides.tsv").write_text(
+            "version\t3\nruntime\ttest\n",
+            encoding="utf-8",
+        )
+        lua.execute("store = require('pantsu_store')")
+        lua.execute("store.runtime_state_last_check = os.time()")
+        assert store.refresh_external_state() is False
+        assert store.refresh_external_state(True) is True
+
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        (root / "build").mkdir(exist_ok=True)
         (root / "user.yaml").write_text("last_build_time: 1\n", encoding="utf-8")
         (root / "pantsu_dynamic_roots.tsv").write_text(
             "\n".join(

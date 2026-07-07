@@ -226,8 +226,8 @@ local function clear_runtime_memory()
     M.runtime_root_filter_signature = nil
 end
 
-local function refresh_runtime_state()
-    if store.refresh_external_state and store.refresh_external_state() then
+local function refresh_runtime_state(force)
+    if store.refresh_external_state and store.refresh_external_state(force) then
         clear_runtime_memory()
     end
 end
@@ -817,7 +817,7 @@ local function root_for_code(code)
 end
 
 function M.set_same_code_order(code, words)
-    refresh_runtime_state()
+    refresh_runtime_state(true)
     ensure_current_build()
     load_orders()
     local ranks = {}
@@ -849,7 +849,7 @@ function M.set_same_code_order(code, words)
 end
 
 function M.get_same_code_order(code)
-    refresh_runtime_state()
+    refresh_runtime_state(true)
     load_orders()
     local ranks = M.orders[code] or {}
     local result = {}
@@ -992,7 +992,7 @@ local function existing_root(root)
 end
 
 function M.refresh_batch(requests, profile)
-    refresh_runtime_state()
+    refresh_runtime_state(true)
     ensure_current_build()
     if profile then
         profile:mark("dynamic_prepare")

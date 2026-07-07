@@ -42,6 +42,7 @@ M.runtime_files_ready = false
 M.dirty_index_files = {}
 M.index_dirty_loaded = false
 M.runtime_state_signature = nil
+M.runtime_state_last_check = nil
 
 local migrate_undo_files
 
@@ -450,7 +451,13 @@ local function runtime_state_signature()
     }, "|")
 end
 
-function M.refresh_external_state()
+function M.refresh_external_state(force)
+    local now = os.time and os.time() or 0
+    if not force and M.runtime_state_signature ~= nil
+        and M.runtime_state_last_check == now then
+        return false
+    end
+    M.runtime_state_last_check = now
     local signature = runtime_state_signature()
     if M.runtime_state_signature == nil then
         M.runtime_state_signature = signature
@@ -1027,7 +1034,7 @@ local function entry_matches(entry, input)
 end
 
 function M.entries(input, profile)
-    M.refresh_external_state()
+    M.refresh_external_state(true)
     if not input or #input < 2 then
         return scan_entries(input or "", profile)
     end
