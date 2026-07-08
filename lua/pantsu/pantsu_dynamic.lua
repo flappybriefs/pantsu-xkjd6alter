@@ -1,4 +1,4 @@
-local store = require("pantsu_store")
+local store = require("pantsu.pantsu_store")
 local M = {}
 
 M.state_version = "9"
@@ -18,6 +18,8 @@ M.self_word_dict_file = "pantsu.zzc.dict.yaml"
 M.loaded = false
 M.build_time = nil
 M.roots = {}
+M.root_order = {}
+M.root_limit = 64
 M.root_filter_loaded = false
 M.root_filter = nil
 M.root_filter_signature = nil
@@ -207,13 +209,62 @@ local function read_build_time()
     return nil
 end
 
-local function clear_memory()
+local function forget_root(root)
+    M.roots[root] = nil
+    for index = #M.root_order, 1, -1 do
+        if M.root_order[index] == root then
+            table.remove(M.root_order, index)
+        end
+    end
+end
+
+local function trim_roots()
+    local limit = tonumber(M.root_limit) or 64
+    if limit < 1 then
+        limit = 1
+    end
+    while #M.root_order > limit do
+        local oldest = table.remove(M.root_order, 1)
+        if oldest then
+            M.roots[oldest] = nil
+        end
+    end
+end
+
+local function touch_root(root)
+    if not root or root == "" then
+        return
+    end
+    for index = #M.root_order, 1, -1 do
+        if M.root_order[index] == root then
+            table.remove(M.root_order, index)
+            break
+        end
+    end
+    table.insert(M.root_order, root)
+    trim_roots()
+end
+
+local function set_root(root, state)
+    if not root or root == "" then
+        return
+    end
+    M.roots[root] = state
+    touch_root(root)
+end
+
+local function clear_roots()
     M.roots = {}
+    M.root_order = {}
+end
+
+local function clear_memory()
+    clear_roots()
 end
 
 local function clear_runtime_memory()
     M.loaded = false
-    M.roots = {}
+    clear_roots()
     M.root_filter_loaded = false
     M.root_filter = nil
     M.root_filter_signature = nil
@@ -459,7 +510,7 @@ local function load_state()
         elseif kind == "build" then
             state_build = root
         elseif kind == "root" and root ~= "" then
-            M.roots[root] = empty_state()
+            set_root(root, empty_state())
         elseif M.roots[root] then
             if not apply_state_row(M.roots[root], kind, first, second) then
                 valid = false
@@ -477,6 +528,7 @@ end
 
 local function load_state_root(root)
     if M.roots[root] then
+        touch_root(root)
         return M.roots[root]
     end
     M.build_time = M.build_time or read_build_time()
@@ -520,7 +572,7 @@ local function load_state_root(root)
         return nil
     end
     if state then
-        M.roots[root] = state
+        set_root(root, state)
     end
     return state
 end
@@ -684,7 +736,7 @@ local function snapshot_root(root, extra_suppress, deleted_words, profile)
         end
     end
     for _, old_root in ipairs(overlapping) do
-        M.roots[old_root] = nil
+        forget_root(old_root)
     end
 
     local state = {
@@ -799,7 +851,7 @@ local function snapshot_root(root, extra_suppress, deleted_words, profile)
     if order_changed then
         write_orders()
     end
-    M.roots[root] = state
+    set_root(root, state)
     if profile then
         profile:mark("dynamic_snapshot_build")
     end
@@ -909,7 +961,7 @@ end
 
 function M.invalidate()
     M.loaded = false
-    M.roots = {}
+    clear_roots()
     M.orders = {}
     M.order_meta = {}
     M.orders_loaded = false
@@ -1121,7 +1173,7 @@ function M.match(input)
     if not state then
         snapshot_root(best_root)
         if not write_state() then
-            M.roots[best_root] = nil
+            forget_root(best_root)
             return nil
         end
         state = M.roots[best_root]

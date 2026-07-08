@@ -80,8 +80,8 @@ def write_state(root: Path, device: str, count: int) -> None:
         ),
         encoding="utf-8",
     )
-    (root / "lua").mkdir(exist_ok=True)
-    (root / "lua/pantsu_test.lua").write_text(
+    (root / "lua/pantsu").mkdir(parents=True, exist_ok=True)
+    (root / "lua/pantsu/pantsu_test.lua").write_text(
         f"return '{device}'\n",
         encoding="utf-8",
     )
@@ -227,7 +227,7 @@ def main() -> None:
         assert (phone / "pantsu.core.dict.yaml").read_text(
             encoding="utf-8"
         ) == "source: mac\n"
-        assert (phone / "lua/pantsu_test.lua").read_text(
+        assert (phone / "lua/pantsu/pantsu_test.lua").read_text(
             encoding="utf-8"
         ) == "return 'mac'\n"
         for directory in [

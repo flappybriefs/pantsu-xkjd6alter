@@ -1,9 +1,9 @@
-local core = require("pantsu_make_word_core")
-local dynamic = require("pantsu_dynamic")
-local profiler = require("pantsu_profiler")
-local store = require("pantsu_store")
-local chain = require("pantsu_chain")
-local usage = require("pantsu_usage")
+local core = require("pantsu.pantsu_make_word_core")
+local dynamic = require("pantsu.pantsu_dynamic")
+local profiler = require("pantsu.pantsu_profiler")
+local store = require("pantsu.pantsu_store")
+local chain = require("pantsu.pantsu_chain")
+local usage = require("pantsu.pantsu_usage")
 
 local kAccepted = 1
 local kNoop = 2
@@ -380,10 +380,18 @@ local function history_status(items)
         return "〔暂无可撤销操作〕"
     end
     local parts = {}
+    local labels = {
+        promote = "前移",
+        demote = "后移",
+        delete = "删除",
+        make_word = "造词",
+    }
     for index, item in ipairs(items) do
-        table.insert(parts, tostring(index) .. item.label)
+        table.insert(parts, tostring(index)
+            .. (labels[item.action] or item.action or "操作"))
     end
-    return "〔" .. table.concat(parts, "；") .. "；按序号撤销〕"
+    return "〔撤销：" .. table.concat(parts, " ")
+        .. "；按序号〕"
 end
 
 local function cancel_delete_confirmation(context, refresh)

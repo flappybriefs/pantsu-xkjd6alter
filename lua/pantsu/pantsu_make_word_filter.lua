@@ -1,4 +1,4 @@
-local core = require("pantsu_make_word_core")
+local core = require("pantsu.pantsu_make_word_core")
 
 local error_messages = {
     write_failed = "〔保存失败：用户词库不可写〕",
@@ -12,6 +12,10 @@ local error_messages = {
     backup_history_failed = "〔保存失败：历史记录写入失败〕",
     same_code_order_write_failed = "〔保存失败：同码顺序写入失败〕",
 }
+
+local function make_comment(text)
+    return "〔造词中〕" .. (text or "")
+end
 
 local function filter(input, env)
     local context = env.engine.context
@@ -42,7 +46,8 @@ local function filter(input, env)
             or (core.last_error and "〔保存失败：" .. core.last_error .. "〕")
             or target
             or "〔空格保存〕"
-        yield(Candidate("pantsu_make_word", 0, 1, core.buffer, comment))
+        yield(Candidate(
+            "pantsu_make_word", 0, 1, core.buffer, make_comment(comment)))
         return
     end
 

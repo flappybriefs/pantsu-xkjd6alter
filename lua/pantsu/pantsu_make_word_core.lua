@@ -1,7 +1,7 @@
-local store = require("pantsu_store")
-local dynamic = require("pantsu_dynamic")
-local profiler = require("pantsu_profiler")
-local chain = require("pantsu_chain")
+local store = require("pantsu.pantsu_store")
+local dynamic = require("pantsu.pantsu_dynamic")
+local profiler = require("pantsu.pantsu_profiler")
+local chain = require("pantsu.pantsu_chain")
 local M = {}
 local first_fly_keys = {
     q = "f", f = "q",

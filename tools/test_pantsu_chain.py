@@ -60,7 +60,7 @@ def main():
     lua.execute(
         f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
     )
-    chain = lua.eval("require('pantsu_chain')")[0]
+    chain = lua.eval("require('pantsu.pantsu_chain')")[0]
 
     first = entry(lua, "甲词", "abcd")
     second = entry(lua, "乙词", "abcde")

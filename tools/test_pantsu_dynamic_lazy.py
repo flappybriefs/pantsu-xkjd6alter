@@ -67,7 +67,7 @@ def main() -> None:
         lua.execute(
             """
             test_store_calls = { entries = 0, writes = 0 }
-            package.loaded["pantsu_store"] = {
+            package.loaded["pantsu.pantsu_store"] = {
               signature = function() return "sig" end,
               ensure_runtime_files = function() return true end,
               entries = function()
@@ -89,7 +89,7 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        dynamic = lua.eval("require('pantsu_dynamic')")[0]
+        dynamic = lua.eval("require('pantsu.pantsu_dynamic')")[0]
 
         state, matched_root = dynamic.match("aaav")
         assert matched_root == "aaa"
@@ -136,7 +136,7 @@ def main() -> None:
         lua.execute(
             """
             test_store_calls = { entries = 0 }
-            package.loaded["pantsu_store"] = {
+            package.loaded["pantsu.pantsu_store"] = {
               signature = function() return "sig" end,
               ensure_runtime_files = function() return true end,
               entries = function()
@@ -152,7 +152,7 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        dynamic = lua.eval("require('pantsu_dynamic')")[0]
+        dynamic = lua.eval("require('pantsu.pantsu_dynamic')")[0]
 
         state, matched_root = dynamic.match("aaav")
         assert matched_root == "aaa"
@@ -184,7 +184,7 @@ def main() -> None:
         lua.execute(
             """
             test_store_calls = { entries = 0 }
-            package.loaded["pantsu_store"] = {
+            package.loaded["pantsu.pantsu_store"] = {
               signature = function() return "fallback-sig" end,
               ensure_runtime_files = function() return true end,
               entries = function(input)
@@ -219,7 +219,7 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        dynamic = lua.eval("require('pantsu_dynamic')")[0]
+        dynamic = lua.eval("require('pantsu.pantsu_dynamic')")[0]
 
         state, matched_root = dynamic.match("zzzz")
         assert matched_root == "zzz"
@@ -254,7 +254,7 @@ def main() -> None:
         lua.execute(
             """
             test_store_calls = { entries = 0 }
-            package.loaded["pantsu_store"] = {
+            package.loaded["pantsu.pantsu_store"] = {
               signature = function() return "runtime-sig" end,
               ensure_runtime_files = function() return true end,
               entries = function(input)
@@ -280,7 +280,7 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        dynamic = lua.eval("require('pantsu_dynamic')")[0]
+        dynamic = lua.eval("require('pantsu.pantsu_dynamic')")[0]
 
         state, matched_root = dynamic.match("missu")
         assert matched_root == "miss"
@@ -299,7 +299,7 @@ def main() -> None:
         lua.execute(
             """
             test_store_calls = { refreshes = 0, entries = 0 }
-            package.loaded["pantsu_store"] = {
+            package.loaded["pantsu.pantsu_store"] = {
               signature = function() return "sig" end,
               ensure_runtime_files = function() return true end,
               entries = function()
@@ -319,7 +319,7 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        dynamic = lua.eval("require('pantsu_dynamic')")[0]
+        dynamic = lua.eval("require('pantsu.pantsu_dynamic')")[0]
 
         state, matched_root = dynamic.match("aaav")
         assert matched_root == "aaa"
@@ -385,7 +385,7 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        store = lua.eval("require('pantsu_store')")[0]
+        store = lua.eval("require('pantsu.pantsu_store')")[0]
         entries = store.entries("fjxm")
         assert entries[1]["word"] == "浮现"
         assert entries[1]["code"] == "fjxm"
@@ -446,13 +446,13 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        store = lua.eval("require('pantsu_store')")[0]
+        store = lua.eval("require('pantsu.pantsu_store')")[0]
         assert store.refresh_external_state() is False
         (root / "pantsu_overrides.tsv").write_text(
             "version\t3\nruntime\ttest\n",
             encoding="utf-8",
         )
-        lua.execute("store = require('pantsu_store')")
+        lua.execute("store = require('pantsu.pantsu_store')")
         lua.execute("store.runtime_state_last_check = os.time()")
         assert store.refresh_external_state() is False
         assert store.refresh_external_state(True) is True
@@ -496,7 +496,7 @@ def main() -> None:
         lua.execute(
             """
             test_store_calls = { entries = 0, refreshed = false }
-            package.loaded["pantsu_store"] = {
+            package.loaded["pantsu.pantsu_store"] = {
               signature = function() return "fresh" end,
               ensure_runtime_files = function() return true end,
               entries = function(input)
@@ -529,7 +529,7 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        dynamic = lua.eval("require('pantsu_dynamic')")[0]
+        dynamic = lua.eval("require('pantsu.pantsu_dynamic')")[0]
 
         state, matched_root = dynamic.match("tcdf")
         assert matched_root == "tcdf"
@@ -581,7 +581,7 @@ def main() -> None:
         lua.execute(
             """
             test_store_calls = { signature = "sig1", refresh = false }
-            package.loaded["pantsu_store"] = {
+            package.loaded["pantsu.pantsu_store"] = {
               signature = function() return test_store_calls.signature end,
               ensure_runtime_files = function() return true end,
               entries = function(input)
@@ -613,7 +613,7 @@ def main() -> None:
         lua.execute(
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
         )
-        dynamic = lua.eval("require('pantsu_dynamic')")[0]
+        dynamic = lua.eval("require('pantsu.pantsu_dynamic')")[0]
 
         assert dynamic.refresh_codes(
             lua.table_from(["cccv"]),
@@ -660,6 +660,66 @@ def main() -> None:
         assert "entry\taaa\t1\t新词\taaav\tnew-id" in content
         assert "entry\taaa\t1\t甲词\taaav\told-id" not in content
         assert "entry\tddd\t1\t丁词\tdddv\tddd-id" in content
+
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        (root / "build").mkdir(exist_ok=True)
+        (root / "user.yaml").write_text("last_build_time: 1\n", encoding="utf-8")
+
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.globals().test_root = str(root)
+        lua.execute(
+            "rime_api = { get_user_data_dir = function() return test_root end }"
+        )
+        lua.execute(
+            """
+            test_store_calls = { entries = 0 }
+            package.loaded["pantsu.pantsu_store"] = {
+              signature = function() return "lru-sig" end,
+              ensure_runtime_files = function() return true end,
+              entries = function(input)
+                test_store_calls.entries = test_store_calls.entries + 1
+                return {
+                  {
+                    word = "词" .. input,
+                    code = input .. "v",
+                    base_code = input .. "v",
+                    original_code = input .. "v",
+                    active = true,
+                    path = "pantsu.cizu.dict.yaml",
+                    id = input .. "-id",
+                  },
+                }
+              end,
+              override_roots = function()
+                return { aaa = true, bbb = true, ccc = true, ddd = true }
+              end,
+              self_word_roots = function() return {} end,
+              invalidate_signature = function() end
+            }
+            """
+        )
+        lua.execute(
+            f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
+        )
+        dynamic = lua.eval("require('pantsu.pantsu_dynamic')")[0]
+        dynamic["root_limit"] = 3
+
+        for code in ["aaav", "bbbv", "cccv", "dddv"]:
+            state, matched_root = dynamic.match(code)
+            assert matched_root == code[:3]
+            assert state["entries"][1]["word"] == "词" + code[:3]
+        assert dynamic.roots["aaa"] is None
+        assert dynamic.roots["bbb"] is not None
+        assert dynamic.roots["ccc"] is not None
+        assert dynamic.roots["ddd"] is not None
+        assert len(dynamic.root_order) == 3
+
+        state, matched_root = dynamic.match("aaav")
+        assert matched_root == "aaa"
+        assert state["entries"][1]["word"] == "词aaa"
+        assert dynamic.roots["aaa"] is not None
+        assert len(dynamic.root_order) == 3
 
     print("PASS pantsu_dynamic lazy root match: no rebuild on typing")
 

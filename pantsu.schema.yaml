@@ -36,7 +36,6 @@ layout:
     - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{3}).(.*)$/$1`$2/
     - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{4}).(.*)$/$1`$2/
     - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{5}).$/$1`/
-    - derive/^[bcdefghjklmnpqrstwxyz;]{2}([avuio`]*)$/``$1/
 
   input_code:
     date: orq
@@ -148,11 +147,11 @@ engine:
     - ascii_composer
     - recognizer
     - key_binder
-    - lua_processor@*pantsu_make_word_processor
-    - lua_processor@*pantsu_candidate_editor
-    - lua_processor@*pantsu_for_topup
-    - lua_processor@*pantsu_smart_2
-    - lua_processor@*pantsu_auto_fallback
+    - lua_processor@*pantsu/pantsu_make_word_processor
+    - lua_processor@*pantsu/pantsu_candidate_editor
+    - lua_processor@*pantsu/pantsu_for_topup
+    - lua_processor@*pantsu/pantsu_smart_2
+    - lua_processor@*pantsu/pantsu_auto_fallback
     - speller
     - punctuator
     - selector
@@ -168,36 +167,31 @@ engine:
     - punct_segmentor
     - fallback_segmentor
   translators:
-    - lua_translator@*pantsu_calculator
+    - lua_translator@*pantsu/pantsu_calculator
     - punct_translator
     - table_translator
     - history_translator@repeat_history
     - script_translator@erfen
-    - lua_translator@*pantsu_date_time
+    - lua_translator@*pantsu/pantsu_date_time
     - table_translator@english
     - table_translator@pantsuen
   filters:
-    - lua_filter@*pantsu_make_word_filter
-    - lua_filter@*pantsu_dynamic_filter
-    - lua_filter@*pantsu_topup_preview
+    - lua_filter@*pantsu/pantsu_make_word_filter
+    - lua_filter@*pantsu/pantsu_dynamic_filter
+    - lua_filter@*pantsu/pantsu_topup_preview
     - simplifier
     - simplifier@jffh
     - simplifier@bmms
     - simplifier@EN2en
-    - lua_filter@*pantsu_filter
+    - lua_filter@*pantsu/pantsu_filter
     - reverse_lookup_filter@danzi_lookup
     - reverse_lookup_filter@pinyin_reverse_lookup
     - reverse_lookup_filter@erfen_lookup
-#    - lua_filter@*pantsu_single_char #候选辅助码单字优先，由于该方案有二简词，故关闭
-    - lua_filter@*pantsu_completion   #辅助码提示
-    - simplifier@es_conversion
-    - lua_filter@*pantsu_embeded_cands@embeded_cands  #内嵌
+#    - lua_filter@*pantsu/pantsu_single_char #候选辅助码单字优先，由于该方案有二简词，故关闭
+    - lua_filter@*pantsu/pantsu_completion   #辅助码提示
+    - lua_filter@*pantsu/pantsu_lazy_emoji
+    - lua_filter@*pantsu/pantsu_embeded_cands@embeded_cands  #内嵌
     - uniquifier
-
-
-es_conversion:
-  opencc_config: pantsu_es.json
-  option_name: show_es
 
 
 speller:

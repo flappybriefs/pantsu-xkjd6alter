@@ -51,7 +51,7 @@ def main() -> None:
             f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' "
             ".. package.path"
         )
-        usage = lua.eval("require('pantsu_usage')")[0]
+        usage = lua.eval("require('pantsu.pantsu_usage')")[0]
         usage["compact_threshold"] = 3
         high = entry(lua, "高频词")
         low = entry(lua, "低频词")

@@ -85,7 +85,7 @@ def main() -> None:
     lua.execute(
         f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
     )
-    lua.execute("auto_fallback = require('pantsu_auto_fallback')")
+    lua.execute("auto_fallback = require('pantsu.pantsu_auto_fallback')")
 
     run_case(
         lua,

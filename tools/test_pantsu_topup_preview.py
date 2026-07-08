@@ -64,7 +64,7 @@ def main() -> None:
     )
     lua.execute(
         """
-        package.loaded["pantsu_store"] = {
+        package.loaded["pantsu.pantsu_store"] = {
           entries = function(code)
             local rows = {
               hlbl = {
@@ -90,7 +90,7 @@ def main() -> None:
     lua.execute(
         f"package.path = '{args.rime_dir / 'lua' / '?.lua'};' .. package.path"
     )
-    lua.execute("preview = require('pantsu_topup_preview')")
+    lua.execute("preview = require('pantsu.pantsu_topup_preview')")
 
     lua.execute(
         """

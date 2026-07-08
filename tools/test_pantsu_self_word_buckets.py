@@ -67,7 +67,7 @@ def build_store(source: Path, count: int):
     lua.execute(
         f"package.path = '{source / 'lua' / '?.lua'};' .. package.path"
     )
-    store = lua.eval("require('pantsu_store')")[0]
+    store = lua.eval("require('pantsu.pantsu_store')")[0]
     return temporary, lua, store
 
 

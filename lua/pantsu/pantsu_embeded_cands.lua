@@ -1,6 +1,6 @@
 -- 将要被返回的過濾器對象
 local embeded_cands_filter = {}
-local core = require("pantsu_embeded_core")
+local core = require("pantsu.pantsu_embeded_core")
 
 --[[
 # xxx.schema.yaml

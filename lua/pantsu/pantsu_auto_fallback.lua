@@ -1,6 +1,6 @@
 local kAccepted = 1
 local kNoop = 2
-local topup_common = require("pantsu_topup_common")
+local topup_common = require("pantsu.pantsu_topup_common")
 
 local function processor(key_event, env)
     if key_event:release() or key_event:ctrl() or key_event:alt() then

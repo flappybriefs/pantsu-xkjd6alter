@@ -988,7 +988,7 @@ def copy_phone_scheme(target: Path) -> tuple[int, int]:
     target_lua = target / "lua"
     if source_lua.is_dir():
         shutil.copytree(source_lua, target_lua, dirs_exist_ok=True)
-        copied += sum(path.is_file() for path in source_lua.iterdir())
+        copied += sum(path.is_file() for path in source_lua.rglob("*"))
     for path in obsolete:
         path.unlink()
     for directory in state_directories(target):

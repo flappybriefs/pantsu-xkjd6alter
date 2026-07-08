@@ -26,7 +26,7 @@
             topup_command: false # 为true时，首码为顶码时禁用顶功逻辑（如orq）
 ]]
 
-local topup_common = require("pantsu_topup_common")
+local topup_common = require("pantsu.pantsu_topup_common")
 
 local function commit_trailing_topup(env)
     local context = env.engine.context

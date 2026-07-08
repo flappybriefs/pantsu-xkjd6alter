@@ -76,7 +76,7 @@ def lua_store(root: Path):
         + " end }"
     )
     lua.execute(f"package.path = '{ROOT / 'lua' / '?.lua'};' .. package.path")
-    loaded = lua.eval("require('pantsu_store')")
+    loaded = lua.eval("require('pantsu.pantsu_store')")
     return lua, loaded[0] if isinstance(loaded, tuple) else loaded
 
 

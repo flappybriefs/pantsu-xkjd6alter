@@ -1,5 +1,5 @@
-local store = require("pantsu_store")
-local topup_common = require("pantsu_topup_common")
+local store = require("pantsu.pantsu_store")
+local topup_common = require("pantsu.pantsu_topup_common")
 
 local M = {}
 

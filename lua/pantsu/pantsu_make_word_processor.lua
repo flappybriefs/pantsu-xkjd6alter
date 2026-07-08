@@ -1,6 +1,6 @@
-local core = require("pantsu_make_word_core")
-local dynamic = require("pantsu_dynamic")
-local profiler = require("pantsu_profiler")
+local core = require("pantsu.pantsu_make_word_core")
+local dynamic = require("pantsu.pantsu_dynamic")
+local profiler = require("pantsu.pantsu_profiler")
 
 local kAccepted = 1
 local kNoop = 2

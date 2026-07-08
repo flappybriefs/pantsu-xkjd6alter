@@ -21,7 +21,7 @@ def main() -> None:
     )
     lua.execute(
         """
-        topup = require("pantsu_for_topup")
+        topup = require("pantsu.pantsu_for_topup")
 
         function make_key(ch)
           return {

@@ -1,4 +1,4 @@
-local dynamic = require("pantsu_dynamic")
+local dynamic = require("pantsu.pantsu_dynamic")
 
 local function filter(input, env)
     local context = env.engine.context
