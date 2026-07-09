@@ -30,6 +30,10 @@ CACHE_STATE_FILES = (
     "build/pantsu_dynamic_candidates.tsv",
 )
 
+PERSISTENT_CACHE_FILES = (
+    "build/pantsu_dictionary_index.tsv",
+)
+
 SCHEME_PROFILES = {
     "pantsu": SchemeProfile(
         key="pantsu",

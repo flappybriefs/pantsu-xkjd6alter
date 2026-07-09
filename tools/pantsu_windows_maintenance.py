@@ -13,6 +13,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+CONFIG_NAME = "pantsu_windows_maintenance.json"
 STATE_FILES = (
     "pantsu_overrides.tsv",
     "pantsu_candidate_order.tsv",
@@ -69,6 +70,41 @@ def atomic_write(path: Path, text: str) -> None:
     temp.replace(path)
 
 
+def config_path() -> Path:
+    return ROOT / CONFIG_NAME
+
+
+def load_config() -> dict[str, str]:
+    path = config_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_config(config: dict[str, str]) -> None:
+    atomic_write(
+        config_path(),
+        json.dumps(config, ensure_ascii=False, indent=2) + "\n",
+    )
+
+
+def sync_directory() -> Path | None:
+    value = load_config().get("sync_directory", "")
+    if not value:
+        return None
+    return Path(value).expanduser()
+
+
+def save_sync_directory(path: Path) -> None:
+    config = load_config()
+    config["sync_directory"] = str(path.resolve())
+    save_config(config)
+
+
 def pause() -> None:
     input("\n按回车继续……")
 
@@ -95,6 +131,23 @@ def backup() -> Path:
             shutil.copy2(source, destination)
             copied += 1
     print(f"已备份 {copied} 个文件到：{target}")
+    return target
+
+
+def backup_directory(directory: Path, label: str) -> Path | None:
+    if not directory.exists():
+        return None
+    target = ROOT / "backups" / f"windows-{label}-{timestamp()}"
+    target.mkdir(parents=True, exist_ok=False)
+    copied = 0
+    for name in STATE_FILES:
+        source = directory / name
+        if source.exists() and source.is_file():
+            destination = target / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            copied += 1
+    print(f"已备份 {label} 状态 {copied} 个文件到：{target}")
     return target
 
 
@@ -176,6 +229,12 @@ def parse_overrides() -> dict[str, list[str]]:
     return result
 
 
+def write_overrides(records: dict[str, list[str]]) -> None:
+    lines = ["version\t1"]
+    lines.extend("\t".join(records[key]) for key in sorted(records))
+    atomic_write(ROOT / "pantsu_overrides.tsv", "\n".join(lines) + "\n")
+
+
 def parse_candidate_orders() -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
     for raw in safe_rows(ROOT / "pantsu_candidate_order.tsv"):
@@ -255,6 +314,62 @@ def compact_runtime() -> None:
     print("已压缩运行态日志。建议随后重新部署小狼毫。")
 
 
+def choose_sync_directory() -> Path | None:
+    current = sync_directory()
+    print(f"当前同步目录：{current or '未设置'}")
+    value = input("请输入 Windows/网盘/移动盘上的 Rime 同步目录：").strip()
+    if not value:
+        print("已取消")
+        return None
+    path = Path(value).expanduser()
+    if not path.exists():
+        create = input("目录不存在，是否创建？输入 YES 确认：").strip()
+        if create != "YES":
+            print("设置未保存")
+            return None
+        path.mkdir(parents=True, exist_ok=True)
+    if not path.is_dir():
+        print("路径不是目录，设置未保存")
+        return None
+    save_sync_directory(path)
+    print(f"已保存同步目录：{path.resolve()}")
+    return path
+
+
+def sync_state_directory() -> None:
+    target = sync_directory()
+    if target is None or not target.is_dir():
+        print("尚未设置有效同步目录，请先设置同步目录。")
+        return
+    backup()
+    backup_directory(target, "sync")
+    pulled = 0
+    pushed = 0
+    for name in STATE_FILES:
+        local = ROOT / name
+        remote = target / name
+        if not local.exists() and not remote.exists():
+            continue
+        if remote.exists() and (
+            not local.exists()
+            or remote.stat().st_mtime_ns > local.stat().st_mtime_ns
+        ):
+            local.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(remote, local)
+            pulled += 1
+        if local.exists() and (
+            not remote.exists()
+            or local.stat().st_mtime_ns > remote.stat().st_mtime_ns
+        ):
+            remote.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(local, remote)
+            pushed += 1
+    root_count = rebuild_dynamic_roots()
+    print(f"同步完成：从同步目录接收 {pulled} 个文件，写回 {pushed} 个文件。")
+    print(f"动态前缀缓存：{root_count} 个")
+    print("如果电脑和同步目录同时改过同一个状态文件，本工具会保留较新的文件。")
+
+
 def health() -> int:
     errors: list[str] = []
     warnings: list[str] = []
@@ -293,6 +408,82 @@ def health() -> int:
     if not errors and not warnings:
         print("当前离线部署文件状态正常。")
     return len(errors)
+
+
+def apply_overrides() -> None:
+    entries = parse_overrides()
+    if not entries:
+        print("没有需要合并的覆盖")
+        return
+    selected = {
+        key: record
+        for key, record in entries.items()
+        if len(record) >= 10 and record[2] in CODE_DICTIONARIES
+    }
+    if not selected:
+        print("没有指向胖次键道基础词库的覆盖")
+        return
+    backup()
+    grouped: dict[str, dict[int, tuple[str, list[str]]]] = {}
+    unresolved: list[list[str]] = []
+    for key, record in selected.items():
+        if not record[3].isdigit():
+            unresolved.append([key, record[2], record[3], "行号不是数字"])
+            continue
+        grouped.setdefault(record[2], {})[int(record[3])] = (key, record)
+    applied: set[str] = set()
+    for name, changes in grouped.items():
+        path = ROOT / name
+        if not path.exists():
+            unresolved.extend(
+                [key, name, str(number), "基础词库不存在"]
+                for number, (key, _) in changes.items()
+            )
+            continue
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+        output: list[str] = []
+        for number, raw in enumerate(lines, 1):
+            item = changes.get(number)
+            if not item:
+                output.append(raw)
+                continue
+            key, record = item
+            fields = raw.rstrip("\r").split("\t")
+            if (
+                len(fields) < 2
+                or fields[0] != record[4]
+                or fields[1] != record[5]
+            ):
+                output.append(raw)
+                unresolved.append([
+                    key,
+                    name,
+                    str(number),
+                    record[4],
+                    record[5],
+                    raw.rstrip("\r"),
+                ])
+                continue
+            applied.add(key)
+            if record[7] == "1":
+                output.append("\t".join([record[4], record[6], *fields[2:]]))
+        atomic_write(path, "\n".join(output) + "\n")
+    write_overrides({
+        key: record
+        for key, record in entries.items()
+        if key not in applied
+    })
+    unresolved_path = ROOT / "pantsu_apply_overrides_unresolved.tsv"
+    if unresolved:
+        atomic_write(
+            unresolved_path,
+            "\n".join("\t".join(row) for row in unresolved) + "\n",
+        )
+    else:
+        unresolved_path.unlink(missing_ok=True)
+    print(f"已将 {len(applied)} 条覆盖合并回胖次键道基础词库")
+    if unresolved:
+        print(f"{len(unresolved)} 条覆盖暂未合并，已写入：{unresolved_path.name}")
 
 
 def run_performance() -> None:
@@ -363,12 +554,15 @@ def menu() -> None:
         print("  胖次键道 Windows 离线维护")
         print("==============================")
         print(f"目录：{ROOT}")
+        print(f"同步目录：{sync_directory() or '未设置'}")
         print("1. 备份当前文件")
         print("2. 健康检查")
-        print("3. 压缩自造词/调频日志并刷新缓存")
-        print("4. 性能与极端压力测试")
-        print("5. 生成状态同步包")
-        print("6. 尝试调用小狼毫重新部署")
+        print("3. 同步状态目录")
+        print("4. 设置同步目录")
+        print("5. 应用覆盖到基础词库")
+        print("6. 压缩自造词/调频日志并刷新缓存")
+        print("7. 生成状态同步包")
+        print("8. 尝试调用小狼毫重新部署")
         print("0. 退出")
         choice = input("请选择：").strip()
         if choice == "1":
@@ -376,12 +570,16 @@ def menu() -> None:
         elif choice == "2":
             health()
         elif choice == "3":
-            compact_runtime()
+            sync_state_directory()
         elif choice == "4":
-            run_performance()
+            choose_sync_directory()
         elif choice == "5":
-            export_state_package()
+            apply_overrides()
         elif choice == "6":
+            compact_runtime()
+        elif choice == "7":
+            export_state_package()
+        elif choice == "8":
             deploy_weasel()
         elif choice == "0":
             return
@@ -398,6 +596,9 @@ def main() -> None:
         "performance": run_performance,
         "export-state": export_state_package,
         "deploy": deploy_weasel,
+        "set-sync-dir": choose_sync_directory,
+        "sync-state": sync_state_directory,
+        "apply-overrides": apply_overrides,
     }
     if len(sys.argv) > 1:
         command = sys.argv[1]

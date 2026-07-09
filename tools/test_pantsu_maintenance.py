@@ -85,6 +85,11 @@ def write_state(root: Path, device: str, count: int) -> None:
         f"return '{device}'\n",
         encoding="utf-8",
     )
+    (root / "build").mkdir(parents=True, exist_ok=True)
+    (root / "build/pantsu_dictionary_index.tsv").write_text(
+        f"index\t{device}\n",
+        encoding="utf-8",
+    )
 
 
 def write_health_fixture(root: Path) -> None:
@@ -230,6 +235,9 @@ def main() -> None:
         assert (phone / "lua/pantsu/pantsu_test.lua").read_text(
             encoding="utf-8"
         ) == "return 'mac'\n"
+        assert (phone / "build/pantsu_dictionary_index.tsv").read_text(
+            encoding="utf-8"
+        ) == "index\tmac\n"
         for directory in [
             root,
             phone,

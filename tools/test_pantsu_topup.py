@@ -102,25 +102,23 @@ def main() -> None:
 
     lua.execute(
         """
-        ctx = make_context("hlblv")
-        env = make_env(ctx)
-        topup.init(env)
-        assert(topup.func(make_key("x"), env) == 2)
-        assert(#ctx.committed == 2)
-        assert(ctx.committed[1] == "hlbl")
-        assert(ctx.committed[2] == "v")
-        assert(ctx.input == "")
-        """
-    )
-
-    lua.execute(
-        """
         ctx = make_context("abcd")
         env = make_env(ctx)
         topup.init(env)
         assert(topup.func(make_key("x"), env) == 2)
         assert(#ctx.committed == 1)
         assert(ctx.committed[1] == "abcd")
+        assert(ctx.input == "")
+        """
+    )
+
+    lua.execute(
+        """
+        ctx = make_context("sdfs")
+        env = make_env(ctx)
+        topup.init(env)
+        assert(topup.func(make_key("x"), env) == 2)
+        assert(#ctx.committed == 0)
         assert(ctx.input == "")
         """
     )

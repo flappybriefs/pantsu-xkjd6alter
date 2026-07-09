@@ -17,6 +17,42 @@ local function make_comment(text)
     return "〔造词中〕" .. (text or "")
 end
 
+local function append_make_word_comment(text)
+    text = text or ""
+    if string.find(text, "〔造词中〕", 1, true) then
+        return text
+    end
+    return text .. "〔造词中〕"
+end
+
+local function prompt_candidate(candidate)
+    local comment = append_make_word_comment(candidate.comment)
+    if ShadowCandidate then
+        return ShadowCandidate(
+            candidate, candidate.type, candidate.text, comment)
+    end
+    local shadow = Candidate(
+        candidate.type,
+        candidate.start or 0,
+        candidate._end or 0,
+        candidate.text,
+        comment)
+    shadow.quality = candidate.quality
+    return shadow
+end
+
+local function yield_with_make_word_prompt(input)
+    local first = true
+    for cand in input:iter() do
+        if first then
+            yield(prompt_candidate(cand))
+            first = false
+        else
+            yield(cand)
+        end
+    end
+end
+
 local function filter(input, env)
     local context = env.engine.context
     if context.input == "[" then
@@ -24,9 +60,7 @@ local function filter(input, env)
             core.start(nil)
         end
         if core.buffer == "" then
-            for cand in input:iter() do
-                yield(cand)
-            end
+            yield_with_make_word_prompt(input)
             return
         end
         core.prepare_preview()
@@ -48,6 +82,11 @@ local function filter(input, env)
             or "〔空格保存〕"
         yield(Candidate(
             "pantsu_make_word", 0, 1, core.buffer, make_comment(comment)))
+        return
+    end
+
+    if core.mode then
+        yield_with_make_word_prompt(input)
         return
     end
 

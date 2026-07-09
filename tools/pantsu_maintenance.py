@@ -12,6 +12,7 @@ from pathlib import Path
 
 from pantsu_maintenance_profiles import (
     CACHE_STATE_FILES,
+    PERSISTENT_CACHE_FILES,
     SCHEME_PROFILES,
     STATE_FILES,
     active_profile,
@@ -939,6 +940,18 @@ def copy_state(target: Path) -> None:
             shutil.copy2(source, target / name)
 
 
+def copy_relative_files(names: tuple[str, ...], target: Path) -> int:
+    copied = 0
+    for name in names:
+        source = ROOT / name
+        if source.exists():
+            destination = target / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            copied += 1
+    return copied
+
+
 def clear_cache_state(directory: Path) -> int:
     removed = 0
     for name in CACHE_STATE_FILES:
@@ -991,6 +1004,7 @@ def copy_phone_scheme(target: Path) -> tuple[int, int]:
         copied += sum(path.is_file() for path in source_lua.rglob("*"))
     for path in obsolete:
         path.unlink()
+    copied += copy_relative_files(PERSISTENT_CACHE_FILES, target)
     for directory in state_directories(target):
         stale = directory / "pantsu_refined_candidate_order.tsv"
         stale.unlink(missing_ok=True)
@@ -1449,11 +1463,10 @@ def advanced_menu() -> None:
         print("3. 运行性能与极端压力测试")
         print("4. 对比自造词写入性能")
         print("5. 设置手机目录")
-        print("6. 应用覆盖到基础词库")
-        print("7. 修复失效覆盖记录")
-        print("8. 恢复历史备份")
-        print("9. 从维护合并日志恢复")
-        print("10. 清理临时报告、旧备份和增量日志")
+        print("6. 修复失效覆盖记录")
+        print("7. 恢复历史备份")
+        print("8. 从维护合并日志恢复")
+        print("9. 清理临时报告、旧备份和增量日志")
         print("0. 返回")
         choice = input("请选择：").strip()
         if choice == "1":
@@ -1467,14 +1480,12 @@ def advanced_menu() -> None:
         elif choice == "5":
             choose_shared_directory()
         elif choice == "6":
-            apply_overrides()
-        elif choice == "7":
             repair_overrides()
-        elif choice == "8":
+        elif choice == "7":
             restore_interactive()
-        elif choice == "9":
+        elif choice == "8":
             restore_merge_log_interactive()
-        elif choice == "10":
+        elif choice == "9":
             cleanup_runtime()
         elif choice == "0":
             return
@@ -1494,7 +1505,8 @@ def interactive() -> None:
         print("\n回车. 合并手机与电脑（推荐）")
         print("2. 检查方案健康")
         print("3. 备份当前状态")
-        print("4. 更多功能")
+        print("4. 应用覆盖到基础词库")
+        print("5. 更多功能")
         print("0. 退出")
         choice = input("请选择，直接回车开始同步：").strip()
         if choice in {"", "1"}:
@@ -1504,6 +1516,8 @@ def interactive() -> None:
         elif choice == "3":
             backup()
         elif choice == "4":
+            apply_overrides()
+        elif choice == "5":
             advanced_menu()
         elif choice == "0":
             return

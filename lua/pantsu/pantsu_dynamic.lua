@@ -31,6 +31,9 @@ M.override_roots_loaded = false
 M.runtime_root_filter = nil
 M.runtime_root_filter_signature = nil
 M.status = nil
+M.match_cache = {}
+M.match_cache_order = {}
+M.match_cache_limit = 128
 
 local function data_path(path)
     if string.sub(path, 1, 1) == "/" then
@@ -211,6 +214,8 @@ end
 
 local function forget_root(root)
     M.roots[root] = nil
+    M.match_cache = {}
+    M.match_cache_order = {}
     for index = #M.root_order, 1, -1 do
         if M.root_order[index] == root then
             table.remove(M.root_order, index)
@@ -250,6 +255,8 @@ local function set_root(root, state)
         return
     end
     M.roots[root] = state
+    M.match_cache = {}
+    M.match_cache_order = {}
     touch_root(root)
 end
 
@@ -260,11 +267,15 @@ end
 
 local function clear_memory()
     clear_roots()
+    M.match_cache = {}
+    M.match_cache_order = {}
 end
 
 local function clear_runtime_memory()
     M.loaded = false
     clear_roots()
+    M.match_cache = {}
+    M.match_cache_order = {}
     M.root_filter_loaded = false
     M.root_filter = nil
     M.root_filter_signature = nil
@@ -275,6 +286,35 @@ local function clear_runtime_memory()
     M.override_roots_loaded = false
     M.runtime_root_filter = nil
     M.runtime_root_filter_signature = nil
+end
+
+local function cache_match(input, state, root)
+    if type(input) ~= "string" or input == "" then
+        return
+    end
+    M.match_cache[input] = root and { state = state, root = root } or false
+    for index = #M.match_cache_order, 1, -1 do
+        if M.match_cache_order[index] == input then
+            table.remove(M.match_cache_order, index)
+            break
+        end
+    end
+    table.insert(M.match_cache_order, input)
+    while #M.match_cache_order > M.match_cache_limit do
+        local expired = table.remove(M.match_cache_order, 1)
+        M.match_cache[expired] = nil
+    end
+end
+
+local function cached_match(input)
+    local cached = M.match_cache[input]
+    if cached == nil then
+        return nil, nil, false
+    end
+    if cached == false then
+        return nil, nil, true
+    end
+    return cached.state, cached.root, true
 end
 
 local function refresh_runtime_state(force)
@@ -1161,8 +1201,13 @@ end
 
 function M.match(input)
     refresh_runtime_state()
+    local cached_state, cached_root, found = cached_match(input)
+    if found then
+        return cached_state, cached_root
+    end
     local best_root = best_filter_root(input)
     if not best_root then
+        cache_match(input, nil, nil)
         return nil
     end
     local state = load_state_root(best_root)
@@ -1179,8 +1224,10 @@ function M.match(input)
         state = M.roots[best_root]
     end
     if not state then
+        cache_match(input, nil, nil)
         return nil
     end
+    cache_match(input, state, best_root)
     return state, best_root
 end
 

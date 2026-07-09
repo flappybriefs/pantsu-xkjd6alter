@@ -36,6 +36,7 @@ layout:
     - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{3}).(.*)$/$1`$2/
     - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{4}).(.*)$/$1`$2/
     - derive/^([bcdefghjklmnpqrstwxyz;`]{2}[avuio`]{5}).$/$1`/
+    - derive/^[bcdefghjklmnpqrstwxyz;]{2}([avuio`]*)$/``$1/
 
   input_code:
     date: orq
@@ -151,7 +152,6 @@ engine:
     - lua_processor@*pantsu/pantsu_candidate_editor
     - lua_processor@*pantsu/pantsu_for_topup
     - lua_processor@*pantsu/pantsu_smart_2
-    - lua_processor@*pantsu/pantsu_auto_fallback
     - speller
     - punctuator
     - selector
@@ -170,15 +170,15 @@ engine:
     - lua_translator@*pantsu/pantsu_calculator
     - punct_translator
     - table_translator
+    - history_translator@recent_history
     - history_translator@repeat_history
     - script_translator@erfen
     - lua_translator@*pantsu/pantsu_date_time
-    - table_translator@english
+#    - table_translator@english # 英文辅助候选会拖慢中文输入；需要英文时切换 english 方案
     - table_translator@pantsuen
   filters:
     - lua_filter@*pantsu/pantsu_make_word_filter
     - lua_filter@*pantsu/pantsu_dynamic_filter
-    - lua_filter@*pantsu/pantsu_topup_preview
     - simplifier
     - simplifier@jffh
     - simplifier@bmms
@@ -207,7 +207,7 @@ translator:
   enable_charset_filter: false
   enable_completion: true #提示码开关，不需要候选词提示请改false
   enable_encoder: false
-  enable_sentence: false #关闭 translator 组句以提升常规输入性能；avuio 顶功由 pantsu_for_topup.lua 控制，不依赖此项
+  enable_sentence: true #保持组句兜底，避免四码无候选时输入串堆积或被顶功处理吞掉
   enable_user_dict: false
   encode_commit_history: false
   max_phrase_length: 6
@@ -216,6 +216,11 @@ translator:
 repeat_history:
   input: ;h #重复上次上屏内容
   size: 1
+  initial_quality: 10000
+
+recent_history:
+  input: ";;" #最近 5 次上屏记录，最近一次在首选
+  size: 5
   initial_quality: 10000
 
 
@@ -299,7 +304,7 @@ make_word:
 # 宇[浩¹]iwl ~淍² ~泃³
 embeded_cands:
   option_name: embeded_cands                               # 嵌入候選開關
-  index_indicators: [ ¹, ², ³, ⁴, ⁵, ⁶, ⁷, ⁸, ⁹, ⁰ ]       # 嵌入候選的序號顯示格式
+  index_indicators: [ "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" ]       # 嵌入候選的序號顯示格式
   first_format: "${Stash}[${候選}${Seq}]${Code}${Comment}" # 首選的渲染格式
   next_format: "${Stash}${候選}${Seq}${Comment}"           # 非首選的渲染格式
   separator: " "                                           # 候選之間的分隔符
@@ -318,13 +323,14 @@ key_binder:
 #    - {accept: semicolon, send: 2, when: has_menu}
 #    - {accept: apostrophe, send: 2, when: has_menu}
     - { accept: apostrophe, toggle: show_es, when: has_menu }
+    - { when: always, accept: Control+1, select: english }
 
 
 recognizer:
   patterns:
     # __include: "layout/patterns"
     punct: "^/([0-9]0?|[a-z]+)$"
-    punct2: "^;([0-9]0?|[a-z]+)$"
+    punct2: "^;[a-z]+$"
     danzi_lookup: "[a-z`]*`+[a-z`]*"
     email: "^[a-z][-_.0-9a-z]*@.*$"
     uppercase: "[A-Z][-_+.'0-9A-Za-z]*$"

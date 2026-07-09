@@ -9,6 +9,7 @@ rime:
     - "^.*pantsu_overrides[.]tsv$"
     - "^.*pantsu_candidate_order[.]tsv$"
     - "^.*pantsu_self_words[.]tsv$"
+    - "^.*pantsu_self_words_ops[.]tsv$"
     - "^.*pantsu_usage[.]tsv$"
     - "^.*pantsu_usage_events[.]tsv$"
     - "^.*pantsu_history[.]tsv$"
@@ -22,6 +23,7 @@ rime:
     - "^.*pantsu_overrides[.]tsv$"
     - "^.*pantsu_candidate_order[.]tsv$"
     - "^.*pantsu_self_words[.]tsv$"
+    - "^.*pantsu_self_words_ops[.]tsv$"
     - "^.*pantsu_usage[.]tsv$"
     - "^.*pantsu_usage_events[.]tsv$"
     - "^.*pantsu_history[.]tsv$"
@@ -511,7 +513,7 @@ keyboards:
                 percentage: 0.46
               landscape:
                 percentage: 0.25
-            label: 胖次键道
+            label: 飞天小胖次
             swipe:
               - action:
                   shortcutCommand: "#次选上屏"

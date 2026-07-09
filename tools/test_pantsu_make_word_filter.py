@@ -31,6 +31,17 @@ def main() -> None:
             comment = comment or "",
           }
         end
+        function ShadowCandidate(candidate, type, text, comment)
+          return {
+            shadow_of = candidate,
+            type = type,
+            start = candidate.start,
+            _end = candidate._end,
+            text = text,
+            comment = comment or "",
+            quality = candidate.quality,
+          }
+        end
         function make_input(candidates)
           return {
             iter = function()
@@ -81,6 +92,29 @@ def main() -> None:
         yielded = {}
         make_word_filter(make_input({}), make_env("["))
         assert(yielded[1].comment == "〔造词中〕〔保存到 abc〕")
+        """
+    )
+    lua.execute(
+        """
+        package.loaded["pantsu.pantsu_make_word_core"].buffer = ""
+        yielded = {}
+        make_word_filter(make_input({
+            Candidate("table", 0, 4, "候选一", "~a"),
+            Candidate("table", 0, 4, "候选二", "~b"),
+        }), make_env("["))
+        assert(#yielded == 2)
+        assert(yielded[1].text == "候选一")
+        assert(yielded[1].comment == "~a〔造词中〕")
+        assert(yielded[2].comment == "~b")
+        """
+    )
+    lua.execute(
+        """
+        yielded = {}
+        make_word_filter(make_input({
+            Candidate("table", 0, 4, "继续选词", ""),
+        }), make_env("abcd"))
+        assert(yielded[1].comment == "〔造词中〕")
         """
     )
     print("PASS pantsu_make_word_filter: active prompt")

@@ -26,41 +26,17 @@
             topup_command: false # 为true时，首码为顶码时禁用顶功逻辑（如orq）
 ]]
 
-local topup_common = require("pantsu.pantsu_topup_common")
-
-local function commit_trailing_topup(env)
-    local context = env.engine.context
-    local input = context.input or ""
-    local prefix, suffix = topup_common.trailing_parts(input, env.topup_set)
-    if not prefix then
-        return false
+local function string2set(str)
+    local t = {}
+    for i = 1, #str do
+        local c = str:sub(i,i)
+        t[c] = true
     end
-
-    context:pop_input(#suffix)
-    if not context:get_selected_candidate() then
-        topup_common.push_text(context, suffix)
-        return false
-    end
-
-    context:commit()
-    for i = 1, #suffix do
-        local ch = suffix:sub(i, i)
-        context:push_input(ch)
-        if context:get_selected_candidate() then
-            context:commit()
-        else
-            topup_common.push_text(context, suffix:sub(i + 1))
-            return true
-        end
-    end
-    return true
+    return t
 end
 
 local function topup(env)
     if not env.engine.context:get_selected_candidate() then
-        if commit_trailing_topup(env) then
-            return
-        end
         if env.auto_clear then
             env.engine.context:clear()
         end
@@ -127,10 +103,8 @@ end
 local function init(env)
     local config = env.engine.schema.config
 
-    env.topup_set =
-        topup_common.string_to_set(config:get_string("topup/topup_with"))
-    env.alphabet =
-        topup_common.string_to_set(config:get_string("speller/alphabet"))
+    env.topup_set = string2set(config:get_string("topup/topup_with"))
+    env.alphabet = string2set(config:get_string("speller/alphabet"))
     env.topup_min = config:get_int("topup/min_length")
     env.topup_min_danzi = config:get_int("topup/min_length_danzi") or env.topup_min
     env.topup_max = config:get_int("topup/max_length")
