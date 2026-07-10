@@ -1,7 +1,8 @@
+local store = require("pantsu.pantsu_store")
 local M = {}
 
 M.config_file = "pantsu_performance.enabled"
-M.log_file = "pantsu_performance.tsv"
+M.log_file = store.userdata_file("pantsu_performance.tsv")
 M.default_limit = 300
 
 local function data_path(path)
@@ -147,6 +148,9 @@ function Profile:finish(status, detail)
                     step.name .. "=" .. string.format("%.3f", step.elapsed))
             end
         end
+    end
+    if not store.ensure_userdata_file(M.log_file) then
+        return
     end
     local lines = read_lines(M.log_file)
     if #lines == 0 or not string.match(lines[1], "^version\t") then

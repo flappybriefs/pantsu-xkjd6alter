@@ -6,6 +6,7 @@ from collections import Counter
 from pathlib import Path
 
 from pantsu_dictionary import minimum_code_length
+from pantsu_paths import existing_data_path
 
 
 def entries(path: Path):
@@ -49,7 +50,7 @@ def main() -> None:
             assert len(fields) >= 3 and fields[2] == "0"
 
     self_codes = {}
-    for raw in (root / "pantsu_self_words.tsv").read_text(
+    for raw in existing_data_path(root, "pantsu_self_words.tsv").read_text(
         encoding="utf-8-sig"
     ).splitlines():
         fields = raw.split("\t")
@@ -82,7 +83,9 @@ def main() -> None:
 
     exclusions = {
         raw.split("\t", 1)[0]
-        for raw in (root / "pantsu_cizu_excluded_names.tsv").read_text(
+        for raw in existing_data_path(
+            root, "pantsu_cizu_excluded_names.tsv"
+        ).read_text(
             encoding="utf-8"
         ).splitlines()[1:]
     }

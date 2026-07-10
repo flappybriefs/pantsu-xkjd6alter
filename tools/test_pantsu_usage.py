@@ -26,6 +26,10 @@ def key_event(lua, keycode):
     )(keycode)
 
 
+def tsv(root: Path, name: str) -> Path:
+    return root / "pantsu_userdata" / name
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -59,7 +63,7 @@ def main() -> None:
 
         for _ in range(4):
             assert usage.record_selection("高频词", "abcd")
-        event_rows = (root / "pantsu_usage_events.tsv").read_text(
+        event_rows = tsv(root, "pantsu_usage_events.tsv").read_text(
             encoding="utf-8"
         ).splitlines()
         assert len(event_rows) == 2
@@ -117,8 +121,8 @@ def main() -> None:
         assert pending["word"] == "第二候选"
         assert usage.commit_matches(context, pending)
 
-        assert (root / "pantsu_usage.tsv").exists()
-        assert (root / "pantsu_usage_events.tsv").exists()
+        assert tsv(root, "pantsu_usage.tsv").exists()
+        assert tsv(root, "pantsu_usage_events.tsv").exists()
 
     print("PASS pantsu_usage: thresholds, persistence, phone fallback")
 

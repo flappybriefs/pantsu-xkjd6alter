@@ -16,6 +16,7 @@ from pantsu_dictionary import (
     load_char_codes,
     minimum_code_length,
 )
+from pantsu_paths import data_path, existing_data_path
 
 ROOT = Path(__file__).resolve().parents[1]
 VALID_WORD = re.compile(r"^[\u3400-\u9fff]{2,6}$")
@@ -155,7 +156,7 @@ def dictionary_codes(path: Path) -> set[str]:
 
 def active_self_words() -> dict[str, set[str]]:
     result: dict[str, set[str]] = defaultdict(set)
-    path = ROOT / "pantsu_self_words.tsv"
+    path = existing_data_path(ROOT, "pantsu_self_words.tsv")
     if path.exists():
         for raw in path.read_text(encoding="utf-8-sig").splitlines():
             fields = raw.split("\t")
@@ -456,7 +457,9 @@ def generate(args) -> None:
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    (ROOT / "pantsu_cizu_excluded_names.tsv").write_text(
+    excluded_path = data_path(ROOT, "pantsu_cizu_excluded_names.tsv")
+    excluded_path.parent.mkdir(parents=True, exist_ok=True)
+    excluded_path.write_text(
         "词汇\t原因\n"
         + "".join(f"{word}\t低频中文人名\n" for word in sorted(excluded_names)),
         encoding="utf-8",

@@ -1,10 +1,24 @@
 local store = require("pantsu.pantsu_store")
 local M = {}
 
+local function userdata_file(name)
+    if store.userdata_file then
+        return store.userdata_file(name)
+    end
+    return "pantsu_userdata/" .. name
+end
+
+local function ensure_userdata_file(path)
+    if store.ensure_userdata_file then
+        return store.ensure_userdata_file(path)
+    end
+    return true
+end
+
 M.state_version = "9"
 M.state_file = "build/pantsu_dynamic_candidates.tsv"
-M.roots_file = "pantsu_dynamic_roots.tsv"
-M.order_file = "pantsu_candidate_order.tsv"
+M.roots_file = userdata_file("pantsu_dynamic_roots.tsv")
+M.order_file = store.order_file or userdata_file("pantsu_candidate_order.tsv")
 M.build_state_file = "user.yaml"
 M.dictionary_files = {
     "pantsu.core.dict.yaml",
@@ -332,6 +346,9 @@ local function remove_state_file()
 end
 
 local function write_roots_file(roots, signature)
+    if not ensure_userdata_file(M.roots_file) then
+        return false
+    end
     local target = data_path(M.roots_file)
     local temp = target .. ".tmp"
     local file = io.open(temp, "wb")
@@ -371,6 +388,7 @@ local function load_root_filter()
     end
     M.root_filter_loaded = true
     M.root_filter = nil
+    ensure_userdata_file(M.roots_file)
     local file = io.open(data_path(M.roots_file), "r")
     if not file then
         return nil

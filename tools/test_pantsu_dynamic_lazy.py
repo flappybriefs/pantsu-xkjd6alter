@@ -11,10 +11,16 @@ except ImportError as exc:
     raise SystemExit("lupa is required") from exc
 
 
+def tsv(root: Path, name: str) -> Path:
+    path = root / "pantsu_userdata" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def write_runtime(root: Path) -> None:
     (root / "build").mkdir(exist_ok=True)
     (root / "user.yaml").write_text("last_build_time: 1\n", encoding="utf-8")
-    (root / "pantsu_dynamic_roots.tsv").write_text(
+    tsv(root, "pantsu_dynamic_roots.tsv").write_text(
         "\n".join(
             [
                 "format\t9",
@@ -68,6 +74,9 @@ def main() -> None:
             """
             test_store_calls = { entries = 0, writes = 0 }
             package.loaded["pantsu.pantsu_store"] = {
+              order_file = "pantsu_userdata/pantsu_candidate_order.tsv",
+              userdata_file = function(name) return "pantsu_userdata/" .. name end,
+              ensure_userdata_file = function() return true end,
               signature = function() return "sig" end,
               ensure_runtime_files = function() return true end,
               entries = function()
@@ -119,7 +128,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         write_runtime(root)
-        roots_path = root / "pantsu_dynamic_roots.tsv"
+        roots_path = tsv(root, "pantsu_dynamic_roots.tsv")
         roots_path.write_text(
             roots_path.read_text(encoding="utf-8").replace(
                 "signature\tsig",
@@ -163,7 +172,7 @@ def main() -> None:
         root = Path(temporary)
         (root / "build").mkdir(exist_ok=True)
         (root / "user.yaml").write_text("last_build_time: 1\n", encoding="utf-8")
-        (root / "pantsu_candidate_order.tsv").write_text(
+        tsv(root, "pantsu_candidate_order.tsv").write_text(
             "\n".join(
                 [
                     "version\t2",
@@ -226,14 +235,14 @@ def main() -> None:
         assert state["entries"][1]["word"] == "乙词"
         assert state["entries"][2]["word"] == "甲词"
         assert lua.globals().test_store_calls["entries"] == 1
-        assert (root / "pantsu_dynamic_roots.tsv").exists()
+        assert tsv(root, "pantsu_dynamic_roots.tsv").exists()
         assert (root / "build/pantsu_dynamic_candidates.tsv").exists()
 
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         (root / "build").mkdir(exist_ok=True)
         (root / "user.yaml").write_text("last_build_time: 1\n", encoding="utf-8")
-        (root / "pantsu_dynamic_roots.tsv").write_text(
+        tsv(root, "pantsu_dynamic_roots.tsv").write_text(
             "\n".join(
                 [
                     "format\t9",
@@ -363,16 +372,16 @@ def main() -> None:
             header + "浮现\tfjxm\n复现\tfjxmu\n",
             encoding="utf-8",
         )
-        (root / "pantsu_overrides.tsv").write_text(
+        tsv(root, "pantsu_overrides.tsv").write_text(
             "version\t3\nruntime\t2026-06-21.5\n",
             encoding="utf-8",
         )
-        (root / "pantsu_candidate_order.tsv").write_text("", encoding="utf-8")
-        (root / "pantsu_self_words.tsv").write_text(
+        tsv(root, "pantsu_candidate_order.tsv").write_text("", encoding="utf-8")
+        tsv(root, "pantsu_self_words.tsv").write_text(
             "version\t1\n",
             encoding="utf-8",
         )
-        (root / "pantsu_self_words_ops.tsv").write_text(
+        tsv(root, "pantsu_self_words_ops.tsv").write_text(
             "version\t1\n",
             encoding="utf-8",
         )
@@ -390,7 +399,7 @@ def main() -> None:
         assert entries[1]["word"] == "浮现"
         assert entries[1]["code"] == "fjxm"
 
-        (root / "pantsu_overrides.tsv").write_text(
+        tsv(root, "pantsu_overrides.tsv").write_text(
             "version\t3\nruntime\t2026-06-21.5\n"
             "entry\tpantsu.cizu.dict.yaml:6:浮现:fjxm\t"
             "pantsu.cizu.dict.yaml\t6\t浮现\tfjxm\tfjxma\t1\t10\tmac\n"
@@ -421,19 +430,19 @@ def main() -> None:
                 "---\nname: test\nversion: \"1\"\nsort: original\n...\n",
                 encoding="utf-8",
             )
-        (root / "pantsu_overrides.tsv").write_text(
+        tsv(root, "pantsu_overrides.tsv").write_text(
             "version\t3\n",
             encoding="utf-8",
         )
-        (root / "pantsu_candidate_order.tsv").write_text(
+        tsv(root, "pantsu_candidate_order.tsv").write_text(
             "version\t2\n",
             encoding="utf-8",
         )
-        (root / "pantsu_self_words.tsv").write_text(
+        tsv(root, "pantsu_self_words.tsv").write_text(
             "version\t1\n",
             encoding="utf-8",
         )
-        (root / "pantsu_self_words_ops.tsv").write_text(
+        tsv(root, "pantsu_self_words_ops.tsv").write_text(
             "version\t1\n",
             encoding="utf-8",
         )
@@ -448,7 +457,7 @@ def main() -> None:
         )
         store = lua.eval("require('pantsu.pantsu_store')")[0]
         assert store.refresh_external_state() is False
-        (root / "pantsu_overrides.tsv").write_text(
+        tsv(root, "pantsu_overrides.tsv").write_text(
             "version\t3\nruntime\ttest\n",
             encoding="utf-8",
         )
@@ -461,7 +470,7 @@ def main() -> None:
         root = Path(temporary)
         (root / "build").mkdir(exist_ok=True)
         (root / "user.yaml").write_text("last_build_time: 1\n", encoding="utf-8")
-        (root / "pantsu_dynamic_roots.tsv").write_text(
+        tsv(root, "pantsu_dynamic_roots.tsv").write_text(
             "\n".join(
                 [
                     "format\t9",
@@ -546,7 +555,7 @@ def main() -> None:
         root = Path(temporary)
         (root / "build").mkdir(exist_ok=True)
         (root / "user.yaml").write_text("last_build_time: 1\n", encoding="utf-8")
-        (root / "pantsu_dynamic_roots.tsv").write_text(
+        tsv(root, "pantsu_dynamic_roots.tsv").write_text(
             "\n".join(
                 [
                     "format\t9",
@@ -622,7 +631,7 @@ def main() -> None:
         )
         lua.globals().test_store_calls["signature"] = "sig2"
         lua.globals().test_store_calls["refresh"] = True
-        (root / "pantsu_dynamic_roots.tsv").write_text(
+        tsv(root, "pantsu_dynamic_roots.tsv").write_text(
             "\n".join(
                 [
                     "format\t9",

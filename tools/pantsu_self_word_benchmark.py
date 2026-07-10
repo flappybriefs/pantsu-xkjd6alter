@@ -9,6 +9,8 @@ import tempfile
 from pathlib import Path
 from time import perf_counter
 
+from pantsu_paths import data_path
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TXJX = Path.home() / "Downloads/txjx"
 SIZES_KB = (50, 100, 250, 500)
@@ -98,11 +100,13 @@ def pantsu_measure(
             f"word\t{word}\t{code}\t0\t1\tbenchmark"
             for word, code in rows
         )
-        (data / "pantsu_self_words.tsv").write_text(
+        self_words_path = data_path(data, "pantsu_self_words.tsv")
+        self_words_path.parent.mkdir(parents=True, exist_ok=True)
+        self_words_path.write_text(
             "\n".join(lines) + "\n",
             encoding="utf-8",
         )
-        lua, store = lua_module(data, ROOT / "lua", "pantsu_store")
+        lua, store = lua_module(data, ROOT / "lua", "pantsu.pantsu_store")
         store.self_words()
         values = []
         for index in range(repeats):

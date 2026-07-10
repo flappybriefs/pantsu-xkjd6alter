@@ -3,10 +3,19 @@ local M = {}
 M.version = "2"
 M.index_version = "3"
 M.runtime_version = "2026-06-21.5"
-M.override_file = "pantsu_overrides.tsv"
-M.history_file = "pantsu_history.tsv"
-M.self_word_file = "pantsu_self_words.tsv"
-M.self_word_ops_file = "pantsu_self_words_ops.tsv"
+M.userdata_dir = "pantsu_userdata"
+
+function M.userdata_file(name)
+    if string.sub(name, 1, #M.userdata_dir + 1) == M.userdata_dir .. "/" then
+        return name
+    end
+    return M.userdata_dir .. "/" .. name
+end
+
+M.override_file = M.userdata_file("pantsu_overrides.tsv")
+M.history_file = M.userdata_file("pantsu_history.tsv")
+M.self_word_file = M.userdata_file("pantsu_self_words.tsv")
+M.self_word_ops_file = M.userdata_file("pantsu_self_words_ops.tsv")
 M.self_word_dict_file = "pantsu.zzc.dict.yaml"
 M.undo_dir = "build/pantsu_undo"
 M.undo_fallback_dir = "build"
@@ -15,7 +24,7 @@ M.undo_limit = 7
 M.undo_kinds = { "overrides", "order", "self_words", "self_word_ops" }
 M.index_file = "build/pantsu_dictionary_index.tsv"
 M.index_dirty_file = "build/pantsu_dictionary_index.dirty"
-M.order_file = "pantsu_candidate_order.tsv"
+M.order_file = M.userdata_file("pantsu_candidate_order.tsv")
 M.dictionary_files = {
     "pantsu.core.dict.yaml",
     "pantsu.danzi.dict.yaml",
@@ -43,6 +52,8 @@ M.dirty_index_files = {}
 M.index_dirty_loaded = false
 M.runtime_state_signature = nil
 M.runtime_state_last_check = nil
+M.userdata_directory_ready = false
+M.userdata_files_ready = {}
 
 local migrate_undo_files
 
@@ -74,6 +85,28 @@ local function directory_writable(path)
     file:close()
     os.remove(data_path(probe))
     return true
+end
+
+function M.ensure_userdata_directory()
+    if M.userdata_directory_ready then
+        return true
+    end
+    if directory_writable(M.userdata_dir) then
+        M.userdata_directory_ready = true
+        return true
+    end
+    if os.execute then
+        if is_windows() then
+            local quoted = '"'
+                .. string.gsub(data_path(M.userdata_dir), '"', '""') .. '"'
+            pcall(os.execute, "mkdir " .. quoted .. " >NUL 2>NUL")
+        else
+            pcall(os.execute,
+                "mkdir -p " .. shell_quote(data_path(M.userdata_dir)))
+        end
+    end
+    M.userdata_directory_ready = directory_writable(M.userdata_dir)
+    return M.userdata_directory_ready
 end
 
 local function ensure_undo_directory()
@@ -151,6 +184,65 @@ local function verified_write(target, content, temp_suffix)
     local saved = check:read("*a")
     check:close()
     return saved == content
+end
+
+local function legacy_name(path)
+    if string.sub(path, 1, #M.userdata_dir + 1) ~= M.userdata_dir .. "/" then
+        return nil
+    end
+    return string.match(path, "([^/]+)$")
+end
+
+function M.ensure_userdata_file(path)
+    if M.userdata_files_ready[path] then
+        return true
+    end
+    if not M.ensure_userdata_directory() then
+        return false
+    end
+    local target = data_path(path)
+    local legacy = legacy_name(path)
+    local existing = io.open(target, "rb")
+    if existing then
+        local target_content = existing:read("*a")
+        existing:close()
+        if legacy then
+            local source_path = data_path(legacy)
+            local source = io.open(source_path, "rb")
+            if source then
+                local source_content = source:read("*a")
+                source:close()
+                if source_content ~= target_content then
+                    return false
+                end
+                os.remove(source_path)
+            end
+        end
+        M.userdata_files_ready[path] = true
+        return true
+    end
+    if not legacy then
+        M.userdata_files_ready[path] = true
+        return true
+    end
+    local source = data_path(legacy)
+    local file = io.open(source, "rb")
+    if not file then
+        M.userdata_files_ready[path] = true
+        return true
+    end
+    local content = file:read("*a")
+    file:close()
+    if os.rename and os.rename(source, target) then
+        M.userdata_files_ready[path] = true
+        return true
+    end
+    if not verified_write(target, content) then
+        return false
+    end
+    os.remove(source)
+    M.userdata_files_ready[path] = true
+    return true
 end
 
 local function atomic_lines(path, lines)
@@ -231,6 +323,9 @@ local function ensure_runtime_marker()
 end
 
 local function ensure_file(path, initial_lines)
+    if not M.ensure_userdata_file(path) then
+        return false
+    end
     local existing = io.open(data_path(path), "rb")
     if existing then
         existing:close()
@@ -243,7 +338,7 @@ function M.ensure_runtime_files()
     if M.runtime_files_ready then
         return true
     end
-    local ok = true
+    local ok = M.ensure_userdata_directory()
     if not ensure_file(M.override_file, {
         "version\t" .. M.index_version,
     }) then

@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_NAME = "pantsu_windows_maintenance.json"
+USERDATA_DIR_NAME = "pantsu_userdata"
 STATE_FILES = (
     "pantsu_overrides.tsv",
     "pantsu_candidate_order.tsv",
@@ -63,11 +64,89 @@ REQUIRED_FILES = (
 )
 
 
+def data_relative_path(name: str | Path) -> Path:
+    path = Path(name)
+    if path.parent == Path(".") and path.suffix.lower() == ".tsv":
+        return Path(USERDATA_DIR_NAME) / path.name
+    return path
+
+
+def data_path(root: Path, name: str | Path) -> Path:
+    return root / data_relative_path(name)
+
+
+def existing_data_path(root: Path, name: str | Path) -> Path:
+    canonical = data_path(root, name)
+    if canonical.exists():
+        return canonical
+    legacy = root / Path(name)
+    if legacy != canonical and legacy.exists():
+        return legacy
+    return canonical
+
+
+def migrate_root_tsvs(root: Path) -> int:
+    sources = sorted(path for path in root.glob("*.tsv") if path.is_file())
+    if not sources:
+        return 0
+    target_dir = root / USERDATA_DIR_NAME
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for source in sources:
+        target = target_dir / source.name
+        if target.exists():
+            if target.read_bytes() != source.read_bytes():
+                raise RuntimeError(f"新旧 TSV 内容冲突：{source} -> {target}")
+            source.unlink()
+        else:
+            shutil.move(str(source), str(target))
+    return len(sources)
+
+
+def reconcile_legacy_root_tsvs(root: Path) -> tuple[int, int]:
+    """Promote old root TSVs after backup using Windows' mtime sync policy."""
+    moved = 0
+    replaced = 0
+    for source in sorted(root.glob("*.tsv")):
+        if not source.is_file():
+            continue
+        target = data_path(root, source.name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists() and target.read_bytes() != source.read_bytes():
+            if source.stat().st_mtime_ns > target.stat().st_mtime_ns:
+                shutil.copy2(source, target)
+                replaced += 1
+        elif not target.exists():
+            shutil.move(str(source), str(target))
+            moved += 1
+            continue
+        source.unlink()
+        moved += 1
+    return moved, replaced
+
+
+def remove_legacy_duplicate(root: Path, canonical: Path) -> None:
+    if canonical.parent != root / USERDATA_DIR_NAME:
+        return
+    legacy = root / canonical.name
+    if legacy.exists():
+        legacy.unlink()
+
+
+def validate_no_legacy_conflict(root: Path, canonical: Path) -> None:
+    if canonical.parent != root / USERDATA_DIR_NAME or not canonical.exists():
+        return
+    legacy = root / canonical.name
+    if legacy.exists() and legacy.read_bytes() != canonical.read_bytes():
+        raise RuntimeError(f"新旧 TSV 内容冲突：{legacy} -> {canonical}")
+
+
 def atomic_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    validate_no_legacy_conflict(ROOT, path)
     temp = path.with_suffix(path.suffix + ".tmp")
     temp.write_text(text, encoding="utf-8")
     temp.replace(path)
+    remove_legacy_duplicate(ROOT, path)
 
 
 def config_path() -> Path:
@@ -124,11 +203,22 @@ def backup() -> Path:
     target.mkdir(parents=True, exist_ok=False)
     copied = 0
     for name in REQUIRED_FILES:
-        source = ROOT / name
+        source = existing_data_path(ROOT, name)
         if source.exists() and source.is_file():
-            destination = target / name
+            destination = target / data_relative_path(name)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
+            copied += 1
+        legacy = ROOT / name
+        if (
+            Path(name).suffix.lower() == ".tsv"
+            and legacy.exists()
+            and legacy.is_file()
+            and legacy != source
+        ):
+            destination = target / "legacy_root" / Path(name).name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(legacy, destination)
             copied += 1
     print(f"已备份 {copied} 个文件到：{target}")
     return target
@@ -141,11 +231,17 @@ def backup_directory(directory: Path, label: str) -> Path | None:
     target.mkdir(parents=True, exist_ok=False)
     copied = 0
     for name in STATE_FILES:
-        source = directory / name
+        source = existing_data_path(directory, name)
         if source.exists() and source.is_file():
-            destination = target / name
+            destination = target / data_relative_path(name)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
+            copied += 1
+        legacy = directory / name
+        if legacy.exists() and legacy.is_file() and legacy != source:
+            destination = target / "legacy_root" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(legacy, destination)
             copied += 1
     print(f"已备份 {label} 状态 {copied} 个文件到：{target}")
     return target
@@ -167,8 +263,12 @@ def record_version(record: list[str]) -> tuple[int, str]:
 
 
 def effective_self_words() -> dict[str, list[str]]:
-    result = parse_self_words(ROOT / "pantsu_self_words.tsv")
-    for key, record in parse_self_words(ROOT / "pantsu_self_words_ops.tsv").items():
+    result = parse_self_words(
+        existing_data_path(ROOT, "pantsu_self_words.tsv")
+    )
+    for key, record in parse_self_words(
+        existing_data_path(ROOT, "pantsu_self_words_ops.tsv")
+    ).items():
         current = result.get(key)
         if current is None or record_version(record) >= record_version(current):
             result[key] = record
@@ -178,8 +278,12 @@ def effective_self_words() -> dict[str, list[str]]:
 def write_self_words(records: dict[str, list[str]]) -> None:
     lines = ["version\t1"]
     lines.extend("\t".join(records[key]) for key in sorted(records))
-    atomic_write(ROOT / "pantsu_self_words.tsv", "\n".join(lines) + "\n")
-    atomic_write(ROOT / "pantsu_self_words_ops.tsv", "version\t1\n")
+    atomic_write(
+        data_path(ROOT, "pantsu_self_words.tsv"), "\n".join(lines) + "\n"
+    )
+    atomic_write(
+        data_path(ROOT, "pantsu_self_words_ops.tsv"), "version\t1\n"
+    )
 
 
 def parse_usage() -> dict[tuple[str, str], tuple[int, int]]:
@@ -188,7 +292,7 @@ def parse_usage() -> dict[tuple[str, str], tuple[int, int]]:
         ("pantsu_usage.tsv", "word"),
         ("pantsu_usage_events.tsv", "event"),
     ):
-        for raw in safe_rows(ROOT / name):
+        for raw in safe_rows(existing_data_path(ROOT, name)):
             fields = raw.split("\t")
             if (
                 len(fields) != 5
@@ -216,13 +320,15 @@ def write_usage(records: dict[tuple[str, str], tuple[int, int]]) -> None:
     lines = ["version\t1"]
     for (word, device), (count, updated) in sorted(records.items()):
         lines.append(f"word\t{word}\t{device}\t{count}\t{updated}")
-    atomic_write(ROOT / "pantsu_usage.tsv", "\n".join(lines) + "\n")
-    atomic_write(ROOT / "pantsu_usage_events.tsv", "version\t1\n")
+    atomic_write(data_path(ROOT, "pantsu_usage.tsv"), "\n".join(lines) + "\n")
+    atomic_write(
+        data_path(ROOT, "pantsu_usage_events.tsv"), "version\t1\n"
+    )
 
 
 def parse_overrides() -> dict[str, list[str]]:
     result: dict[str, list[str]] = {}
-    for raw in safe_rows(ROOT / "pantsu_overrides.tsv"):
+    for raw in safe_rows(existing_data_path(ROOT, "pantsu_overrides.tsv")):
         fields = raw.split("\t")
         if len(fields) >= 10 and fields[0] == "entry":
             result[fields[1]] = fields
@@ -232,12 +338,14 @@ def parse_overrides() -> dict[str, list[str]]:
 def write_overrides(records: dict[str, list[str]]) -> None:
     lines = ["version\t1"]
     lines.extend("\t".join(records[key]) for key in sorted(records))
-    atomic_write(ROOT / "pantsu_overrides.tsv", "\n".join(lines) + "\n")
+    atomic_write(data_path(ROOT, "pantsu_overrides.tsv"), "\n".join(lines) + "\n")
 
 
 def parse_candidate_orders() -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
-    for raw in safe_rows(ROOT / "pantsu_candidate_order.tsv"):
+    for raw in safe_rows(
+        existing_data_path(ROOT, "pantsu_candidate_order.tsv")
+    ):
         fields = raw.split("\t")
         if len(fields) >= 5 and fields[0] == "meta":
             result[fields[1]] = {
@@ -270,7 +378,9 @@ def read_build_time() -> str:
 
 def rebuild_dynamic_roots() -> int:
     roots: set[str] = set()
-    for raw in safe_rows(ROOT / "pantsu_dynamic_roots.tsv"):
+    for raw in safe_rows(
+        existing_data_path(ROOT, "pantsu_dynamic_roots.tsv")
+    ):
         fields = raw.split("\t")
         if len(fields) >= 2 and fields[0] == "root" and fields[1]:
             roots.add(fields[1])
@@ -295,12 +405,17 @@ def rebuild_dynamic_roots() -> int:
         "signature\t",
     ]
     lines.extend(f"root\t{root}" for root in sorted(roots))
-    atomic_write(ROOT / "pantsu_dynamic_roots.tsv", "\n".join(lines) + "\n")
+    atomic_write(
+        data_path(ROOT, "pantsu_dynamic_roots.tsv"),
+        "\n".join(lines) + "\n",
+    )
     return len(roots)
 
 
-def compact_runtime() -> None:
-    backup()
+def compact_runtime(*, create_backup: bool = True, announce: bool = True) -> dict[str, int]:
+    if create_backup:
+        backup()
+    reconcile_legacy_root_tsvs(ROOT)
     self_words = effective_self_words()
     usage = parse_usage()
     write_self_words(self_words)
@@ -308,10 +423,17 @@ def compact_runtime() -> None:
     root_count = rebuild_dynamic_roots()
     (ROOT / "build").mkdir(exist_ok=True)
     (ROOT / "build" / "pantsu_undo").mkdir(parents=True, exist_ok=True)
-    print(f"自造词快照：{len(self_words)} 条")
-    print(f"词频统计：{len({word for word, _ in usage})} 个词")
-    print(f"动态前缀缓存：{root_count} 个")
-    print("已压缩运行态日志。建议随后重新部署小狼毫。")
+    result = {
+        "self_words": len(self_words),
+        "usage_words": len({word for word, _ in usage}),
+        "dynamic_roots": root_count,
+    }
+    if announce:
+        print(f"自造词快照：{result['self_words']} 条")
+        print(f"词频统计：{result['usage_words']} 个词")
+        print(f"动态前缀缓存：{result['dynamic_roots']} 个")
+        print("已压缩运行态日志。建议随后重新部署小狼毫。")
+    return result
 
 
 def choose_sync_directory() -> Path | None:
@@ -343,17 +465,20 @@ def sync_state_directory() -> None:
         return
     backup()
     backup_directory(target, "sync")
+    local_moved, local_replaced = reconcile_legacy_root_tsvs(ROOT)
+    remote_moved, remote_replaced = reconcile_legacy_root_tsvs(target)
     pulled = 0
     pushed = 0
     for name in STATE_FILES:
-        local = ROOT / name
-        remote = target / name
+        local = existing_data_path(ROOT, name)
+        remote = existing_data_path(target, name)
         if not local.exists() and not remote.exists():
             continue
         if remote.exists() and (
             not local.exists()
             or remote.stat().st_mtime_ns > local.stat().st_mtime_ns
         ):
+            local = data_path(ROOT, name)
             local.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(remote, local)
             pulled += 1
@@ -361,11 +486,18 @@ def sync_state_directory() -> None:
             not remote.exists()
             or local.stat().st_mtime_ns > remote.stat().st_mtime_ns
         ):
+            remote = data_path(target, name)
             remote.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(local, remote)
             pushed += 1
     root_count = rebuild_dynamic_roots()
     print(f"同步完成：从同步目录接收 {pulled} 个文件，写回 {pushed} 个文件。")
+    if local_moved or remote_moved:
+        print(
+            "已迁移旧根目录 TSV："
+            f"本机 {local_moved} 个、同步目录 {remote_moved} 个；"
+            f"按修改时间采用旧路径新版本 {local_replaced + remote_replaced} 个。"
+        )
     print(f"动态前缀缓存：{root_count} 个")
     print("如果电脑和同步目录同时改过同一个状态文件，本工具会保留较新的文件。")
 
@@ -374,7 +506,7 @@ def health() -> int:
     errors: list[str] = []
     warnings: list[str] = []
     for name in REQUIRED_FILES:
-        path = ROOT / name
+        path = existing_data_path(ROOT, name)
         if not path.exists():
             errors.append(f"缺少文件：{name}")
     valid_code_chars = set("abcdefghijklmnopqrstuvwxyz;/`")
@@ -392,8 +524,12 @@ def health() -> int:
             code = fields[1].strip()
             if any(char not in valid_code_chars for char in code):
                 warnings.append(f"{name}:{number} 编码含非常规字符：{code}")
-    self_ops = max(0, len(safe_rows(ROOT / "pantsu_self_words_ops.tsv")) - 1)
-    usage_events = max(0, len(safe_rows(ROOT / "pantsu_usage_events.tsv")) - 1)
+    self_ops = max(0, len(safe_rows(
+        existing_data_path(ROOT, "pantsu_self_words_ops.tsv")
+    )) - 1)
+    usage_events = max(0, len(safe_rows(
+        existing_data_path(ROOT, "pantsu_usage_events.tsv")
+    )) - 1)
     if self_ops > 1000:
         warnings.append(f"自造词操作日志 {self_ops} 条，建议压缩")
     if usage_events > 512:
@@ -424,6 +560,7 @@ def apply_overrides() -> None:
         print("没有指向胖次键道基础词库的覆盖")
         return
     backup()
+    reconcile_legacy_root_tsvs(ROOT)
     grouped: dict[str, dict[int, tuple[str, list[str]]]] = {}
     unresolved: list[list[str]] = []
     for key, record in selected.items():
@@ -473,7 +610,9 @@ def apply_overrides() -> None:
         for key, record in entries.items()
         if key not in applied
     })
-    unresolved_path = ROOT / "pantsu_apply_overrides_unresolved.tsv"
+    unresolved_path = data_path(
+        ROOT, "pantsu_apply_overrides_unresolved.tsv"
+    )
     if unresolved:
         atomic_write(
             unresolved_path,
@@ -482,6 +621,14 @@ def apply_overrides() -> None:
     else:
         unresolved_path.unlink(missing_ok=True)
     print(f"已将 {len(applied)} 条覆盖合并回胖次键道基础词库")
+    if applied:
+        compacted = compact_runtime(create_backup=False, announce=False)
+        print(
+            "已压缩关联运行态："
+            f"自造词 {compacted['self_words']} 条；"
+            f"词频 {compacted['usage_words']} 个；"
+            f"动态前缀 {compacted['dynamic_roots']} 个"
+        )
     if unresolved:
         print(f"{len(unresolved)} 条覆盖暂未合并，已写入：{unresolved_path.name}")
 
@@ -499,9 +646,9 @@ def export_state_package() -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name in STATE_FILES:
-            path = ROOT / name
+            path = existing_data_path(ROOT, name)
             if path.exists():
-                archive.write(path, name)
+                archive.write(path, data_relative_path(name).as_posix())
     print(f"已生成状态同步包：{target}")
     print("把这个 zip 带回 Mac 后，解压覆盖同名状态文件，再运行 Mac 维护工具合并。")
     return target

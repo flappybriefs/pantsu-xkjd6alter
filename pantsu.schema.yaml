@@ -170,12 +170,12 @@ engine:
     - lua_translator@*pantsu/pantsu_calculator
     - punct_translator
     - table_translator
-    - history_translator@recent_history
-    - history_translator@repeat_history
+    - lua_translator@*pantsu/pantsu_recent_history
     - script_translator@erfen
     - lua_translator@*pantsu/pantsu_date_time
 #    - table_translator@english # 英文辅助候选会拖慢中文输入；需要英文时切换 english 方案
     - table_translator@pantsuen
+    - lua_translator@*pantsu/pantsu_english_fallback
   filters:
     - lua_filter@*pantsu/pantsu_make_word_filter
     - lua_filter@*pantsu/pantsu_dynamic_filter
@@ -187,10 +187,11 @@ engine:
     - reverse_lookup_filter@danzi_lookup
     - reverse_lookup_filter@pinyin_reverse_lookup
     - reverse_lookup_filter@erfen_lookup
-#    - lua_filter@*pantsu/pantsu_single_char #候选辅助码单字优先，由于该方案有二简词，故关闭
+#    - lua_filter@*pantsu/pantsu_single_char # 单字优先默认关闭；保留文件供日后手动启用
     - lua_filter@*pantsu/pantsu_completion   #辅助码提示
     - lua_filter@*pantsu/pantsu_lazy_emoji
     - lua_filter@*pantsu/pantsu_embeded_cands@embeded_cands  #内嵌
+    - lua_filter@*pantsu/pantsu_text_escape # 仅在上屏时解码自定义候选转义
     - uniquifier
 
 
@@ -213,15 +214,9 @@ translator:
   max_phrase_length: 6
 
 
-repeat_history:
-  input: ;h #重复上次上屏内容
-  size: 1
-  initial_quality: 10000
-
 recent_history:
   input: ";;" #最近 5 次上屏记录，最近一次在首选
   size: 5
-  initial_quality: 10000
 
 
 EN2en:
@@ -231,8 +226,8 @@ EN2en:
 pantsuen:
   tag: pantsuen
   dictionary: pantsu.en
-  enable_sentence: true
-  enable_completion: true
+  enable_sentence: false # 不把未知输入拆成多个英文词
+  enable_completion: true # 有同前缀词时正常补全；无候选时交给 Lua 兜底
   enable_user_dict: false
   comment_format:
     - xform/.*//

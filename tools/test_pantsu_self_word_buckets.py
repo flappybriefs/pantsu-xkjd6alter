@@ -88,6 +88,11 @@ def main() -> None:
             for _, record in store.self_words().items()
             if record["active"] and record["code"].startswith(target[:4])
         }
+        root = Path(temporary.name)
+        assert not (root / "pantsu_self_words.tsv").exists()
+        assert (
+            root / "pantsu_userdata" / "pantsu_self_words.tsv"
+        ).exists()
         bucket = store.self_word_candidates(target[:4])
         actual = {
             bucket[index]["word"]

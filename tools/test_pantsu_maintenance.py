@@ -21,33 +21,39 @@ def load_module(source: Path):
     return module
 
 
+def state(root: Path, name: str) -> Path:
+    path = root / "pantsu_userdata" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def write_state(root: Path, device: str, count: int) -> None:
     root.mkdir(parents=True, exist_ok=True)
     (root / "installation.yaml").write_text(
         f"installation_id: {device}\n",
         encoding="utf-8",
     )
-    (root / "pantsu_usage.tsv").write_text(
+    state(root, "pantsu_usage.tsv").write_text(
         f"version\t1\nword\t测试词\t{device}\t{count}\t{count}\n",
         encoding="utf-8",
     )
-    (root / "pantsu_usage_events.tsv").write_text(
+    state(root, "pantsu_usage_events.tsv").write_text(
         "version\t1\n",
         encoding="utf-8",
     )
-    (root / "pantsu_overrides.tsv").write_text(
+    state(root, "pantsu_overrides.tsv").write_text(
         "version\t2\n",
         encoding="utf-8",
     )
-    (root / "pantsu_candidate_order.tsv").write_text(
+    state(root, "pantsu_candidate_order.tsv").write_text(
         "version\t2\n",
         encoding="utf-8",
     )
-    (root / "pantsu_self_words.tsv").write_text(
+    state(root, "pantsu_self_words.tsv").write_text(
         "version\t1\n",
         encoding="utf-8",
     )
-    (root / "pantsu_history.tsv").write_text(
+    state(root, "pantsu_history.tsv").write_text(
         f"{count}\t{device}\tpromote\tcode-{device}\t"
         f"历史-{device}\t1\n",
         encoding="utf-8",
@@ -118,13 +124,13 @@ def write_health_fixture(root: Path) -> None:
         encoding="utf-8",
     )
     source_line = len(dictionary_header.splitlines()) + 1
-    (root / "pantsu_overrides.tsv").write_text(
+    state(root, "pantsu_overrides.tsv").write_text(
         "version\t2\n"
         f"entry\tfixture\tpantsu.core.dict.yaml\t{source_line}\t"
         "大脚板\tdjbvu\tdjbvuv\t1\t10\tmac\n",
         encoding="utf-8",
     )
-    (root / "pantsu_candidate_order.tsv").write_text(
+    state(root, "pantsu_candidate_order.tsv").write_text(
         "version\t2\n"
         "meta\tdjbvuv\t10\tmac\t1\n"
         "item\tdjbvuv\t1\t大脚板\n",
@@ -151,16 +157,25 @@ def main() -> None:
             "old: true\n",
             encoding="utf-8",
         )
-        (phone / "pantsu_overrides.tsv").write_text(
+        state(phone, "pantsu_overrides.tsv").write_text(
             "version\t2\n"
             "entry\told\tpantsu.waigua.dict.yaml\t1\t"
             "旧词\told\tnew\t1\t10\tiphone\n",
             encoding="utf-8",
         )
-        (phone / "pantsu_history.tsv").write_text(
-            (phone / "pantsu_history.tsv").read_text(encoding="utf-8")
+        state(phone, "pantsu_history.tsv").write_text(
+            state(phone, "pantsu_history.tsv").read_text(encoding="utf-8")
             + "8\tiphone\tmake_word\tszf\t苏姿丰\t1_codes\n"
             + "9\tiphone\tmake_word\tmnea\t马尿水\t1_codes\n",
+            encoding="utf-8",
+        )
+        (phone / "pantsu_usage_events.tsv").write_text(
+            "version\t1\n"
+            "delta\t旧手机新记录\tiphone\t4\t12\n",
+            encoding="utf-8",
+        )
+        (phone / "pantsu_history.tsv").write_text(
+            "10\tiphone\tpromote\tlegacy\t根目录记录\t1\n",
             encoding="utf-8",
         )
 
@@ -170,7 +185,7 @@ def main() -> None:
         first_backup = maintenance.backup()
         second_backup = maintenance.backup()
         assert first_backup != second_backup
-        (root / "pantsu_candidate_order.tsv").write_text(
+        state(root, "pantsu_candidate_order.tsv").write_text(
             "version\t2\n"
             "meta\ttest\t20\tmac\t1\n"
             "item\ttest\t1\t电脑最新\n"
@@ -178,7 +193,7 @@ def main() -> None:
             "item\ttie\t1\t电脑同秒旧值\n",
             encoding="utf-8",
         )
-        (phone / "pantsu_candidate_order.tsv").write_text(
+        state(phone, "pantsu_candidate_order.tsv").write_text(
             "version\t2\n"
             "meta\ttest\t10\tiphone\t1\n"
             "item\ttest\t1\t手机旧值\n"
@@ -186,8 +201,8 @@ def main() -> None:
             "item\ttie\t1\t手机同秒新值\n",
             encoding="utf-8",
         )
-        os.utime(root / "pantsu_candidate_order.tsv", ns=(10, 10))
-        os.utime(phone / "pantsu_candidate_order.tsv", ns=(20, 20))
+        os.utime(state(root, "pantsu_candidate_order.tsv"), ns=(10, 10))
+        os.utime(state(phone, "pantsu_candidate_order.tsv"), ns=(20, 20))
         assert maintenance.looks_like_rime_root(phone)
         assert maintenance.state_directories(phone) == [phone]
         assert maintenance.sync_phone(
@@ -198,14 +213,16 @@ def main() -> None:
         usage = maintenance.parse_usage(root)
         assert usage[("测试词", "mac")] == (3, 3)
         assert usage[("测试词", "iphone")] == (7, 7)
+        assert usage[("旧手机新记录", "iphone")] == (4, 12)
         assert maintenance.parse_overrides(
-            root / "pantsu_overrides.tsv"
+            state(root, "pantsu_overrides.tsv")
         ) == {}
-        history = maintenance.parse_history(root / "pantsu_history.tsv")
+        history = maintenance.parse_history(state(root, "pantsu_history.tsv"))
         assert {fields[1] for fields in history.values()} == {
             "mac",
             "iphone",
         }
+        assert any(fields[4] == "根目录记录" for fields in history.values())
         self_words = maintenance.parse_self_word_state(root)
         assert self_words["苏姿丰\tszf"][3] == "1"
         assert self_words["马尿水\tmnea"][3] == "1"
@@ -219,14 +236,18 @@ def main() -> None:
             phone
             / "sync"
             / "mac"
+            / "pantsu_userdata"
             / "pantsu_usage.tsv"
         ).exists()
         assert (
             phone
             / "sync"
             / "mac"
+            / "pantsu_userdata"
             / "pantsu_self_words_ops.tsv"
         ).exists()
+        assert not (phone / "pantsu_usage_events.tsv").exists()
+        assert not (phone / "pantsu_history.tsv").exists()
         assert not (phone / "pantsu_refined.schema.yaml").exists()
         assert not (phone / "pantsu.waigua.dict.yaml").exists()
         assert (phone / "pantsu.core.dict.yaml").read_text(
@@ -245,12 +266,12 @@ def main() -> None:
             root / "sync" / "mac",
         ]:
             orders = maintenance.parse_candidate_orders(
-                directory / "pantsu_candidate_order.tsv"
+                state(directory, "pantsu_candidate_order.tsv")
             )
             assert orders["test"]["items"] == [["1", "电脑最新"]]
             assert orders["tie"]["items"] == [["1", "手机同秒新值"]]
             history = maintenance.parse_history(
-                directory / "pantsu_history.tsv"
+                state(directory, "pantsu_history.tsv")
             )
             assert {fields[1] for fields in history.values()} == {
                 "mac",
@@ -269,13 +290,13 @@ def main() -> None:
         )
         assert "竞争记录（已按最新操作自动决胜）" in operation_log
         assert "candidate_order" in operation_log
-        (root / "pantsu_candidate_order.tsv").write_text(
+        state(root, "pantsu_candidate_order.tsv").write_text(
             "version\t2\n",
             encoding="utf-8",
         )
         maintenance.restore_merge_log(logs[0].name)
         restored = maintenance.parse_candidate_orders(
-            root / "pantsu_candidate_order.tsv"
+            state(root, "pantsu_candidate_order.tsv")
         )
         assert restored["test"]["items"] == [["1", "电脑最新"]]
         for index in range(6):
@@ -294,14 +315,14 @@ def main() -> None:
         maintenance.ROOT = root
         issues = maintenance.health()
         assert issues == []
-        report = (root / "pantsu_health_report.tsv").read_text(
+        report = state(root, "pantsu_health_report.tsv").read_text(
             encoding="utf-8"
         )
         assert "正常\t检查通过" in report
         assert "胖次键道" in report
         assert "orphan_order" not in report
 
-        orders = root / "pantsu_candidate_order.tsv"
+        orders = state(root, "pantsu_candidate_order.tsv")
         orders.write_text(
             orders.read_text(encoding="utf-8").replace(
                 "大脚板",
@@ -312,7 +333,7 @@ def main() -> None:
         issues = maintenance.health()
         assert len(issues) == 1
         assert issues[0][0:2] == ["警告", "候选顺序失效"]
-        report = (root / "pantsu_health_report.tsv").read_text(
+        report = state(root, "pantsu_health_report.tsv").read_text(
             encoding="utf-8"
         )
         assert "该方案的生效词库中找不到" in report
@@ -325,11 +346,27 @@ def main() -> None:
         cizu_lines.append("多发区\tdfqua\t0")
         cizu.write_text("\n".join(cizu_lines) + "\n", encoding="utf-8")
         cizu_line = len(cizu_lines)
-        overrides = root / "pantsu_overrides.tsv"
+        overrides = state(root, "pantsu_overrides.tsv")
         overrides.write_text(
             overrides.read_text(encoding="utf-8")
             + f"entry\tweighted\tpantsu.cizu.dict.yaml\t{cizu_line}\t"
             "多发区\tdfqua\tdfquav\t1\t11\tmac\n",
+            encoding="utf-8",
+        )
+        state(root, "pantsu_self_words.tsv").write_text(
+            "version\t1\nword\t快照词\tkzcv\t1\t10\tmac\n",
+            encoding="utf-8",
+        )
+        state(root, "pantsu_self_words_ops.tsv").write_text(
+            "version\t1\nword\t增量词\tzlcv\t1\t11\tmac\n",
+            encoding="utf-8",
+        )
+        state(root, "pantsu_usage.tsv").write_text(
+            "version\t1\nword\t快照词\tmac\t2\t10\n",
+            encoding="utf-8",
+        )
+        state(root, "pantsu_usage_events.tsv").write_text(
+            "version\t1\ndelta\t增量词\tmac\t3\t11\n",
             encoding="utf-8",
         )
         maintenance.apply_overrides("pantsu")
@@ -337,8 +374,20 @@ def main() -> None:
         assert "大脚板\tdjbvuv" in core.read_text(encoding="utf-8")
         assert "多发区\tdfquav\t0" in cizu.read_text(encoding="utf-8")
         assert maintenance.parse_overrides(
-            root / "pantsu_overrides.tsv"
+            state(root, "pantsu_overrides.tsv")
         ) == {}
+        self_words = maintenance.parse_self_word_state(root)
+        assert "快照词\tkzcv" in self_words
+        assert "增量词\tzlcv" in self_words
+        assert state(root, "pantsu_self_words_ops.tsv").read_text(
+            encoding="utf-8"
+        ) == "version\t1\n"
+        usage = maintenance.parse_usage(root)
+        assert usage[("增量词", "mac")] == (3, 11)
+        assert state(root, "pantsu_usage_events.tsv").read_text(
+            encoding="utf-8"
+        ) == "version\t1\n"
+        assert state(root, "pantsu_dynamic_roots.tsv").exists()
         snapshots = sorted((root / "backups").iterdir())
         assert (snapshots[-1] / "pantsu.core.dict.yaml").exists()
 
@@ -357,7 +406,7 @@ def main() -> None:
             "待删除\tlmnov\n",
             encoding="utf-8",
         )
-        (root / "pantsu_overrides.tsv").write_text(
+        state(root, "pantsu_overrides.tsv").write_text(
             "version\t2\n"
             "entry\told-applied\tpantsu.cizu.dict.yaml\t6\t"
             "已应用\tabcd\tabcdv\t1\t10\tmac\n"
@@ -370,7 +419,9 @@ def main() -> None:
         (root / "backups").mkdir()
         maintenance.ROOT = root
         maintenance.repair_overrides()
-        repaired = maintenance.parse_overrides(root / "pantsu_overrides.tsv")
+        repaired = maintenance.parse_overrides(
+            state(root, "pantsu_overrides.tsv")
+        )
         assert "old-applied" not in repaired
         weighted = next(
             record for record in repaired.values()
@@ -385,10 +436,12 @@ def main() -> None:
         assert deleted[3] == "8"
         assert deleted[5] == "lmnov"
         assert deleted[7] == "0"
-        assert not (root / "pantsu_override_repair_unresolved.tsv").exists()
+        assert not state(
+            root, "pantsu_override_repair_unresolved.tsv"
+        ).exists()
 
         roots = maintenance.regenerate_dynamic_roots()
-        dynamic_roots = (root / "pantsu_dynamic_roots.tsv").read_text(
+        dynamic_roots = state(root, "pantsu_dynamic_roots.tsv").read_text(
             encoding="utf-8"
         )
         assert roots == 3
@@ -415,7 +468,7 @@ def main() -> None:
             header + "甲\tqaa\n乙\tjbb\n",
             encoding="utf-8",
         )
-        (root / "pantsu_self_words.tsv").write_text(
+        state(root, "pantsu_self_words.tsv").write_text(
             "version\t1\n"
             "word\t自造词\tqajb\t1\t10\tiphone\n",
             encoding="utf-8",
@@ -476,7 +529,7 @@ def main() -> None:
             path for path in (root / "pantsu_maintenance_logs").iterdir()
             if path.is_dir() and path.name != "reports"
         ]) == maintenance.MERGE_LOG_LIMIT
-        assert (root / "pantsu_self_words_ops.tsv").read_text(
+        assert state(root, "pantsu_self_words_ops.tsv").read_text(
             encoding="utf-8"
         ) == "version\t1\n"
 

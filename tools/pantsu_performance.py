@@ -8,6 +8,8 @@ import tempfile
 from pathlib import Path
 from time import perf_counter
 
+from pantsu_paths import data_path, existing_data_path
+
 try:
     from lupa import LuaRuntime
 except ImportError:
@@ -128,9 +130,11 @@ def benchmark(ops: int, code_count: int) -> dict[str, float | int | str]:
         root = Path(directory)
         (root / "build").mkdir()
         for name in (*DICTIONARIES, *STATE_FILES):
-            source = ROOT / name
+            source = existing_data_path(ROOT, name)
             if source.exists():
-                shutil.copy2(source, root / name)
+                target = data_path(root, name)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
         lua, store = lua_store(root)
         start = perf_counter()
         store.entries(codes[0])

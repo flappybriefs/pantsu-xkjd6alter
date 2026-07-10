@@ -19,6 +19,16 @@ from pantsu_maintenance_profiles import (
     profiles_for_dictionary,
     selected_profiles,
 )
+from pantsu_paths import (
+    data_path,
+    data_relative_path,
+    data_variants,
+    existing_data_path,
+    migrate_root_tsvs,
+    remove_legacy_duplicate,
+    retire_legacy_state_files,
+    validate_no_legacy_conflict,
+)
 from pantsu_dictionary import (
     full_code_for_word,
     load_char_codes,
@@ -43,15 +53,22 @@ CLEANUP_REPORT_FILES = (
     "pantsu_apply_overrides_unresolved.tsv",
     "pantsu_performance.tsv",
 )
+DEFER_LEGACY_CLEANUP = False
 
 
 def atomic_write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not DEFER_LEGACY_CLEANUP:
+        validate_no_legacy_conflict(ROOT, path)
     temp = path.with_suffix(path.suffix + ".tmp")
     temp.write_text(text, encoding="utf-8")
     temp.replace(path)
+    if not DEFER_LEGACY_CLEANUP:
+        remove_legacy_duplicate(ROOT, path)
 
 
 def ensure_runtime_directories() -> None:
+    migrate_root_tsvs(ROOT)
     (ROOT / "build").mkdir(exist_ok=True)
     (ROOT / "build/pantsu_undo").mkdir(parents=True, exist_ok=True)
 
@@ -78,7 +95,9 @@ def dynamic_root_for_code(code: str, *, order: bool = False) -> str | None:
 
 def regenerate_dynamic_roots() -> int:
     roots: set[str] = set()
-    for record in parse_overrides(ROOT / "pantsu_overrides.tsv").values():
+    for record in parse_overrides(
+        existing_data_path(ROOT, "pantsu_overrides.tsv")
+    ).values():
         if len(record) >= 8:
             for code in (record[5], record[6]):
                 root = dynamic_root_for_code(code)
@@ -91,7 +110,7 @@ def regenerate_dynamic_roots() -> int:
                 roots.add(root)
     for profile in SCHEME_PROFILES.values():
         for code, state_record in parse_candidate_orders(
-            ROOT / profile.candidate_order_file
+            existing_data_path(ROOT, profile.candidate_order_file)
         ).items():
             if state_record.get("active", True):
                 root = dynamic_root_for_code(code, order=True)
@@ -103,7 +122,10 @@ def regenerate_dynamic_roots() -> int:
         "signature\t",
     ]
     lines.extend(f"root\t{root}" for root in sorted(roots))
-    atomic_write(ROOT / "pantsu_dynamic_roots.tsv", "\n".join(lines) + "\n")
+    atomic_write(
+        data_path(ROOT, "pantsu_dynamic_roots.tsv"),
+        "\n".join(lines) + "\n",
+    )
     return len(roots)
 
 
@@ -156,9 +178,11 @@ def create_merge_log(action: str, directories: list[str]) -> Path:
     existing: list[str] = []
     missing: list[str] = []
     for name in MERGE_LOG_FILES:
-        source = ROOT / name
+        source = existing_data_path(ROOT, name)
         if source.exists():
-            shutil.copy2(source, target / name)
+            destination = target / data_relative_path(name)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
             existing.append(name)
         else:
             missing.append(name)
@@ -212,7 +236,7 @@ def finish_merge_log(
     lines.extend(
         f"- {key}: {value}" for key, value in sorted(details.items())
     )
-    conflict_path = ROOT / "pantsu_sync_conflicts.tsv"
+    conflict_path = existing_data_path(ROOT, "pantsu_sync_conflicts.tsv")
     if conflict_path.exists():
         lines.append("竞争记录（已按最新操作自动决胜）：")
         lines.extend(
@@ -245,9 +269,10 @@ def restore_merge_log(name: str) -> None:
     snapshot_files = set(manifest.get("snapshot_files", []))
     missing_files = set(manifest.get("missing_files", []))
     for name in MERGE_LOG_FILES:
-        snapshot = source / name
-        target = ROOT / name
+        snapshot = source / data_relative_path(name)
+        target = data_path(ROOT, name)
         if name in snapshot_files and snapshot.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(snapshot, target)
         elif name in missing_files:
             target.unlink(missing_ok=True)
@@ -271,9 +296,15 @@ def backup(extra_files: tuple[str, ...] = ()) -> Path:
     target = ROOT / "backups" / stamp
     target.mkdir(parents=True, exist_ok=False)
     for name in dict.fromkeys((*STATE_FILES, *extra_files)):
-        source = ROOT / name
-        if source.exists():
-            shutil.copy2(source, target / name)
+        canonical = data_path(ROOT, name)
+        for source in data_variants(ROOT, name):
+            destination = (
+                target / data_relative_path(name)
+                if source == canonical
+                else target / "legacy_root" / Path(name).name
+            )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
     snapshots = sorted(
         path for path in (ROOT / "backups").glob("*")
         if path.is_dir()
@@ -310,7 +341,7 @@ def remove_shared_cleanup_files() -> tuple[int, int]:
             continue
         seen.add(resolved)
         for name in CLEANUP_REPORT_FILES:
-            path = directory / name
+            path = existing_data_path(directory, name)
             if path.exists():
                 path.unlink()
                 report_removed += 1
@@ -334,9 +365,9 @@ def prune_child_directories(directory: Path, keep: int) -> int:
 
 def archive_cleanup_reports() -> tuple[int, Path | None]:
     files = [
-        ROOT / name
+        existing_data_path(ROOT, name)
         for name in CLEANUP_REPORT_FILES
-        if (ROOT / name).exists()
+        if existing_data_path(ROOT, name).exists()
     ]
     if not files:
         return 0, None
@@ -407,8 +438,12 @@ def restore(name: str) -> None:
     if not source.is_dir():
         raise SystemExit(f"备份不存在：{source}")
     backup()
-    for path in source.iterdir():
-        shutil.copy2(path, ROOT / path.name)
+    for path in source.rglob("*"):
+        if not path.is_file():
+            continue
+        target = ROOT / path.relative_to(source)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, target)
     print(f"已恢复 {source.name}")
 
 
@@ -425,7 +460,7 @@ def parse_overrides(path: Path) -> dict[str, list[str]]:
 
 def write_overrides(entries: dict[str, list[str]]) -> None:
     lines = ["version\t2"]
-    current = ROOT / "pantsu_overrides.tsv"
+    current = existing_data_path(ROOT, "pantsu_overrides.tsv")
     if current.exists():
         runtime_lines = [
             raw
@@ -435,7 +470,10 @@ def write_overrides(entries: dict[str, list[str]]) -> None:
         if runtime_lines:
             lines.append(runtime_lines[-1])
     lines.extend("\t".join(entries[key]) for key in sorted(entries))
-    atomic_write(ROOT / "pantsu_overrides.tsv", "\n".join(lines) + "\n")
+    atomic_write(
+        data_path(ROOT, "pantsu_overrides.tsv"),
+        "\n".join(lines) + "\n",
+    )
 
 
 def normalize_overrides(
@@ -484,19 +522,28 @@ def parse_self_word_records(path: Path) -> dict[str, list[str]]:
 
 
 def parse_self_word_state(directory: Path) -> dict[str, list[str]]:
-    result = parse_self_word_records(directory / "pantsu_self_words.tsv")
+    snapshot_path = existing_data_path(directory, "pantsu_self_words.tsv")
+    ops_path = existing_data_path(directory, "pantsu_self_words_ops.tsv")
+    return parse_self_word_state_paths(snapshot_path, ops_path)
+
+
+def parse_self_word_state_paths(
+    snapshot_path: Path,
+    ops_path: Path,
+) -> dict[str, list[str]]:
+    result = parse_self_word_records(snapshot_path)
     for key, record in parse_self_word_records(
-        directory / "pantsu_self_words_ops.tsv"
+        ops_path
     ).items():
         current = result.get(key)
         if current is None or operation_version(
             record,
-            directory / "pantsu_self_words_ops.tsv",
+            ops_path,
             updated_index=4,
             device_index=5,
         ) >= operation_version(
             current,
-            directory / "pantsu_self_words.tsv",
+            snapshot_path,
             updated_index=4,
             device_index=5,
         ):
@@ -507,8 +554,14 @@ def parse_self_word_state(directory: Path) -> dict[str, list[str]]:
 def write_self_word_records(entries: dict[str, list[str]]) -> None:
     lines = ["version\t1"]
     lines.extend("\t".join(entries[key]) for key in sorted(entries))
-    atomic_write(ROOT / "pantsu_self_words.tsv", "\n".join(lines) + "\n")
-    atomic_write(ROOT / "pantsu_self_words_ops.tsv", "version\t1\n")
+    atomic_write(
+        data_path(ROOT, "pantsu_self_words.tsv"),
+        "\n".join(lines) + "\n",
+    )
+    atomic_write(
+        data_path(ROOT, "pantsu_self_words_ops.tsv"),
+        "version\t1\n",
+    )
     sync_self_words_to_zzc(entries)
 
 
@@ -570,11 +623,19 @@ def sync_self_words_to_zzc(
 
 def parse_usage(directory: Path) -> dict[tuple[str, str], tuple[int, int]]:
     result: dict[tuple[str, str], tuple[int, int]] = {}
-    for name, kind in [
-        ("pantsu_usage.tsv", "word"),
-        ("pantsu_usage_events.tsv", "event"),
-    ]:
-        path = directory / name
+    return merge_usage_paths(
+        result,
+        existing_data_path(directory, "pantsu_usage.tsv"),
+        existing_data_path(directory, "pantsu_usage_events.tsv"),
+    )
+
+
+def merge_usage_paths(
+    result: dict[tuple[str, str], tuple[int, int]],
+    usage_path: Path,
+    events_path: Path,
+) -> dict[tuple[str, str], tuple[int, int]]:
+    for path, kind in [(usage_path, "word"), (events_path, "event")]:
         if not path.exists():
             continue
         for raw in path.read_text(encoding="utf-8-sig").splitlines():
@@ -613,8 +674,12 @@ def write_usage(entries: dict[tuple[str, str], tuple[int, int]]) -> None:
                 str(updated),
             ])
         )
-    atomic_write(ROOT / "pantsu_usage.tsv", "\n".join(lines) + "\n")
-    atomic_write(ROOT / "pantsu_usage_events.tsv", "version\t1\n")
+    atomic_write(
+        data_path(ROOT, "pantsu_usage.tsv"), "\n".join(lines) + "\n"
+    )
+    atomic_write(
+        data_path(ROOT, "pantsu_usage_events.tsv"), "version\t1\n"
+    )
 
 
 def parse_history(path: Path) -> dict[str, list[str]]:
@@ -642,7 +707,7 @@ def write_history(entries: dict[str, list[str]]) -> None:
         total -= len((rows[0] + "\n").encode("utf-8"))
         rows.pop(0)
     atomic_write(
-        ROOT / "pantsu_history.tsv",
+        data_path(ROOT, "pantsu_history.tsv"),
         "".join(raw + "\n" for raw in rows),
     )
 
@@ -738,7 +803,7 @@ def write_candidate_orders(
                 for record in state["items"]
             )
     atomic_write(
-        path or ROOT / "pantsu_candidate_order.tsv",
+        path or data_path(ROOT, "pantsu_candidate_order.tsv"),
         "\n".join(lines) + "\n",
     )
 
@@ -757,41 +822,45 @@ def merge_sync(
     if create_backup:
         backup()
     try:
+        global DEFER_LEGACY_CLEANUP
         conflicts: list[str] = []
         state_roots = [ROOT, *(Path(directory) for directory in directories)]
 
         merged: dict[str, list[str]] = {}
         override_versions: dict[str, tuple[int, int, str]] = {}
         for directory in state_roots:
-            path = directory / "pantsu_overrides.tsv"
-            for key, record in parse_overrides(path).items():
-                version = operation_version(
-                    record,
-                    path,
-                    updated_index=8,
-                    device_index=9,
-                )
-                current = merged.get(key)
-                current_version = override_versions.get(key)
-                if current is not None and current != record:
-                    winner = "incoming" if version > current_version else "current"
-                    conflicts.append("\t".join([
-                        "override",
-                        key,
-                        winner,
-                        str(current_version),
-                        str(version),
-                    ]))
-                if current is None or version > current_version:
-                    merged[key] = record
-                    override_versions[key] = version
+            for path in data_variants(directory, "pantsu_overrides.tsv"):
+                for key, record in parse_overrides(path).items():
+                    version = operation_version(
+                        record,
+                        path,
+                        updated_index=8,
+                        device_index=9,
+                    )
+                    current = merged.get(key)
+                    current_version = override_versions.get(key)
+                    if current is not None and current != record:
+                        winner = "incoming" if version > current_version else "current"
+                        conflicts.append("\t".join([
+                            "override",
+                            key,
+                            winner,
+                            str(current_version),
+                            str(version),
+                        ]))
+                    if current is None or version > current_version:
+                        merged[key] = record
+                        override_versions[key] = version
+        DEFER_LEGACY_CLEANUP = True
         merged, dropped_overrides = normalize_overrides(merged)
         write_overrides(merged)
 
         for profile in SCHEME_PROFILES.values():
             order_sources = [
-                directory / profile.candidate_order_file
+                path
                 for directory in state_roots
+                for path in data_variants(
+                    directory, profile.candidate_order_file)
             ]
             order_sources = [path for path in order_sources if path.exists()]
             merged_orders: dict[str, dict[str, object]] = {}
@@ -819,45 +888,50 @@ def merge_sync(
             if order_sources:
                 write_candidate_orders(
                     merged_orders,
-                    ROOT / profile.candidate_order_file,
+                    data_path(ROOT, profile.candidate_order_file),
                 )
 
         history: dict[str, list[str]] = {}
         for directory in state_roots:
-            history.update(parse_history(directory / "pantsu_history.tsv"))
+            for path in data_variants(directory, "pantsu_history.tsv"):
+                history.update(parse_history(path))
 
         self_words: dict[str, list[str]] = {}
         self_versions: dict[str, tuple[int, int, str]] = {}
         for directory in state_roots:
-            snapshot_path = directory / "pantsu_self_words.tsv"
-            ops_path = directory / "pantsu_self_words_ops.tsv"
-            ops_keys = set(parse_self_word_records(ops_path))
-            for key, record in parse_self_word_state(directory).items():
-                source_path = (
-                    ops_path
-                    if key in ops_keys
-                    else snapshot_path
-                )
-                version = operation_version(
-                    record,
-                    source_path,
-                    updated_index=4,
-                    device_index=5,
-                )
-                current = self_words.get(key)
-                current_version = self_versions.get(key)
-                if current is not None and current != record:
-                    winner = "incoming" if version > current_version else "current"
-                    conflicts.append("\t".join([
-                        "self_word",
-                        key,
-                        winner,
-                        str(current_version),
-                        str(version),
-                    ]))
-                if current is None or version > current_version:
-                    self_words[key] = record
-                    self_versions[key] = version
+            layouts = [
+                (data_path(directory, "pantsu_self_words.tsv"),
+                 data_path(directory, "pantsu_self_words_ops.tsv")),
+                (directory / "pantsu_self_words.tsv",
+                 directory / "pantsu_self_words_ops.tsv"),
+            ]
+            for snapshot_path, ops_path in layouts:
+                if not snapshot_path.exists() and not ops_path.exists():
+                    continue
+                ops_keys = set(parse_self_word_records(ops_path))
+                for key, record in parse_self_word_state_paths(
+                    snapshot_path, ops_path).items():
+                    source_path = ops_path if key in ops_keys else snapshot_path
+                    version = operation_version(
+                        record,
+                        source_path,
+                        updated_index=4,
+                        device_index=5,
+                    )
+                    current = self_words.get(key)
+                    current_version = self_versions.get(key)
+                    if current is not None and current != record:
+                        winner = "incoming" if version > current_version else "current"
+                        conflicts.append("\t".join([
+                            "self_word",
+                            key,
+                            winner,
+                            str(current_version),
+                            str(version),
+                        ]))
+                    if current is None or version > current_version:
+                        self_words[key] = record
+                        self_versions[key] = version
         recovered_self_words = recover_self_words_from_history(
             self_words,
             self_versions,
@@ -865,24 +939,34 @@ def merge_sync(
         )
         write_self_word_records(self_words)
 
-        usage = parse_usage(ROOT)
-        for directory in directories:
-            for key, incoming in parse_usage(Path(directory)).items():
-                current = usage.get(key)
-                if current is None or incoming > current:
-                    usage[key] = incoming
+        usage: dict[tuple[str, str], tuple[int, int]] = {}
+        for directory in state_roots:
+            for usage_path, events_path in [
+                (data_path(directory, "pantsu_usage.tsv"),
+                 data_path(directory, "pantsu_usage_events.tsv")),
+                (directory / "pantsu_usage.tsv",
+                 directory / "pantsu_usage_events.tsv"),
+            ]:
+                usage = merge_usage_paths(usage, usage_path, events_path)
         write_usage(usage)
 
         write_history(history)
+        retire_legacy_state_files(
+            ROOT,
+            tuple(dict.fromkeys((*STATE_FILES, *CACHE_STATE_FILES))),
+        )
+        DEFER_LEGACY_CLEANUP = False
         ensure_runtime_directories()
         dynamic_roots = regenerate_dynamic_roots()
         if conflicts:
             atomic_write(
-                ROOT / "pantsu_sync_conflicts.tsv",
+                data_path(ROOT, "pantsu_sync_conflicts.tsv"),
                 "\n".join(conflicts) + "\n",
             )
         else:
-            (ROOT / "pantsu_sync_conflicts.tsv").unlink(missing_ok=True)
+            existing_data_path(
+                ROOT, "pantsu_sync_conflicts.tsv"
+            ).unlink(missing_ok=True)
         if write_back:
             broadcast_state([Path(directory) for directory in directories])
         result: dict[str, object] = {
@@ -915,6 +999,7 @@ def merge_sync(
             print(f"维护日志：{log.name}")
         return result
     except Exception as exc:
+        DEFER_LEGACY_CLEANUP = False
         if log is not None:
             finish_merge_log(
                 log,
@@ -935,17 +1020,24 @@ def installation_id() -> str:
 def copy_state(target: Path) -> None:
     target.mkdir(parents=True, exist_ok=True)
     for name in STATE_FILES:
-        source = ROOT / name
+        source = existing_data_path(ROOT, name)
         if source.exists():
-            shutil.copy2(source, target / name)
+            destination = target / data_relative_path(name)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+    retire_legacy_state_files(
+        target,
+        tuple(dict.fromkeys((*STATE_FILES, *CACHE_STATE_FILES))),
+    )
+    migrate_root_tsvs(target)
 
 
 def copy_relative_files(names: tuple[str, ...], target: Path) -> int:
     copied = 0
     for name in names:
-        source = ROOT / name
+        source = existing_data_path(ROOT, name)
         if source.exists():
-            destination = target / name
+            destination = target / data_relative_path(name)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
             copied += 1
@@ -955,7 +1047,7 @@ def copy_relative_files(names: tuple[str, ...], target: Path) -> int:
 def clear_cache_state(directory: Path) -> int:
     removed = 0
     for name in CACHE_STATE_FILES:
-        path = directory / name
+        path = existing_data_path(directory, name)
         if path.exists():
             path.unlink()
             removed += 1
@@ -980,9 +1072,9 @@ def copy_phone_scheme(target: Path) -> tuple[int, int]:
         return 0, 0
     profile = active_profile()
     obsolete = [
-        target / name
+        existing_data_path(target, name)
         for name in profile.obsolete_phone_files
-        if (target / name).exists()
+        if existing_data_path(target, name).exists()
     ]
     backup_target = None
     if obsolete:
@@ -1006,7 +1098,9 @@ def copy_phone_scheme(target: Path) -> tuple[int, int]:
         path.unlink()
     copied += copy_relative_files(PERSISTENT_CACHE_FILES, target)
     for directory in state_directories(target):
-        stale = directory / "pantsu_refined_candidate_order.tsv"
+        stale = existing_data_path(
+            directory, "pantsu_refined_candidate_order.tsv"
+        )
         stale.unlink(missing_ok=True)
         clear_cache_state(directory)
     clear_cache_state(target)
@@ -1018,7 +1112,7 @@ def reconcile_dictionary_self_codes(
     fixed_names: tuple[str, ...],
     editable_end: int | None = None,
 ) -> tuple[int, int]:
-    journal = ROOT / "pantsu_self_words.tsv"
+    journal = existing_data_path(ROOT, "pantsu_self_words.tsv")
     if not path.exists() or not journal.exists():
         return 0, 0
     self_by_code: dict[str, set[str]] = {}
@@ -1208,7 +1302,7 @@ def looks_like_rime_root(path: Path) -> bool:
         and (
             (path / "hamster.yaml").exists()
             or (path / "pantsu.schema.yaml").exists()
-            or (path / "pantsu_self_words.tsv").exists()
+            or existing_data_path(path, "pantsu_self_words.tsv").exists()
         )
     )
 
@@ -1256,7 +1350,10 @@ def state_directories(path: Path) -> list[Path]:
         resolved = candidate.resolve()
         if resolved == ROOT.resolve() or resolved in seen:
             return
-        if any((candidate / name).exists() for name in STATE_FILES):
+        if any(
+            existing_data_path(candidate, name).exists()
+            for name in STATE_FILES
+        ):
             seen.add(resolved)
             result.append(candidate)
 
@@ -1531,20 +1628,22 @@ def migrate_candidate_orders() -> None:
     local_id = installation_id()
     total = 0
     for profile in SCHEME_PROFILES.values():
-        path = ROOT / profile.candidate_order_file
+        path = existing_data_path(ROOT, profile.candidate_order_file)
         if not path.exists():
             continue
         states = parse_candidate_orders(path)
         for state in states.values():
             if state["device"] == "legacy":
                 state["device"] = local_id
-        write_candidate_orders(states, path)
+        write_candidate_orders(
+            states, data_path(ROOT, profile.candidate_order_file)
+        )
         total += len(states)
     print(f"已迁移 {total} 个同码排序状态")
 
 
 def show_performance(limit: int) -> None:
-    path = ROOT / "pantsu_performance.tsv"
+    path = existing_data_path(ROOT, "pantsu_performance.tsv")
     if not path.exists():
         print("尚无性能记录；先执行一次自造词、前移、后移或删除")
         return
@@ -1757,7 +1856,9 @@ def health(scheme: str = "all") -> list[list[str]]:
                 else:
                     seen[key] = (name, number, raw)
 
-    overrides = parse_overrides(ROOT / "pantsu_overrides.tsv")
+    overrides = parse_overrides(
+        existing_data_path(ROOT, "pantsu_overrides.tsv")
+    )
     valid_overrides: dict[tuple[str, int], list[str]] = {}
     selected_keys = {profile.key for profile in profiles}
     for record in overrides.values():
@@ -1858,7 +1959,7 @@ def health(scheme: str = "all") -> list[list[str]]:
         active_words_by_profile[profile.key] = active_words
 
     for profile in profiles:
-        orders = ROOT / profile.candidate_order_file
+        orders = existing_data_path(ROOT, profile.candidate_order_file)
         if not orders.exists():
             continue
         for code, state in parse_candidate_orders(orders).items():
@@ -1877,7 +1978,7 @@ def health(scheme: str = "all") -> list[list[str]]:
                         "确认词条已删除后，可清理该候选顺序记录",
                     )
 
-    report = ROOT / "pantsu_health_report.tsv"
+    report = data_path(ROOT, "pantsu_health_report.tsv")
     rows = [[
         "级别", "类型", "方案", "位置", "词汇", "编码", "原因", "建议"
     ]]
@@ -1912,7 +2013,7 @@ def health(scheme: str = "all") -> list[list[str]]:
 
 
 def show_history(limit: int) -> None:
-    path = ROOT / "pantsu_history.tsv"
+    path = existing_data_path(ROOT, "pantsu_history.tsv")
     if not path.exists():
         print("暂无操作历史")
         return
@@ -1922,7 +2023,9 @@ def show_history(limit: int) -> None:
 
 
 def apply_overrides(scheme: str = "all") -> None:
-    entries = parse_overrides(ROOT / "pantsu_overrides.tsv")
+    entries = parse_overrides(
+        existing_data_path(ROOT, "pantsu_overrides.tsv")
+    )
     allowed = {
         name
         for profile in selected_profiles(scheme)
@@ -1976,7 +2079,9 @@ def apply_overrides(scheme: str = "all") -> None:
         key: record for key, record in entries.items() if key not in applied
     }
     write_overrides(remaining)
-    unresolved_path = ROOT / "pantsu_apply_overrides_unresolved.tsv"
+    unresolved_path = data_path(
+        ROOT, "pantsu_apply_overrides_unresolved.tsv"
+    )
     if unresolved:
         atomic_write(
             unresolved_path,
@@ -1986,6 +2091,14 @@ def apply_overrides(scheme: str = "all") -> None:
         unresolved_path.unlink(missing_ok=True)
     labels = "、".join(profile.label for profile in selected_profiles(scheme))
     print(f"已将 {len(applied)} 条覆盖合并回{labels}基础词库")
+    if applied:
+        compacted = compact_runtime_state()
+        print(
+            "已压缩关联运行态："
+            f"自造词 {compacted['self_words']} 条；"
+            f"词频 {compacted['usage_words']} 个；"
+            f"动态前缀 {compacted['dynamic_roots']} 个"
+        )
     if unresolved:
         print(
             f"{len(unresolved)} 条覆盖因源词条变化暂未合并；"
@@ -2001,7 +2114,9 @@ def repair_overrides(scheme: str = "all") -> None:
         for name in profile.dictionaries
     }
     backup()
-    entries = parse_overrides(ROOT / "pantsu_overrides.tsv")
+    entries = parse_overrides(
+        existing_data_path(ROOT, "pantsu_overrides.tsv")
+    )
     selected = {
         key: record
         for key, record in entries.items()
@@ -2085,11 +2200,13 @@ def repair_overrides(scheme: str = "all") -> None:
     write_overrides({**untouched, **repaired})
     if unresolved:
         atomic_write(
-            ROOT / "pantsu_override_repair_unresolved.tsv",
+            data_path(ROOT, "pantsu_override_repair_unresolved.tsv"),
             "\n".join(unresolved) + "\n",
         )
     else:
-        (ROOT / "pantsu_override_repair_unresolved.tsv").unlink(
+        existing_data_path(
+            ROOT, "pantsu_override_repair_unresolved.tsv"
+        ).unlink(
             missing_ok=True
         )
     print(
@@ -2133,6 +2250,11 @@ def main() -> None:
     sub.add_parser("rebuild-runtime")
     sub.add_parser("cleanup")
     args = parser.parse_args()
+    try:
+        migrate_root_tsvs(ROOT)
+    except RuntimeError as exc:
+        print(f"检测到旧根目录 TSV 与新目录同时有更新：{exc}")
+        print("同步/合并会同时读取两份状态，并在成功后收敛到 pantsu_userdata。")
     if args.command == "backup":
         backup()
     elif args.command == "restore":

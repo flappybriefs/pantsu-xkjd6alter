@@ -1,6 +1,8 @@
+local store = require("pantsu.pantsu_store")
+
 local M = {
-    summary_file = "pantsu_usage.tsv",
-    event_file = "pantsu_usage_events.tsv",
+    summary_file = store.userdata_file("pantsu_usage.tsv"),
+    event_file = store.userdata_file("pantsu_usage_events.tsv"),
     compact_threshold = 256,
     max_words = 20000,
     minimum_count = 5,
@@ -145,6 +147,9 @@ local function load_file(path, row_kind)
 end
 
 local function ensure_file(path)
+    if not store.ensure_userdata_file(path) then
+        return false
+    end
     if read_content(path) ~= nil then
         return true
     end
